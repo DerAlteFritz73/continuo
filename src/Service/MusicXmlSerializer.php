@@ -10,11 +10,13 @@ use App\Model\Score;
 /**
  * Serializes a realized Score back to MusicXML format.
  *
- * Output structure (MusicXML 4.0):
- *  - Part 1: Original bass line (unchanged, bass clef)
- *  - Part 2: Realized continuo — grand staff (2 staves):
- *      Staff 1 / treble: Voice 1 = Soprano, Voice 2 = Alto, Voice 3 = Tenor
- *      Staff 2 / bass:   Voice 4 = Bass (doubled from original)
+ * Output structure (MusicXML 4.0) — single grand-staff part:
+ *  Staff 1 / treble: Voice 1 — block chord (soprano + alto + tenor stacked
+ *                    with <chord> elements so they form one rhythmic stream)
+ *  Staff 2 / bass:   Voice 2 — original bass note with figured bass markings
+ *
+ * Both staves share the same voice timeline (one backup per beat position),
+ * which ensures identical horizontal note spacing in any notation renderer.
  */
 class MusicXmlSerializer
 {
@@ -114,27 +116,23 @@ class MusicXmlSerializer
             $totalDur = $this->durationTicks($bassNote->duration, $score->divisions);
 
             if ($chord === null || $bassNote->isRest()) {
-                // Rest in all voices
+                // Rest in both staves
                 $this->appendRest($el, $dom, $bassNote, 1, 1, $score->divisions, $totalDur, false);
-                $this->appendRest($el, $dom, $bassNote, 4, 2, $score->divisions, $totalDur, true);
+                $this->appendRest($el, $dom, $bassNote, 2, 2, $score->divisions, $totalDur, true);
                 continue;
             }
 
-            // Upper voices (soprano→alto→tenor), sorted highest first
-            $upperVoices = array_reverse($chord->upperVoices);
-
-            // ── Staff 1 (treble): voices 1, 2, 3 ──────────────────────────
+            // ── Staff 1 (treble): voice 1, block chord ────────────────────
+            // Soprano is the first note (advances time); alto and tenor follow
+            // with <chord> so they are simultaneous — one rhythmic stream.
+            $upperVoices = array_reverse($chord->upperVoices); // [soprano, alto, tenor]
             foreach ($upperVoices as $vi => $upperNote) {
-                $voiceNum = $vi + 1;        // 1=soprano, 2=alto, 3=tenor
-                if ($vi > 0) {
-                    $this->appendBackup($el, $dom, $totalDur);
-                }
-                $el->appendChild($this->noteElement($dom, $upperNote, $voiceNum, $score->divisions, 1));
+                $el->appendChild($this->noteElement($dom, $upperNote, 1, $score->divisions, 1, $vi > 0));
             }
 
-            // ── Staff 2 (bass): voice 4 ────────────────────────────────────
+            // ── Staff 2 (bass): voice 2 ───────────────────────────────────
             $this->appendBackup($el, $dom, $totalDur);
-            $el->appendChild($this->noteElement($dom, $bassNote, 4, $score->divisions, 2));
+            $el->appendChild($this->noteElement($dom, $bassNote, 2, $score->divisions, 2));
             if (!empty($bassNote->figuredBass)) {
                 $el->appendChild($this->figuredBassElement($dom, $bassNote->figuredBass));
             }
@@ -215,11 +213,17 @@ class MusicXmlSerializer
     }
 
     /**
-     * Build a <note> element with an explicit <staff> number (for grand staff).
+     * Build a <note> element.
+     * $chordMember = true inserts <chord> as the first child, making the note
+     * simultaneous with the preceding note (standard MusicXML chord notation).
      */
-    private function noteElement(\DOMDocument $dom, Note $note, int $voice, int $divisions, int $staff = 1): \DOMElement
+    private function noteElement(\DOMDocument $dom, Note $note, int $voice, int $divisions, int $staff = 1, bool $chordMember = false): \DOMElement
     {
         $el = $dom->createElement('note');
+
+        if ($chordMember) {
+            $el->appendChild($dom->createElement('chord'));
+        }
 
         if ($note->isRest()) {
             $el->appendChild($dom->createElement('rest'));
