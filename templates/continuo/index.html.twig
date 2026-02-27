@@ -1,0 +1,683 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Basso Continuo Realizer{% endblock %}
+
+{% block head %}
+<!-- Google Fonts: Playfair Display + Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --bg:       #0d0f14;
+    --surface:  #161923;
+    --surface2: #1e2430;
+    --border:   #2a3244;
+    --accent:   #c8a96e;
+    --accent2:  #7eb8b0;
+    --danger:   #e07070;
+    --text:     #e8e4dc;
+    --muted:    #8090a8;
+    --radius:   12px;
+    --shadow:   0 4px 32px rgba(0,0,0,.5);
+}
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+.wrapper { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+/* ── Header ─────────────────────────────────────────────── */
+.site-header { text-align: center; padding: 3rem 0 2rem; }
+.site-header .subtitle {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+.site-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.2;
+}
+.site-header .desc {
+    color: var(--muted);
+    margin-top: 0.75rem;
+    font-size: 0.92rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.staff-deco {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 1.5rem auto;
+    max-width: 400px;
+}
+.staff-deco .line { flex: 1; height: 1px; background: var(--border); }
+.staff-deco .clef { font-size: 2.8rem; color: var(--accent); line-height: 1; opacity: 0.7; }
+
+/* ── Card ───────────────────────────────────────────────── */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    box-shadow: var(--shadow);
+}
+.card + .card { margin-top: 1.5rem; }
+.card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Drop Zone ──────────────────────────────────────────── */
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(200,169,110,0.05);
+}
+.drop-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.drop-zone .icon {
+    font-size: 3rem; margin-bottom: 0.75rem; display: block; color: var(--accent); opacity: 0.6;
+}
+.drop-zone .label { font-size: 1rem; color: var(--text); font-weight: 500; }
+.drop-zone .hint { font-size: 0.82rem; color: var(--muted); margin-top: 0.35rem; }
+.drop-zone.has-file { border-style: solid; border-color: var(--accent2); background: rgba(126,184,176,0.05); }
+.file-name {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.6rem 1rem;
+    background: var(--surface2);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: var(--accent2);
+    font-weight: 500;
+    justify-content: center;
+}
+.file-name.visible { display: flex; }
+
+/* ── Button ─────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: linear-gradient(135deg, var(--accent), #a88a50); color: #0d0f14; }
+.btn-primary:hover { box-shadow: 0 4px 20px rgba(200,169,110,0.35); }
+.btn-dl { background: var(--accent2); color: #0d0f14; }
+.btn-dl:hover { box-shadow: 0 4px 20px rgba(126,184,176,0.35); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.btn-row { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
+
+/* ── Progress / Spinner ─────────────────────────────────── */
+.progress-wrap {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+}
+.progress-wrap.visible { display: flex; }
+.spinner {
+    width: 44px; height: 44px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-text { color: var(--muted); font-size: 0.9rem; }
+
+/* ── Alert ──────────────────────────────────────────────── */
+.alert {
+    padding: 0.9rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+.alert-error {
+    background: rgba(224,112,112,0.12);
+    border: 1px solid rgba(224,112,112,0.3);
+    color: var(--danger);
+}
+.alert-success {
+    background: rgba(126,184,176,0.12);
+    border: 1px solid rgba(126,184,176,0.3);
+    color: var(--accent2);
+}
+
+/* ── Result Panel ───────────────────────────────────────── */
+#result-panel { display: none; }
+#result-panel.visible { display: block; }
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.summary-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-align: center;
+}
+.summary-item .val {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: 'Playfair Display', serif;
+    display: block;
+    line-height: 1.3;
+}
+.summary-item .lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.chord-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.chord-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--accent2);
+    font-family: 'Playfair Display', serif;
+}
+.chord-pill .count { color: var(--muted); font-size: 0.75rem; margin-left: 0.3em; }
+
+/* ── XML Preview ────────────────────────────────────────── */
+.xml-preview {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 0.76rem;
+    color: #7a9ab8;
+    white-space: pre;
+    margin-top: 1rem;
+    line-height: 1.5;
+}
+.xml-preview::-webkit-scrollbar { width: 6px; }
+.xml-preview::-webkit-scrollbar-track { background: var(--surface); }
+.xml-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Info Accordion ─────────────────────────────────────── */
+.accordion {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 2rem;
+}
+.accordion-header {
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: var(--muted);
+    user-select: none;
+    list-style: none;
+}
+.accordion-header:hover { color: var(--text); }
+.accordion-body {
+    display: none;
+    padding: 1.25rem;
+    background: var(--surface2);
+    font-size: 0.84rem;
+    color: var(--muted);
+    line-height: 1.7;
+}
+.accordion-body.open { display: block; }
+.accordion-body ul { padding-left: 1.4em; }
+.accordion-body li { margin-bottom: 0.35rem; }
+.accordion-body strong { color: var(--text); }
+.accordion-body h4 {
+    font-family: 'Playfair Display', serif;
+    color: var(--accent);
+    font-size: 0.95rem;
+    margin: 0.75rem 0 0.4rem;
+}
+.accordion-chevron { transition: transform 0.2s; font-size: 0.75rem; }
+.accordion-chevron.open { transform: rotate(180deg); }
+
+/* ── Footer ─────────────────────────────────────────────── */
+footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+
+    <!-- Header -->
+    <header class="site-header">
+        <p class="subtitle">Baroque Music Technology</p>
+        <h1>Basso Continuo Realizer</h1>
+        <div class="staff-deco">
+            <div class="line"></div>
+            <span class="clef">𝄢</span>
+            <div class="line"></div>
+        </div>
+        <p class="desc">
+            Upload a MusicXML file containing a bass line to generate an historically-informed
+            continuo realization using rules from Gasparini (1708), Delair (1724), and the
+            Wead–Knopke decision tree (ICMC 2007).
+        </p>
+    </header>
+
+    <!-- Upload Card -->
+    <div class="card">
+        <div class="card-title">Upload Score</div>
+
+        {% if error is defined and error %}
+        <div class="alert alert-error">
+            <span>⚠</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form id="upload-form" action="{{ path('app_realize_preview') }}" method="post" enctype="multipart/form-data">
+            <div class="drop-zone" id="drop-zone">
+                <input type="file" name="musicxml" id="file-input" accept=".xml,.musicxml,.mxl">
+                <span class="icon">𝄞</span>
+                <div class="label">Drop your MusicXML file here</div>
+                <div class="hint">or click to browse &mdash; .xml / .musicxml files, max 5 MB</div>
+            </div>
+            <div class="file-name" id="file-name-display">
+                <span>📄</span>
+                <span id="file-name-text"></span>
+            </div>
+
+            <div class="btn-row">
+                <button type="submit" class="btn btn-primary" id="realize-btn" disabled>
+                    <span>♩</span>
+                    Realize Continuo
+                </button>
+                <button type="button" class="btn btn-secondary" id="clear-btn" style="display:none">
+                    Clear
+                </button>
+            </div>
+        </form>
+
+        <!-- Spinner -->
+        <div class="progress-wrap" id="progress-wrap">
+            <div class="spinner"></div>
+            <p class="progress-text">Analyzing bass line and realizing harmony&hellip;</p>
+        </div>
+    </div>
+
+    <!-- Result Panel -->
+    <div id="result-panel">
+        <div class="card">
+            <div class="card-title">Realization Complete</div>
+
+            <div class="alert alert-success" id="success-msg">
+                <span>✓</span>
+                <span>Continuo realization generated successfully.</span>
+            </div>
+
+            <!-- Summary grid -->
+            <div class="summary-grid" id="summary-grid">
+                <!-- populated by JS -->
+            </div>
+
+            <!-- Top chords -->
+            <div id="chord-section" style="display:none">
+                <p style="font-size:0.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Most frequent harmonies</p>
+                <div class="chord-pills" id="chord-pills"></div>
+            </div>
+
+            <!-- XML preview -->
+            <div>
+                <p style="font-size:0.82rem;color:var(--muted);margin-top:1rem;text-transform:uppercase;letter-spacing:.06em">Output preview</p>
+                <div class="xml-preview" id="xml-preview"></div>
+            </div>
+
+            <!-- Actions -->
+            <div class="btn-row">
+                <button class="btn btn-dl" id="download-btn">
+                    ⬇ Download MusicXML
+                </button>
+                <button class="btn btn-secondary" id="new-btn">
+                    ↩ Realize Another
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accordion: How it works -->
+    <details class="accordion">
+        <summary class="accordion-header">
+            <span>How It Works</span>
+            <span class="accordion-chevron">▼</span>
+        </summary>
+        <div class="accordion-body">
+            <h4>Algorithm Overview</h4>
+            <p>The realizer implements the decision tree described by Wead &amp; Knopke (ICMC 2007), drawing on two primary Baroque treatises:</p>
+            <ul>
+                <li><strong>Francesco Gasparini</strong> — <em>L'Armonico Pratico al Cimbalo</em> (1708, Venice)</li>
+                <li><strong>Denis Delair</strong> — <em>Traité d'Accompagnement pour le Théorbe et le Clavecin</em> (1724, Paris)</li>
+            </ul>
+
+            <h4>Processing Pipeline</h4>
+            <ul>
+                <li><strong>1. Parse</strong> — MusicXML is read; the lowest-pitched part is selected as the bass line.</li>
+                <li><strong>2. Figured Bass Detection</strong> — If <code>&lt;figured-bass&gt;</code> elements are present, they are used directly. Otherwise, the unfigured bass decision tree runs.</li>
+                <li><strong>3. Unfigured Decision Tree</strong> — Computes scale degree (1–7) and melodic motion (step/leap, up/down), then selects figures per Gasparini/Delair:
+                    <ul>
+                        <li>Scale degree 7 (leading tone) → 6 (V⁶)</li>
+                        <li>Scale degrees 2, 3 → 6 (first inversion)</li>
+                        <li>Scale degree 5 approaching tonic by step → 7 (V⁷)</li>
+                        <li>Ascending step on degree 4 → 6 (passing)</li>
+                        <li>All others → 5 3 (root position)</li>
+                    </ul>
+                </li>
+                <li><strong>4. Interval Expansion</strong> — Abbreviated figures are expanded: <code>6</code>→<code>6 3</code>, <code>7</code>→<code>7 5 3</code>, <code>6 5</code>→<code>6 5 3</code>, etc.</li>
+                <li><strong>5. Voice Realization</strong> — Three upper voices (soprano, alto, tenor) are chosen to minimize total voice movement (law of the shortest way) while enforcing:
+                    <ul>
+                        <li>No parallel perfect fifths or octaves</li>
+                        <li>No voice crossing or doubling of the leading tone</li>
+                        <li>Voice ranges: soprano C4–G5, alto G3–C5, tenor C3–E4</li>
+                    </ul>
+                </li>
+                <li><strong>6. Export</strong> — Output is a two-part MusicXML: Part 1 = original bass, Part 2 = realized realization (voices 1–3 upper + voice 4 bass).</li>
+            </ul>
+
+            <h4>Figured Bass Notation Reference</h4>
+            <ul>
+                <li><strong>(none)</strong> → 5 3 — root position triad</li>
+                <li><strong>6</strong> → 6 3 — first inversion triad</li>
+                <li><strong>6 4</strong> → 6 4 — second inversion (cadential)</li>
+                <li><strong>7</strong> → 7 5 3 — root position dominant seventh</li>
+                <li><strong>6 5</strong> → 6 5 3 — first inversion seventh</li>
+                <li><strong>4 3</strong> → 6 4 3 — second inversion seventh</li>
+                <li><strong>4 2</strong> → 6 4 2 — third inversion seventh</li>
+                <li><strong>9</strong> → 9 5 3 — 9–8 suspension</li>
+            </ul>
+        </div>
+    </details>
+
+    <!-- Accordion: Bibliography -->
+    <details class="accordion" style="margin-top:1rem">
+        <summary class="accordion-header">
+            <span>Bibliography</span>
+            <span class="accordion-chevron">▼</span>
+        </summary>
+        <div class="accordion-body">
+            <ul>
+                <li><strong>Wead, A. &amp; Knopke, I.</strong> (2007). "A Computer-Based Implementation of Basso Continuo Rules for Figured Bass Realizations." <em>Proceedings of the International Computer Music Conference (ICMC)</em>, Copenhagen.</li>
+                <li><strong>Gasparini, F.</strong> (1708). <em>L'Armonico Pratico al Cimbalo</em>. Venice. [Trans. F. Stillings, 1963. Yale University Press.]</li>
+                <li><strong>Delair, D.</strong> (1724). <em>Traité d'Accompagnement pour le Théorbe et le Clavecin</em>. Paris.</li>
+                <li><strong>Arnold, F.T.</strong> (1931). <em>The Art of Accompaniment from a Thorough-Bass</em>. Oxford University Press.</li>
+                <li><strong>Williams, P.</strong> (1970). <em>Figured Bass Accompaniment</em>. Edinburgh University Press.</li>
+                <li><strong>Aldrich, P.</strong> (1959). <em>Rhythm in Seventeenth-Century Italian Monody</em>. Norton.</li>
+                <li><strong>Schulenberg, D.</strong> (1992). <em>The Keyboard Music of J.S. Bach</em>. Schirmer Books.</li>
+                <li><strong>Rameau, J.-P.</strong> (1722). <em>Traité de l'harmonie réduite à ses principes naturels</em>. Paris.</li>
+                <li><strong>Heinichen, J.D.</strong> (1728). <em>Der General-Bass in der Composition</em>. Dresden.</li>
+                <li><strong>C.P.E. Bach</strong> (1762). <em>Versuch über die wahre Art das Clavier zu spielen</em>, Part II. Berlin. [Trans. Mitchell, 1949. Norton.]</li>
+            </ul>
+        </div>
+    </details>
+
+</div><!-- .wrapper -->
+
+<footer>
+    <p>
+        Basso Continuo Realizer &mdash; Based on
+        <a href="https://quod.lib.umich.edu/i/icmc/bbp2372.2007.150" target="_blank" rel="noopener">Wead &amp; Knopke (ICMC 2007)</a>,
+        Gasparini (1708) &amp; Delair (1724)
+    </p>
+</footer>
+
+<script>
+(function () {
+    'use strict';
+
+    const dropZone    = document.getElementById('drop-zone');
+    const fileInput   = document.getElementById('file-input');
+    const realizeBtn  = document.getElementById('realize-btn');
+    const clearBtn    = document.getElementById('clear-btn');
+    const fileNameEl  = document.getElementById('file-name-display');
+    const fileNameTxt = document.getElementById('file-name-text');
+    const progressWrap= document.getElementById('progress-wrap');
+    const resultPanel = document.getElementById('result-panel');
+    const summaryGrid = document.getElementById('summary-grid');
+    const xmlPreview  = document.getElementById('xml-preview');
+    const downloadBtn = document.getElementById('download-btn');
+    const newBtn      = document.getElementById('new-btn');
+    const chordSection= document.getElementById('chord-section');
+    const chordPills  = document.getElementById('chord-pills');
+    const form        = document.getElementById('upload-form');
+
+    let currentXml    = null;
+    let currentFile   = null;
+
+    // ── Drag & Drop ───────────────────────────────────────────
+    ['dragenter','dragover'].forEach(e => {
+        dropZone.addEventListener(e, ev => {
+            ev.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+    });
+    ['dragleave','drop'].forEach(e => {
+        dropZone.addEventListener(e, ev => {
+            ev.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+    });
+    dropZone.addEventListener('drop', ev => {
+        const file = ev.dataTransfer.files[0];
+        if (file) setFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    function setFile(file) {
+        currentFile = file;
+        // Swap the input files via DataTransfer
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+
+        dropZone.classList.add('has-file');
+        fileNameTxt.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        fileNameEl.classList.add('visible');
+        realizeBtn.disabled = false;
+        clearBtn.style.display = '';
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        currentFile = null;
+        currentXml  = null;
+        dropZone.classList.remove('has-file');
+        fileNameEl.classList.remove('visible');
+        realizeBtn.disabled = true;
+        clearBtn.style.display = 'none';
+        resultPanel.classList.remove('visible');
+        resultPanel.style.display = 'none';
+    }
+    clearBtn.addEventListener('click', clearFile);
+    newBtn.addEventListener('click',  clearFile);
+
+    // ── Form submit → AJAX ────────────────────────────────────
+    form.addEventListener('submit', async ev => {
+        ev.preventDefault();
+        if (!currentFile) return;
+
+        // Show spinner, hide result
+        progressWrap.classList.add('visible');
+        realizeBtn.disabled = true;
+        resultPanel.classList.remove('visible');
+        resultPanel.style.display = 'none';
+
+        try {
+            const fd = new FormData(form);
+
+            const resp = await fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            const data = await resp.json();
+            progressWrap.classList.remove('visible');
+
+            if (!resp.ok || data.error) {
+                showError(data.error || 'Server error');
+                realizeBtn.disabled = false;
+                return;
+            }
+
+            currentXml = data.xml;
+            showResult(data);
+        } catch (err) {
+            progressWrap.classList.remove('visible');
+            showError('Network error: ' + err.message);
+            realizeBtn.disabled = false;
+        }
+    });
+
+    function showError(msg) {
+        const existing = document.querySelector('.alert-error.dynamic');
+        if (existing) existing.remove();
+
+        const el = document.createElement('div');
+        el.className = 'alert alert-error dynamic';
+        el.innerHTML = '<span>⚠</span><span>' + escapeHtml(msg) + '</span>';
+        form.insertBefore(el, form.firstChild);
+    }
+
+    function showResult(data) {
+        const s = data.summary || {};
+
+        // Summary grid
+        const items = [
+            { val: escapeHtml(s.title    || '—'), lbl: 'Title' },
+            { val: escapeHtml(s.key      || '—'), lbl: 'Key' },
+            { val: s.measures   || '—',           lbl: 'Measures' },
+            { val: s.totalNotes || '—',           lbl: 'Notes Realized' },
+        ];
+        summaryGrid.innerHTML = items.map(i =>
+            `<div class="summary-item"><span class="val">${i.val}</span><span class="lbl">${i.lbl}</span></div>`
+        ).join('');
+
+        // Chord pills
+        const topChords = s.topChords || {};
+        const chordKeys = Object.keys(topChords);
+        if (chordKeys.length) {
+            chordSection.style.display = '';
+            chordPills.innerHTML = chordKeys.map(k =>
+                `<span class="chord-pill">${escapeHtml(k)}<span class="count">×${topChords[k]}</span></span>`
+            ).join('');
+        } else {
+            chordSection.style.display = 'none';
+        }
+
+        // XML preview (first 40 lines)
+        const lines = (data.xml || '').split('\n').slice(0, 40).join('\n');
+        xmlPreview.textContent = lines + (data.xml.split('\n').length > 40 ? '\n…' : '');
+
+        // Show panel
+        resultPanel.style.display = 'block';
+        resultPanel.classList.add('visible');
+        resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Download button
+        downloadBtn.onclick = () => {
+            const blob = new Blob([data.xml], { type: 'application/vnd.recordare.musicxml+xml' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = data.filename || 'continuo_realization.xml';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    }
+
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── Accordion ─────────────────────────────────────────────
+    document.querySelectorAll('details.accordion').forEach(details => {
+        const chevron = details.querySelector('.accordion-chevron');
+        const body    = details.querySelector('.accordion-body');
+        details.addEventListener('toggle', () => {
+            if (details.open) {
+                chevron && chevron.classList.add('open');
+                body    && body.classList.add('open');
+            } else {
+                chevron && chevron.classList.remove('open');
+                body    && body.classList.remove('open');
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}
