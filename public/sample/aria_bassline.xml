@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN"
+    "http://www.musicxml.org/dtds/partwise.dtd">
+<!--
+  Sample Basso Continuo Test File
+  "Aria in G" — original bass line for figured bass realization.
+
+  Demonstrates:
+  · Unfigured bass (decision tree applies scale-degree rules)
+  · Explicit figured bass: 6, 6/4, 7, 6/5, 4/3
+  · Walking bass (ascending/descending steps)
+  · Leaps of a 4th and 5th
+  · 9–8 suspension figure
+  · Authentic cadence (V7 → I) and half cadence (I → V)
+  · Minor-mode section (Measures 9–12, relative minor E minor)
+  · Final authentic cadence
+-->
+<score-partwise version="3.1">
+  <work>
+    <work-title>Aria in G (Sample Basso Continuo)</work-title>
+  </work>
+  <identification>
+    <creator type="composer">Continuo Realizer Demo</creator>
+    <encoding>
+      <software>Continuo Realizer (Symfony)</software>
+      <encoding-date>2026-02-27</encoding-date>
+    </encoding>
+  </identification>
+
+  <part-list>
+    <score-part id="P1">
+      <part-name>Basso Continuo</part-name>
+      <part-abbreviation>B.C.</part-abbreviation>
+    </score-part>
+  </part-list>
+
+  <part id="P1">
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION I — G major (2 sharps)
+         Measures 1–8
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- M1: I – I  (tonic pedal / opening statement) -->
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <key>
+          <fifths>1</fifths>
+          <mode>major</mode>
+        </key>
+        <time>
+          <beats>4</beats>
+          <beat-type>4</beat-type>
+        </time>
+        <clef>
+          <sign>F</sign>
+          <line>4</line>
+        </clef>
+      </attributes>
+      <!-- G3 whole: tonic, no figure → I (5/3) -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>8</duration><voice>1</voice><type>whole</type>
+      </note>
+    </measure>
+
+    <!-- M2: I – V  (ascending leap of a 5th) -->
+    <measure number="2">
+      <!-- G3 half: tonic I -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <!-- D3 half: dominant V — decision tree → 5/3 -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+    </measure>
+
+    <!-- M3: Walking bass C–D–E–F# (ascending steps 4→5→6→7) -->
+    <measure number="3">
+      <!-- C3: IV, step-up → 5/3 -->
+      <note>
+        <pitch><step>C</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- D3: V, step-up → 5/3 -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- E3: vi (degree 6, step-up) → 6 (Delair: ascending passing) -->
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- F#3: leading tone (degree 7) → 6 (V6) -->
+      <note>
+        <pitch><step>F</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M4: Cadential 6/4 → V7 → I -->
+    <measure number="4">
+      <!-- D3: explicit 6/4 (cadential) -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+        <figure><figure-number>4</figure-number></figure>
+      </figured-bass>
+      <!-- D3: explicit 7 (dominant seventh) -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+      <!-- G3 half: tonic I -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+    </measure>
+
+    <!-- M5: Descending bass G–F#–E–D (steps 1→7→6→5) -->
+    <measure number="5">
+      <!-- G3: I (tonic) -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- F#3: degree 7, step-down → 6 (V6) -->
+      <note>
+        <pitch><step>F</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- E3: degree 6, step-down → 6 (IV6) -->
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- D3: V → decision tree sees next=step-down → 7 (V7) -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M6: I with first-inversion decoration -->
+    <measure number="6">
+      <!-- G2: tonic root position -->
+      <note>
+        <pitch><step>G</step><octave>2</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <!-- B2: explicit 6 (I6, first inversion) -->
+      <note>
+        <pitch><step>B</step><octave>2</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+      </figured-bass>
+      <!-- C3: IV (step up) -->
+      <note>
+        <pitch><step>C</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M7: ii6/5 → V7 (approach to cadence) -->
+    <measure number="7">
+      <!-- A2: ii (supertonic) with explicit 6/5 -->
+      <note>
+        <pitch><step>A</step><octave>2</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+        <figure><figure-number>5</figure-number></figure>
+      </figured-bass>
+      <!-- D3: V7 with explicit 7 -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+    </measure>
+
+    <!-- M8: Perfect authentic cadence V7 → I -->
+    <measure number="8">
+      <!-- D3: V, explicit 9-8 suspension -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>9</figure-number></figure>
+      </figured-bass>
+      <!-- D3: V resolves suspension → 7 -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+      <!-- G3 half: tonic resolution I -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+    </measure>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION II — E minor (relative minor, 1 sharp)
+         Measures 9–12
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- M9: tonic of E minor -->
+    <measure number="9">
+      <attributes>
+        <key>
+          <fifths>1</fifths>
+          <mode>minor</mode>
+        </key>
+      </attributes>
+      <!-- E3: i (tonic minor) -->
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <!-- F#3: degree 2 in minor → 6 (ii°6) -->
+      <note>
+        <pitch><step>F</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+    </measure>
+
+    <!-- M10: Walking bass G–A–B–C in E minor -->
+    <measure number="10">
+      <!-- G3: III (relative major) -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- A3: iv (subdominant minor) -->
+      <note>
+        <pitch><step>A</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- B3: V (dominant) in minor -->
+      <note>
+        <pitch><step>B</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- C4: VI (submediant) in minor -->
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M11: Descending line with explicit 4/3 (second-inv seventh) -->
+    <measure number="11">
+      <!-- B3: V, explicit 7 -->
+      <note>
+        <pitch><step>B</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+      <!-- A3: explicit 4/3 (second-inversion 7th, iv4/3) -->
+      <note>
+        <pitch><step>A</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>4</figure-number></figure>
+        <figure><figure-number>3</figure-number></figure>
+      </figured-bass>
+      <!-- G#3: leading tone of E minor (raised 7th) with explicit # -->
+      <note>
+        <pitch><step>G</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+      </figured-bass>
+      <!-- A3: iv (approach) -->
+      <note>
+        <pitch><step>A</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M12: Authentic cadence in E minor B → E -->
+    <measure number="12">
+      <!-- B2: V (dominant) in minor with 7 -->
+      <note>
+        <pitch><step>B</step><octave>2</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+      <!-- E3: i (tonic minor resolution) -->
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+    </measure>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION III — Return to G major
+         Measures 13–16
+         ══════════════════════════════════════════════════════════ -->
+
+    <!-- M13: Back to G major, circle of 5ths bass motion G–C–D–G -->
+    <measure number="13">
+      <attributes>
+        <key>
+          <fifths>1</fifths>
+          <mode>major</mode>
+        </key>
+      </attributes>
+      <!-- G3: I -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- C3: IV (leap down a 5th) -->
+      <note>
+        <pitch><step>C</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- D3: V -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- G3: I (return) -->
+      <note>
+        <pitch><step>G</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+    </measure>
+
+    <!-- M14: Chromatic descent E–D#–D–C# (passing through diminished) -->
+    <measure number="14">
+      <!-- E3: vi (degree 6) -->
+      <note>
+        <pitch><step>E</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- D#3: chromatic passing note, explicit 6 -->
+      <note>
+        <pitch><step>D</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+      </figured-bass>
+      <!-- D3: V -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <!-- C#3: explicit 6 (vii°6 of IV = applied chord) -->
+      <note>
+        <pitch><step>C</step><alter>1</alter><octave>3</octave></pitch>
+        <duration>2</duration><voice>1</voice><type>quarter</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+      </figured-bass>
+    </measure>
+
+    <!-- M15: Pre-cadential build ii6/5 → V7/I -->
+    <measure number="15">
+      <!-- A2: ii with 6/5 -->
+      <note>
+        <pitch><step>A</step><octave>2</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>6</figure-number></figure>
+        <figure><figure-number>5</figure-number></figure>
+      </figured-bass>
+      <!-- D3: V with 7 -->
+      <note>
+        <pitch><step>D</step><octave>3</octave></pitch>
+        <duration>4</duration><voice>1</voice><type>half</type>
+      </note>
+      <figured-bass>
+        <figure><figure-number>7</figure-number></figure>
+      </figured-bass>
+    </measure>
+
+    <!-- M16: Final authentic cadence — G major I -->
+    <measure number="16">
+      <note>
+        <pitch><step>G</step><octave>2</octave></pitch>
+        <duration>8</duration><voice>1</voice><type>whole</type>
+      </note>
+      <barline location="right">
+        <bar-style>light-heavy</bar-style>
+      </barline>
+    </measure>
+
+  </part>
+</score-partwise>

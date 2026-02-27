@@ -356,6 +356,13 @@ footer a:hover { text-decoration: underline; }
                 <button type="button" class="btn btn-secondary" id="clear-btn" style="display:none">
                     Clear
                 </button>
+                <span id="sample-hint" style="font-size:0.82rem;color:var(--muted);margin-left:0.25rem">
+                    &larr; or
+                    <a href="#" id="load-sample-btn"
+                       style="color:var(--accent);text-decoration:none;font-weight:500">
+                       load sample file
+                    </a>
+                </span>
             </div>
         </form>
 
@@ -508,9 +515,34 @@ footer a:hover { text-decoration: underline; }
     const chordSection= document.getElementById('chord-section');
     const chordPills  = document.getElementById('chord-pills');
     const form        = document.getElementById('upload-form');
+    const sampleHint  = document.getElementById('sample-hint');
 
     let currentXml    = null;
     let currentFile   = null;
+
+    const SAMPLE_URL  = '/sample/aria_bassline.xml';
+    const SAMPLE_NAME = 'aria_bassline.xml';
+
+    // ── Load sample on page load ──────────────────────────────
+    async function loadSample() {
+        try {
+            const resp = await fetch(SAMPLE_URL);
+            if (!resp.ok) return;
+            const blob = await resp.blob();
+            const file = new File([blob], SAMPLE_NAME, { type: 'application/xml' });
+            setFile(file);
+        } catch (_) { /* silently ignore */ }
+    }
+    loadSample();
+
+    // ── "Load sample file" link ───────────────────────────────
+    const loadSampleBtn = document.getElementById('load-sample-btn');
+    if (loadSampleBtn) {
+        loadSampleBtn.addEventListener('click', ev => {
+            ev.preventDefault();
+            loadSample();
+        });
+    }
 
     // ── Drag & Drop ───────────────────────────────────────────
     ['dragenter','dragover'].forEach(e => {
@@ -545,6 +577,7 @@ footer a:hover { text-decoration: underline; }
         fileNameEl.classList.add('visible');
         realizeBtn.disabled = false;
         clearBtn.style.display = '';
+        if (sampleHint) sampleHint.style.display = 'none';
     }
 
     function clearFile() {
@@ -555,6 +588,7 @@ footer a:hover { text-decoration: underline; }
         fileNameEl.classList.remove('visible');
         realizeBtn.disabled = true;
         clearBtn.style.display = 'none';
+        if (sampleHint) sampleHint.style.display = '';
         resultPanel.classList.remove('visible');
         resultPanel.style.display = 'none';
     }
