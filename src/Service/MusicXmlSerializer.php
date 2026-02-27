@@ -101,6 +101,9 @@ class MusicXmlSerializer
 
         foreach ($measure->bassNotes as $note) {
             $el->appendChild($this->noteElement($dom, $note, 1, $score->divisions, 1));
+            if (!empty($note->figuredBass)) {
+                $el->appendChild($this->figuredBassElement($dom, $note->figuredBass));
+            }
         }
 
         return $el;
@@ -147,6 +150,9 @@ class MusicXmlSerializer
             // ── Staff 2 (bass): voice 4 ────────────────────────────────────
             $this->appendBackup($el, $dom, $totalDur);
             $el->appendChild($this->noteElement($dom, $bassNote, 4, $score->divisions, 2));
+            if (!empty($bassNote->figuredBass)) {
+                $el->appendChild($this->figuredBassElement($dom, $bassNote->figuredBass));
+            }
         }
 
         return $el;
@@ -262,6 +268,30 @@ class MusicXmlSerializer
         $el->appendChild($dom->createElement('staff', (string) $staff));
 
         return $el;
+    }
+
+    /**
+     * Build a <figured-bass> element from an array of ['number'=>int, 'alter'=>int] figures.
+     * In MusicXML, <figured-bass> is a sibling of <note> placed immediately after it.
+     */
+    private function figuredBassElement(\DOMDocument $dom, array $figures): \DOMElement
+    {
+        $fb = $dom->createElement('figured-bass');
+        foreach ($figures as $fig) {
+            $num   = $fig['number'] ?? 0;
+            $alter = $fig['alter']  ?? 0;
+            if ($num <= 0) {
+                continue;
+            }
+            $figEl = $dom->createElement('figure');
+            if ($alter !== 0) {
+                $acc = $alter > 0 ? 'sharp' : 'flat';
+                $figEl->appendChild($dom->createElement('prefix', $acc));
+            }
+            $figEl->appendChild($dom->createElement('figure-number', (string) $num));
+            $fb->appendChild($figEl);
+        }
+        return $fb;
     }
 
     private function appendBackup(\DOMElement $parent, \DOMDocument $dom, int $ticks): void

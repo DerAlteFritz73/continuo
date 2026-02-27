@@ -68,6 +68,8 @@ class MusicXmlParser
                     $currentKey = ['fifths' => $fifths, 'mode' => $mode];
                     $score->keyFifths = $fifths;
                     $score->keyMode   = $mode;
+                    // Record key on the measure only when explicitly present in the XML
+                    $measure->keySignature = $currentKey;
                 }
                 if ($attr->{'time'}) {
                     $beats    = (int) $attr->{'time'}->{'beats'};
@@ -170,9 +172,8 @@ class MusicXmlParser
                 }
             }
 
-            // Attach key / time to measure
-            $measure->keySignature  = $currentKey;
-            $measure->timeSignature = $currentTime;
+            // timeSignature: record only when explicitly present (set inside attribute loop above)
+            // keySignature is also set inside the loop, not here, to avoid emitting it on every measure
 
             if (!empty($measure->bassNotes)) {
                 $score->measures[] = $measure;
