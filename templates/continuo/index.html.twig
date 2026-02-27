@@ -292,6 +292,72 @@ body {
 .accordion-chevron { transition: transform 0.2s; font-size: 0.75rem; }
 .accordion-chevron.open { transform: rotate(180deg); }
 
+/* ── Score Viewer ───────────────────────────────────────── */
+.score-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    gap: 0;
+}
+.score-tab {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+}
+.score-tab:hover { color: var(--text); }
+.score-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.score-pane { display: none; }
+.score-pane.active { display: block; }
+.page-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.page-nav-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.25rem 0.85rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, color 0.15s;
+    line-height: 1.4;
+}
+.page-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.page-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.score-wrap {
+    background: #fff;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.score-wrap svg { max-width: 100%; height: auto; display: block; }
+.score-placeholder {
+    color: #888;
+    font-size: 0.88rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem;
+}
+.score-error { color: #c0392b; }
+
 /* ── Footer ─────────────────────────────────────────────── */
 footer {
     text-align: center;
@@ -408,6 +474,46 @@ footer a:hover { text-decoration: underline; }
                 <button class="btn btn-secondary" id="new-btn">
                     ↩ Realize Another
                 </button>
+            </div>
+        </div>
+
+        <!-- Score Viewer Card -->
+        <div class="card" id="score-viewer-card" style="display:none">
+            <div class="card-title">Score Viewer</div>
+
+            <div class="score-tabs">
+                <div class="score-tab active" data-pane="pane-orig">Original Bass Line</div>
+                <div class="score-tab"        data-pane="pane-real">Continuo Realization</div>
+            </div>
+
+            <!-- Original pane -->
+            <div class="score-pane active" id="pane-orig">
+                <div class="page-nav" id="nav-orig" style="display:none">
+                    <button class="page-nav-btn" id="prev-orig" disabled>&#8592;</button>
+                    <span id="lbl-orig">1 / 1</span>
+                    <button class="page-nav-btn" id="next-orig" disabled>&#8594;</button>
+                </div>
+                <div class="score-wrap" id="wrap-orig">
+                    <div class="score-placeholder">
+                        <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
+                        <span>Waiting for realization&hellip;</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Realization pane -->
+            <div class="score-pane" id="pane-real">
+                <div class="page-nav" id="nav-real" style="display:none">
+                    <button class="page-nav-btn" id="prev-real" disabled>&#8592;</button>
+                    <span id="lbl-real">1 / 1</span>
+                    <button class="page-nav-btn" id="next-real" disabled>&#8594;</button>
+                </div>
+                <div class="score-wrap" id="wrap-real">
+                    <div class="score-placeholder">
+                        <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
+                        <span>Waiting for realization&hellip;</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -688,6 +794,11 @@ footer a:hover { text-decoration: underline; }
             a.click();
             URL.revokeObjectURL(url);
         };
+
+        // Score viewer (runs after panel is visible so widths are available)
+        if (data.inputXml && data.xml) {
+            setTimeout(() => launchScoreViewer(data.inputXml, data.xml), 50);
+        }
     }
 
     function escapeHtml(s) {
@@ -712,6 +823,140 @@ footer a:hover { text-decoration: underline; }
             }
         });
     });
+
+    // ── Score Viewer (Verovio) ────────────────────────────────
+    const scoreViewerCard = document.getElementById('score-viewer-card');
+
+    // Tab switching
+    document.querySelectorAll('.score-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.score-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.score-pane').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const pane = document.getElementById(tab.dataset.pane);
+            if (pane) pane.classList.add('active');
+        });
+    });
+
+    // Per-score state
+    const scores = {
+        orig: { tk: null, page: 1, total: 0 },
+        real: { tk: null, page: 1, total: 0 },
+    };
+
+    ['orig', 'real'].forEach(key => {
+        document.getElementById('prev-' + key).addEventListener('click', () => {
+            const s = scores[key];
+            if (s.page > 1) { s.page--; renderScorePage(key); }
+        });
+        document.getElementById('next-' + key).addEventListener('click', () => {
+            const s = scores[key];
+            if (s.page < s.total) { s.page++; renderScorePage(key); }
+        });
+    });
+
+    function renderScorePage(key) {
+        const s    = scores[key];
+        const wrap = document.getElementById('wrap-' + key);
+        if (!s.tk || s.total < 1) return;
+        try {
+            wrap.innerHTML = s.tk.renderToSVG(s.page);
+        } catch (e) {
+            wrap.innerHTML = '<div class="score-placeholder score-error">⚠ ' + escapeHtml(e.message) + '</div>';
+        }
+        document.getElementById('lbl-'  + key).textContent = s.page + ' / ' + s.total;
+        document.getElementById('prev-' + key).disabled = s.page <= 1;
+        document.getElementById('next-' + key).disabled = s.page >= s.total;
+    }
+
+    // Verovio lazy loader
+    let vrvState = 'idle'; // idle | loading | ready | error
+    const vrvQueue = [];
+
+    function ensureVerovio() {
+        return new Promise((resolve, reject) => {
+            if (vrvState === 'ready')   { resolve();        return; }
+            if (vrvState === 'error')   { reject(new Error('Verovio unavailable')); return; }
+            vrvQueue.push({ resolve, reject });
+            if (vrvState === 'loading') return;
+            vrvState = 'loading';
+
+            const script = document.createElement('script');
+            script.src   = 'https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js';
+            script.onerror = () => {
+                vrvState = 'error';
+                const err = new Error('Could not load Verovio from CDN');
+                vrvQueue.forEach(q => q.reject(err));
+                vrvQueue.length = 0;
+            };
+            document.head.appendChild(script);
+
+            // Poll until verovio.toolkit constructor is ready (WASM initialised)
+            const timer = setInterval(() => {
+                try {
+                    if (typeof verovio !== 'undefined' && typeof verovio.toolkit === 'function') {
+                        clearInterval(timer);
+                        vrvState = 'ready';
+                        vrvQueue.forEach(q => q.resolve());
+                        vrvQueue.length = 0;
+                    }
+                } catch (_) {}
+            }, 150);
+        });
+    }
+
+    function scoreWrapWidth() {
+        const el = document.getElementById('wrap-orig');
+        return el ? Math.max(el.clientWidth - 32, 600) : 800;
+    }
+
+    async function initScore(key, xml) {
+        const s    = scores[key];
+        const wrap = document.getElementById('wrap-' + key);
+        s.tk    = null;
+        s.page  = 1;
+        s.total = 0;
+
+        wrap.innerHTML = '<div class="score-placeholder">'
+            + '<div class="spinner" style="width:28px;height:28px;border-width:2px"></div>'
+            + '<span>Rendering score\u2026</span></div>';
+
+        try {
+            await ensureVerovio();
+
+            const tk = new verovio.toolkit();
+            // Width in Verovio internal units: 1 unit ≈ 0.18 mm at 100%
+            // pageWidth 2100 at scale 45 renders ~945 px wide — matches typical container
+            tk.setOptions({
+                pageWidth:        2100,
+                pageHeight:       2970,
+                adjustPageHeight: true,
+                scale:            45,
+                breaks:           'auto',
+            });
+            tk.loadData(xml);
+
+            s.tk    = tk;
+            s.total = tk.getPageCount();
+            s.page  = 1;
+            renderScorePage(key);
+
+            const nav = document.getElementById('nav-' + key);
+            nav.style.display = s.total > 1 ? '' : 'none';
+
+        } catch (err) {
+            wrap.innerHTML = '<div class="score-placeholder score-error">⚠ '
+                + escapeHtml(err.message) + '</div>';
+        }
+    }
+
+    function launchScoreViewer(origXml, realXml) {
+        scoreViewerCard.style.display = '';
+        scoreViewerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        initScore('orig', origXml);
+        initScore('real', realXml);
+    }
+
 })();
 </script>
 {% endblock %}

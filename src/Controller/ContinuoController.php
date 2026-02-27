@@ -83,10 +83,11 @@ class ContinuoController extends AbstractController
             // If AJAX or preview requested, return JSON with XML embedded
             if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
                 return $this->json([
-                    'success'  => true,
-                    'xml'      => $output,
-                    'filename' => $outputName,
-                    'summary'  => $summary,
+                    'success'    => true,
+                    'xml'        => $output,
+                    'inputXml'   => $xmlContent,
+                    'filename'   => $outputName,
+                    'summary'    => $summary,
                 ]);
             }
 
@@ -118,10 +119,11 @@ class ContinuoController extends AbstractController
             $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 
             return $this->json([
-                'success'  => true,
-                'xml'      => $output,
-                'filename' => $originalName . '_continuo_realization.xml',
-                'summary'  => $summary,
+                'success'   => true,
+                'xml'       => $output,
+                'inputXml'  => $xmlContent,
+                'filename'  => $originalName . '_continuo_realization.xml',
+                'summary'   => $summary,
             ]);
         } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], 500);

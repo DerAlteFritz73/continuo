@@ -11,12 +11,10 @@ use App\Model\Score;
  * Serializes a realized Score back to MusicXML format.
  *
  * Output structure (MusicXML 4.0):
- *  - Part 1: Original bass line (unchanged)
- *  - Part 2: Realized continuo (3 upper voices + bass doubled)
- *    Voice 1 = Soprano
- *    Voice 2 = Alto
- *    Voice 3 = Tenor
- *    Voice 4 = Bass (doubled from original)
+ *  - Part 1: Original bass line (unchanged, bass clef)
+ *  - Part 2: Realized continuo — grand staff (2 staves):
+ *      Staff 1 / treble: Voice 1 = Soprano, Voice 2 = Alto, Voice 3 = Tenor
+ *      Staff 2 / bass:   Voice 4 = Bass (doubled from original)
  */
 class MusicXmlSerializer
 {
@@ -24,14 +22,6 @@ class MusicXmlSerializer
     {
         $dom = new \DOMDocument('1.0', 'UTF-8');
         $dom->formatOutput = true;
-
-        // DOCTYPE
-        $dom->appendChild(
-            $dom->createProcessingInstruction(
-                'xml-model',
-                'href="musicxml.xsd" type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"'
-            )
-        );
 
         $root = $dom->createElement('score-partwise');
         $root->setAttribute('version', '4.0');
@@ -44,7 +34,7 @@ class MusicXmlSerializer
             $root->appendChild($work);
         }
 
-        $id = $dom->createElement('identification');
+        $id  = $dom->createElement('identification');
         $enc = $dom->createElement('encoding');
         $enc->appendChild($dom->createElement('software', 'Continuo Realizer (Symfony)'));
         $enc->appendChild($dom->createElement('encoding-date', date('Y-m-d')));
@@ -54,23 +44,19 @@ class MusicXmlSerializer
         // --- Part list ---
         $partList = $dom->createElement('part-list');
 
-        $scorePart1 = $dom->createElement('score-part');
-        $scorePart1->setAttribute('id', 'P1');
-        $pn1 = $dom->createElement('part-name', 'Bass');
-        $scorePart1->appendChild($pn1);
-        $partList->appendChild($scorePart1);
+        $sp1 = $dom->createElement('score-part');
+        $sp1->setAttribute('id', 'P1');
+        $sp1->appendChild($dom->createElement('part-name', 'Bass'));
+        $partList->appendChild($sp1);
 
-        $scorePart2 = $dom->createElement('score-part');
-        $scorePart2->setAttribute('id', 'P2');
-        $pn2 = $dom->createElement('part-name', 'Realization');
-        $scorePart2->appendChild($pn2);
-
-        // Instrument details for Part 2
+        $sp2 = $dom->createElement('score-part');
+        $sp2->setAttribute('id', 'P2');
+        $sp2->appendChild($dom->createElement('part-name', 'Realization'));
         $instr = $dom->createElement('score-instrument');
         $instr->setAttribute('id', 'P2-I1');
         $instr->appendChild($dom->createElement('instrument-name', 'Harpsichord'));
-        $scorePart2->appendChild($instr);
-        $partList->appendChild($scorePart2);
+        $sp2->appendChild($instr);
+        $partList->appendChild($sp2);
 
         $root->appendChild($partList);
 
@@ -78,31 +64,27 @@ class MusicXmlSerializer
         $part1 = $dom->createElement('part');
         $part1->setAttribute('id', 'P1');
         $root->appendChild($part1);
-
-        $isFirstMeasure = true;
+        $isFirst = true;
         foreach ($score->measures as $measure) {
-            $measureEl = $this->buildBassMeasure($dom, $measure, $score, $isFirstMeasure);
-            $part1->appendChild($measureEl);
-            $isFirstMeasure = false;
+            $part1->appendChild($this->buildBassMeasure($dom, $measure, $score, $isFirst));
+            $isFirst = false;
         }
 
-        // --- Part 2: Realized continuo (multi-voice) ---
+        // --- Part 2: Realized continuo (grand staff) ---
         $part2 = $dom->createElement('part');
         $part2->setAttribute('id', 'P2');
         $root->appendChild($part2);
-
-        $isFirstMeasure = true;
+        $isFirst = true;
         foreach ($score->measures as $measure) {
-            $measureEl = $this->buildRealizationMeasure($dom, $measure, $score, $isFirstMeasure);
-            $part2->appendChild($measureEl);
-            $isFirstMeasure = false;
+            $part2->appendChild($this->buildRealizationMeasure($dom, $measure, $score, $isFirst));
+            $isFirst = false;
         }
 
         return $dom->saveXML();
     }
 
     // -------------------------------------------------------------------------
-    // Part 1: Bass line
+    // Part 1: Bass line (single staff, bass clef)
     // -------------------------------------------------------------------------
 
     private function buildBassMeasure(\DOMDocument $dom, Measure $measure, Score $score, bool $isFirst): \DOMElement
@@ -111,18 +93,21 @@ class MusicXmlSerializer
         $el->setAttribute('number', (string) $measure->number);
 
         if ($isFirst) {
-            $el->appendChild($this->buildAttributes($dom, $score, 1));
+            $el->appendChild($this->buildBassAttributes($dom, $score));
+        } elseif ($measure->keySignature !== null) {
+            // Mid-score key change
+            $el->appendChild($this->buildKeyChangeAttributes($dom, $measure));
         }
 
         foreach ($measure->bassNotes as $note) {
-            $el->appendChild($this->noteElement($dom, $note, 1, $score->divisions));
+            $el->appendChild($this->noteElement($dom, $note, 1, $score->divisions, 1));
         }
 
         return $el;
     }
 
     // -------------------------------------------------------------------------
-    // Part 2: Realized continuo
+    // Part 2: Grand staff realization (2 staves)
     // -------------------------------------------------------------------------
 
     private function buildRealizationMeasure(\DOMDocument $dom, Measure $measure, Score $score, bool $isFirst): \DOMElement
@@ -131,111 +116,117 @@ class MusicXmlSerializer
         $el->setAttribute('number', (string) $measure->number);
 
         if ($isFirst) {
-            $el->appendChild($this->buildAttributes($dom, $score, 2));
+            $el->appendChild($this->buildGrandStaffAttributes($dom, $score));
+        } elseif ($measure->keySignature !== null) {
+            $el->appendChild($this->buildKeyChangeAttributes($dom, $measure));
         }
 
         foreach ($measure->bassNotes as $i => $bassNote) {
-            $chord = $measure->realizedChords[$i] ?? null;
+            $chord    = $measure->realizedChords[$i] ?? null;
+            $totalDur = $this->durationTicks($bassNote->duration, $score->divisions);
 
             if ($chord === null || $bassNote->isRest()) {
-                // No realization → rest in each voice
-                for ($v = 1; $v <= 4; $v++) {
-                    $rest = new Note('C', 4, $bassNote->duration, 0, $bassNote->type, true, null, $v);
-                    $noteEl = $this->noteElement($dom, $rest, $v, $score->divisions);
-                    if ($v > 1) {
-                        $noteEl->insertBefore($dom->createElement('chord'), $noteEl->firstChild);
-                    }
-                    $el->appendChild($noteEl);
-                }
+                // Rest in all voices
+                $this->appendRest($el, $dom, $bassNote, 1, 1, $score->divisions, $totalDur, false);
+                $this->appendRest($el, $dom, $bassNote, 4, 2, $score->divisions, $totalDur, true);
                 continue;
             }
 
-            // Voices in order: soprano (3), alto (2), tenor (1), bass (4)
-            // We write them top-down so we need to reorder for MusicXML:
-            // In MusicXML, for simultaneous notes in different voices, each voice
-            // is written independently with <backup> elements separating them.
+            // Upper voices (soprano→alto→tenor), sorted highest first
+            $upperVoices = array_reverse($chord->upperVoices);
 
-            // Voice 1 = soprano (highest upper voice)
-            $upperVoices = array_reverse($chord->upperVoices); // highest first
-            $totalDur    = $this->durationTicks($bassNote->duration, $score->divisions);
-
-            // Write voices 1, 2, 3 (upper) then backup and write voice 4 (bass)
-
+            // ── Staff 1 (treble): voices 1, 2, 3 ──────────────────────────
             foreach ($upperVoices as $vi => $upperNote) {
-                $voiceNum = $vi + 1; // 1=soprano, 2=alto, 3=tenor
-                $noteEl   = $this->noteElement($dom, $upperNote, $voiceNum, $score->divisions);
-
-                // First note in voice 1 starts normally; subsequent voices need <backup>
+                $voiceNum = $vi + 1;        // 1=soprano, 2=alto, 3=tenor
                 if ($vi > 0) {
-                    $backup  = $dom->createElement('backup');
-                    $durEl   = $dom->createElement('duration', (string) $totalDur);
-                    $backup->appendChild($durEl);
-                    $el->appendChild($backup);
+                    $this->appendBackup($el, $dom, $totalDur);
                 }
-                $el->appendChild($noteEl);
+                $el->appendChild($this->noteElement($dom, $upperNote, $voiceNum, $score->divisions, 1));
             }
 
-            // Backup before bass voice
-            if (!empty($upperVoices)) {
-                $backup  = $dom->createElement('backup');
-                $durEl   = $dom->createElement('duration', (string) $totalDur);
-                $backup->appendChild($durEl);
-                $el->appendChild($backup);
-            }
-
-            // Voice 4 = bass (doubled from original)
-            $bassEl = $this->noteElement($dom, $bassNote, 4, $score->divisions);
-            $el->appendChild($bassEl);
+            // ── Staff 2 (bass): voice 4 ────────────────────────────────────
+            $this->appendBackup($el, $dom, $totalDur);
+            $el->appendChild($this->noteElement($dom, $bassNote, 4, $score->divisions, 2));
         }
 
         return $el;
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Attribute builders
     // -------------------------------------------------------------------------
 
-    private function buildAttributes(\DOMDocument $dom, Score $score, int $staff): \DOMElement
+    private function buildBassAttributes(\DOMDocument $dom, Score $score): \DOMElement
     {
         $attrs = $dom->createElement('attributes');
-
-        $div = $dom->createElement('divisions', (string) $score->divisions);
-        $attrs->appendChild($div);
-
-        // Key
-        $key    = $dom->createElement('key');
-        $fifths = $dom->createElement('fifths', (string) $score->keyFifths);
-        $mode   = $dom->createElement('mode', $score->keyMode);
-        $key->appendChild($fifths);
-        $key->appendChild($mode);
-        $attrs->appendChild($key);
-
-        // Time
-        $time  = $dom->createElement('time');
-        $beats = $dom->createElement('beats', (string) $score->beats);
-        $beat  = $dom->createElement('beat-type', (string) $score->beatType);
-        $time->appendChild($beats);
-        $time->appendChild($beat);
-        $attrs->appendChild($time);
-
-        // Clef
+        $attrs->appendChild($dom->createElement('divisions', (string) $score->divisions));
+        $attrs->appendChild($this->keyElement($dom, $score->keyFifths, $score->keyMode));
+        $attrs->appendChild($this->timeElement($dom, $score->beats, $score->beatType));
         $clef = $dom->createElement('clef');
-        if ($staff === 1) {
-            // Bass clef
-            $clef->appendChild($dom->createElement('sign', 'F'));
-            $clef->appendChild($dom->createElement('line', '4'));
-        } else {
-            // Treble clef for realization
-            $clef->appendChild($dom->createElement('sign', 'G'));
-            $clef->appendChild($dom->createElement('line', '2'));
-            // Additional bass clef staff
-        }
+        $clef->appendChild($dom->createElement('sign', 'F'));
+        $clef->appendChild($dom->createElement('line', '4'));
         $attrs->appendChild($clef);
+        return $attrs;
+    }
+
+    private function buildGrandStaffAttributes(\DOMDocument $dom, Score $score): \DOMElement
+    {
+        $attrs = $dom->createElement('attributes');
+        $attrs->appendChild($dom->createElement('divisions', (string) $score->divisions));
+        $attrs->appendChild($this->keyElement($dom, $score->keyFifths, $score->keyMode));
+        $attrs->appendChild($this->timeElement($dom, $score->beats, $score->beatType));
+        $attrs->appendChild($dom->createElement('staves', '2'));
+
+        // Treble clef — staff 1 (soprano / alto / tenor)
+        $clef1 = $dom->createElement('clef');
+        $clef1->setAttribute('number', '1');
+        $clef1->appendChild($dom->createElement('sign', 'G'));
+        $clef1->appendChild($dom->createElement('line', '2'));
+        $attrs->appendChild($clef1);
+
+        // Bass clef — staff 2 (bass voice)
+        $clef2 = $dom->createElement('clef');
+        $clef2->setAttribute('number', '2');
+        $clef2->appendChild($dom->createElement('sign', 'F'));
+        $clef2->appendChild($dom->createElement('line', '4'));
+        $attrs->appendChild($clef2);
 
         return $attrs;
     }
 
-    private function noteElement(\DOMDocument $dom, Note $note, int $voice, int $divisions): \DOMElement
+    private function buildKeyChangeAttributes(\DOMDocument $dom, Measure $measure): \DOMElement
+    {
+        $attrs = $dom->createElement('attributes');
+        $fifths = $measure->keySignature['fifths'] ?? 0;
+        $mode   = $measure->keySignature['mode']   ?? 'major';
+        $attrs->appendChild($this->keyElement($dom, $fifths, $mode));
+        return $attrs;
+    }
+
+    // -------------------------------------------------------------------------
+    // Element helpers
+    // -------------------------------------------------------------------------
+
+    private function keyElement(\DOMDocument $dom, int $fifths, string $mode): \DOMElement
+    {
+        $key = $dom->createElement('key');
+        $key->appendChild($dom->createElement('fifths', (string) $fifths));
+        $key->appendChild($dom->createElement('mode', $mode));
+        return $key;
+    }
+
+    private function timeElement(\DOMDocument $dom, int $beats, int $beatType): \DOMElement
+    {
+        $time = $dom->createElement('time');
+        $time->appendChild($dom->createElement('beats', (string) $beats));
+        $time->appendChild($dom->createElement('beat-type', (string) $beatType));
+        return $time;
+    }
+
+    /**
+     * Build a <note> element with an explicit <staff> number (for grand staff).
+     */
+    private function noteElement(\DOMDocument $dom, Note $note, int $voice, int $divisions, int $staff = 1): \DOMElement
     {
         $el = $dom->createElement('note');
 
@@ -251,12 +242,10 @@ class MusicXmlSerializer
             $el->appendChild($pitch);
         }
 
-        $dur = $this->durationTicks($note->duration, $divisions);
-        $el->appendChild($dom->createElement('duration', (string) $dur));
+        $el->appendChild($dom->createElement('duration', (string) $this->durationTicks($note->duration, $divisions)));
         $el->appendChild($dom->createElement('voice', (string) $voice));
         $el->appendChild($dom->createElement('type', $note->type ?: 'quarter'));
 
-        // Accidental element if needed
         if (!$note->isRest() && $note->alter !== 0) {
             $accidental = match($note->alter) {
                 1  => 'sharp',
@@ -270,7 +259,33 @@ class MusicXmlSerializer
             }
         }
 
+        $el->appendChild($dom->createElement('staff', (string) $staff));
+
         return $el;
+    }
+
+    private function appendBackup(\DOMElement $parent, \DOMDocument $dom, int $ticks): void
+    {
+        $backup = $dom->createElement('backup');
+        $backup->appendChild($dom->createElement('duration', (string) $ticks));
+        $parent->appendChild($backup);
+    }
+
+    private function appendRest(
+        \DOMElement  $parent,
+        \DOMDocument $dom,
+        Note         $template,
+        int          $voice,
+        int          $staff,
+        int          $divisions,
+        int          $totalDur,
+        bool         $needsBackup
+    ): void {
+        if ($needsBackup) {
+            $this->appendBackup($parent, $dom, $totalDur);
+        }
+        $rest = new Note('C', 4, $template->duration, 0, $template->type, true, null, $voice);
+        $parent->appendChild($this->noteElement($dom, $rest, $voice, $divisions, $staff));
     }
 
     private function durationTicks(float $durationInQuarters, int $divisions): int
