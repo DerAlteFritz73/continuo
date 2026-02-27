@@ -56,6 +56,9 @@ class VoiceLeadingEngine
         'tenor'   => [48, 64],  // C3–E4
     ];
 
+    // Maximum right-hand span: soprano − tenor must not exceed a 9th (major 9th = 14 semitones)
+    private const MAX_HAND_SPAN = 14;
+
     // Perfect intervals in semitones (mod 12)
     private const PERFECT_CONSONANCES = [0, 7]; // unison/octave=0, fifth=7
 
@@ -229,8 +232,7 @@ class VoiceLeadingEngine
             }
         }
 
-        // Find best combination by minimizing total motion + enforcing voice ordering
-        $bestCost    = PHP_INT_MAX;
+        // Emergency fallback if both search passes fail (should be extremely rare)
         $bestChosen  = [$filtered[0][0], $filtered[1][0], $filtered[2][0]];
 
         // Limit search space (take first N candidates per voice)
@@ -239,15 +241,41 @@ class VoiceLeadingEngine
         $a_opts = array_slice($filtered[1], 0, $limit);
         $s_opts = array_slice($filtered[2], 0, $limit);
 
-        foreach ($t_opts as $t) {
-            foreach ($a_opts as $a) {
-                foreach ($s_opts as $s) {
-                    // Voice ordering constraint: tenor <= alto <= soprano (allow unison)
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN);
+
+        if ($found !== null) {
+            return $found;
+        }
+
+        // Fallback: relax span to a 10th (16 semitones) rather than fail silently
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, 16);
+
+        return $found ?? $bestChosen;
+    }
+
+    /**
+     * Inner search loop: evaluate all tenor/alto/soprano combinations within $maxSpan.
+     * Returns the best [tenor, alto, soprano] array, or null if no combination qualifies.
+     */
+    private function searchVoices(
+        array $tOpts, array $aOpts, array $sOpts,
+        array $prevMidis, int $bassMidi, int $maxSpan
+    ): ?array {
+        $bestCost   = PHP_INT_MAX;
+        $bestChosen = null;
+
+        foreach ($tOpts as $t) {
+            if ($t <= $bassMidi) {
+                continue;
+            }
+            foreach ($aOpts as $a) {
+                foreach ($sOpts as $s) {
+                    // Voice ordering: tenor <= alto <= soprano
                     if (!($t <= $a && $a <= $s)) {
                         continue;
                     }
-                    // Voices must be above bass
-                    if ($t <= $bassMidi) {
+                    // Right-hand span constraint
+                    if (($s - $t) > $maxSpan) {
                         continue;
                     }
 
