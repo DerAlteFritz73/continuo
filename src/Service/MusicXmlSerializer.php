@@ -46,37 +46,22 @@ class MusicXmlSerializer
 
         $sp1 = $dom->createElement('score-part');
         $sp1->setAttribute('id', 'P1');
-        $sp1->appendChild($dom->createElement('part-name', 'Bass'));
-        $partList->appendChild($sp1);
-
-        $sp2 = $dom->createElement('score-part');
-        $sp2->setAttribute('id', 'P2');
-        $sp2->appendChild($dom->createElement('part-name', 'Realization'));
+        $sp1->appendChild($dom->createElement('part-name', 'Realization'));
         $instr = $dom->createElement('score-instrument');
-        $instr->setAttribute('id', 'P2-I1');
+        $instr->setAttribute('id', 'P1-I1');
         $instr->appendChild($dom->createElement('instrument-name', 'Harpsichord'));
-        $sp2->appendChild($instr);
-        $partList->appendChild($sp2);
+        $sp1->appendChild($instr);
+        $partList->appendChild($sp1);
 
         $root->appendChild($partList);
 
-        // --- Part 1: Original bass ---
+        // --- Single part: realized continuo (grand staff, bass + upper voices) ---
         $part1 = $dom->createElement('part');
         $part1->setAttribute('id', 'P1');
         $root->appendChild($part1);
         $isFirst = true;
         foreach ($score->measures as $measure) {
-            $part1->appendChild($this->buildBassMeasure($dom, $measure, $score, $isFirst));
-            $isFirst = false;
-        }
-
-        // --- Part 2: Realized continuo (grand staff) ---
-        $part2 = $dom->createElement('part');
-        $part2->setAttribute('id', 'P2');
-        $root->appendChild($part2);
-        $isFirst = true;
-        foreach ($score->measures as $measure) {
-            $part2->appendChild($this->buildRealizationMeasure($dom, $measure, $score, $isFirst));
+            $part1->appendChild($this->buildRealizationMeasure($dom, $measure, $score, $isFirst));
             $isFirst = false;
         }
 
