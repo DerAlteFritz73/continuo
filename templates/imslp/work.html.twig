@@ -159,6 +159,16 @@ body {
     padding-left: 0;
 }
 .movements-header:first-child { margin-top: 0; }
+.movements-subheader {
+    font-size: .85rem;
+    color: #c8a96e;
+    margin-top: .7rem;
+    margin-bottom: .1rem;
+    padding-left: .8rem;
+    counter-reset: mvt;
+    font-style: italic;
+}
+.movements-subheader:first-child { margin-top: 0; }
 .movements-item {
     counter-increment: mvt;
     padding-left: 2.4rem;
@@ -243,6 +253,16 @@ body {
                     {% if line %}
                         {% if line ends with ':' %}
                             <li class="movements-header">{{ line|trim(':') }}</li>
+                        {% elseif
+                            ', TWV' in line or ', BWV' in line or ', HWV' in line or
+                            ', RV'  in line or ', Op.' in line or ', op.' in line or
+                            ', KV'  in line or ', K.'  in line or ', Wq'  in line or
+                            ', WoO' in line or ', D.'  in line or ', L.'  in line or
+                            ', Z.'  in line or ', H.'  in line or ', TH'  in line or
+                            ', CT'  in line or ', T.'  in line or ', P.'  in line or
+                            'No. '  in line or 'Nr. '  in line
+                        %}
+                            <li class="movements-subheader">{{ line }}</li>
                         {% else %}
                             <li class="movements-item">{{ line }}</li>
                         {% endif %}
