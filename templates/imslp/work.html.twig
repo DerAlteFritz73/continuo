@@ -141,13 +141,38 @@ body {
 
 /* ── Movements list ── */
 .movements-list {
-    margin: .25rem 0 0 1.2rem;
+    margin: .4rem 0 0 0;
     padding: 0;
+    list-style: none;
     font-size: .88rem;
     color: #d8d0c4;
     line-height: 1.7;
+    counter-reset: mvt;
 }
-.movements-list li::marker { color: #6a6058; }
+.movements-header {
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #6a6058;
+    margin-top: .6rem;
+    margin-bottom: .1rem;
+    padding-left: 0;
+}
+.movements-header:first-child { margin-top: 0; }
+.movements-item {
+    counter-increment: mvt;
+    padding-left: 2.4rem;
+    position: relative;
+}
+.movements-item::before {
+    content: counter(mvt) ".";
+    position: absolute;
+    left: 0;
+    color: #6a6058;
+    font-size: .8rem;
+    min-width: 2rem;
+    text-align: right;
+}
 
 /* ── No detail notice ── */
 .notice {
@@ -212,14 +237,18 @@ body {
         <div class="meta-item" style="grid-column:1/-1">
             <dt>Movements / Sections</dt>
             <dd>
-                <ol class="movements-list">
+                <ul class="movements-list">
                 {% for line in work.movements|split('\n') %}
                     {% set line = line|trim %}
                     {% if line %}
-                    <li>{{ line }}</li>
+                        {% if line ends with ':' %}
+                            <li class="movements-header">{{ line|trim(':') }}</li>
+                        {% else %}
+                            <li class="movements-item">{{ line }}</li>
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
-                </ol>
+                </ul>
             </dd>
         </div>
         {% endif %}
