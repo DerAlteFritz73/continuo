@@ -24,26 +24,47 @@ class ImslpController extends AbstractController
     #[Route('', name: 'app_imslp', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $q              = trim($request->query->getString('q'));
+        $q               = trim($request->query->getString('q'));
+        $composer        = trim($request->query->getString('composer'));
         $instrumentation = trim($request->query->getString('instrumentation'));
-        $style          = trim($request->query->getString('style'));
-        $page           = max(1, $request->query->getInt('page', 1));
-        $perPage        = 30;
+        $style           = trim($request->query->getString('style'));
+        $page            = max(1, $request->query->getInt('page', 1));
+        $perPage         = 30;
 
-        $works = [];
-        $total = 0;
-        $pages = 0;
+        $works           = [];
+        $composerMatches = [];
+        $total           = 0;
+        $pages           = 0;
+        $mode            = 'empty'; // empty | search | composer | instr
 
-        if ($q !== '' || $instrumentation !== '' || $style !== '') {
-            $total = $this->workRepo->countBySearch($q, $instrumentation, $style);
+        if ($composer !== '') {
+            // ── Composer browse ──────────────────────────────────────────────
+            $mode  = 'composer';
+            $total = $this->workRepo->countByComposer($composer, $instrumentation, $style);
             $pages = (int) ceil($total / $perPage);
-            $works = $this->workRepo->findBySearch($q, $instrumentation, $style, $page, $perPage);
+            $works = $this->workRepo->findByComposer($composer, $instrumentation, $style, $page, $perPage);
+
+        } elseif ($q !== '') {
+            // ── Text search: composer cards + title matches ───────────────────
+            $mode            = 'search';
+            $composerMatches = $this->workRepo->findComposersLike($q);
+            $total           = $this->workRepo->countByTitleSearch($q, $instrumentation, $style);
+            $pages           = (int) ceil($total / $perPage);
+            $works           = $this->workRepo->findByTitleSearch($q, $instrumentation, $style, $page, $perPage);
+
+        } elseif ($instrumentation !== '' || $style !== '') {
+            // ── Instrumentation / style only ──────────────────────────────────
+            $mode  = 'instr';
+            $total = $this->workRepo->countByInstrStyle($instrumentation, $style);
+            $pages = (int) ceil($total / $perPage);
+            $works = $this->workRepo->findByInstrStyle($instrumentation, $style, $page, $perPage);
         }
 
         $styles = $this->workRepo->findDistinctStyles();
 
         return $this->render('imslp/index.html.twig', [
             'q'               => $q,
+            'composer'        => $composer,
             'instrumentation' => $instrumentation,
             'style'           => $style,
             'page'            => $page,
@@ -51,7 +72,9 @@ class ImslpController extends AbstractController
             'total'           => $total,
             'pages'           => $pages,
             'works'           => $works,
+            'composerMatches' => $composerMatches,
             'styles'          => $styles,
+            'mode'            => $mode,
         ]);
     }
 

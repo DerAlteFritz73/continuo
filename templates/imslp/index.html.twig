@@ -1,6 +1,10 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}IMSLP Browser{% endblock %}
+{% block title %}
+    {%- if mode == 'composer' -%}{{ composer }} — IMSLP
+    {%- elseif q -%}Search "{{ q }}" — IMSLP
+    {%- else -%}IMSLP Browser{%- endif -%}
+{% endblock %}
 
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +21,6 @@ body {
     line-height: 1.6;
     min-height: 100vh;
 }
-
 .wrapper {
     max-width: 1100px;
     margin: 0 auto;
@@ -93,7 +96,6 @@ body {
 .search-field input:focus,
 .search-field select:focus { border-color: #c8a96e; }
 .search-field select option { background: #252525; }
-
 .btn-search {
     background: #c8a96e;
     color: #1a1a1a;
@@ -109,8 +111,6 @@ body {
     align-self: flex-end;
 }
 .btn-search:hover { background: #d9be88; }
-
-/* ── Status bar ── */
 .db-status {
     font-size: .8rem;
     color: #6a6058;
@@ -118,6 +118,80 @@ body {
     text-align: right;
 }
 .db-status strong { color: #9a8a78; }
+
+/* ── Composer cards ── */
+.section-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #6a6058;
+    margin-bottom: .75rem;
+}
+.section-label strong { color: #9a8a78; }
+.composer-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 2.5rem;
+}
+.composer-card {
+    display: flex;
+    flex-direction: column;
+    background: #252525;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: .75rem 1.1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .2s, background .2s;
+    min-width: 180px;
+    max-width: 280px;
+}
+.composer-card:hover {
+    border-color: #c8a96e88;
+    background: #2a2a2a;
+}
+.composer-card .cname {
+    font-family: 'Playfair Display', serif;
+    font-size: .95rem;
+    color: #f0e6c8;
+    line-height: 1.3;
+}
+.composer-card .ccount {
+    font-size: .75rem;
+    color: #8a8070;
+    margin-top: .2rem;
+}
+
+/* ── Composer browse header ── */
+.composer-browse-header {
+    margin-bottom: 1.5rem;
+}
+.composer-browse-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.9rem;
+    color: #f0e6c8;
+    line-height: 1.2;
+    margin-bottom: .25rem;
+}
+.composer-browse-header .work-count {
+    font-size: .85rem;
+    color: #8a8070;
+}
+.filter-bar {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ── Section divider ── */
+.section-divider {
+    border: none;
+    border-top: 1px solid #2a2a2a;
+    margin: 2rem 0 1.5rem;
+}
 
 /* ── Results ── */
 .results-header {
@@ -129,13 +203,7 @@ body {
     font-size: .85rem;
 }
 .results-header strong { color: #c8a96e; font-size: 1rem; }
-
-.work-list {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-}
-
+.work-list { display: flex; flex-direction: column; gap: .5rem; }
 .work-item {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -149,10 +217,7 @@ body {
     color: inherit;
     transition: border-color .2s, background .2s;
 }
-.work-item:hover {
-    border-color: #c8a96e44;
-    background: #2a2a2a;
-}
+.work-item:hover { border-color: #c8a96e44; background: #2a2a2a; }
 .work-title {
     font-family: 'Playfair Display', serif;
     font-size: 1rem;
@@ -166,23 +231,14 @@ body {
     font-style: normal;
     margin-left: .4rem;
 }
-.work-meta {
-    font-size: .8rem;
-    color: #9a8a78;
-    margin-top: .2rem;
+.work-meta { font-size: .8rem; color: #9a8a78; margin-top: .2rem; }
+.work-meta .clink {
+    color: #c8a96e;
+    text-decoration: none;
 }
-.work-meta .composer { color: #c8a96e; }
-.work-tags {
-    font-size: .75rem;
-    color: #6a6058;
-    grid-column: 1 / -1;
-    margin-top: .15rem;
-}
-.work-instr {
-    font-size: .8rem;
-    color: #9a8a78;
-    grid-column: 1 / -1;
-}
+.work-meta .clink:hover { text-decoration: underline; }
+.work-tags { font-size: .75rem; color: #6a6058; grid-column: 1 / -1; margin-top: .15rem; }
+.work-instr { font-size: .8rem; color: #9a8a78; grid-column: 1 / -1; }
 .badge-style {
     font-size: .7rem;
     background: #2e2e2e;
@@ -213,40 +269,22 @@ body {
     transition: background .15s;
 }
 .pagination a:hover { background: #2e2e2e; }
-.pagination span.current {
-    background: #c8a96e22;
-    border-color: #c8a96e;
-    color: #f0e6c8;
-}
+.pagination span.current { background: #c8a96e22; border-color: #c8a96e; color: #f0e6c8; }
 .pagination span.ellipsis { border: none; background: none; color: #6a6058; }
 
 /* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 3rem 2rem;
-    color: #6a6058;
-}
+.empty-state { text-align: center; padding: 3rem 2rem; color: #6a6058; }
 .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state h2 { font-family: 'Playfair Display', serif; color: #8a8070; margin-bottom: .5rem; }
-.abbrev-table {
-    margin: 1rem auto 0;
-    border-collapse: collapse;
-    font-size: .82rem;
-}
-.abbrev-table td {
-    padding: .25rem .7rem;
-    text-align: left;
-}
+.abbrev-table { margin: 1rem auto 0; border-collapse: collapse; font-size: .82rem; }
+.abbrev-table td { padding: .25rem .7rem; text-align: left; }
 .abbrev-table td:nth-child(odd) {
     font-family: 'Courier New', monospace;
     color: #c8a96e;
     text-align: right;
     padding-right: .4rem;
 }
-.abbrev-table td:nth-child(even) {
-    color: #9a8a78;
-    padding-right: 1.5rem;
-}
+.abbrev-table td:nth-child(even) { color: #9a8a78; padding-right: 1.5rem; }
 .abbrev-section {
     font-size: .7rem;
     text-transform: uppercase;
@@ -268,6 +306,7 @@ body {
 @media (max-width: 600px) {
     .search-row { flex-direction: column; }
     .site-header h1 { font-size: 1.8rem; }
+    .composer-card { max-width: 100%; }
 }
 </style>
 {% endblock %}
@@ -282,14 +321,16 @@ body {
         <h1>IMSLP Browser</h1>
     </header>
 
-    <!-- Search -->
+    {# ── Search form ── #}
     <div class="search-card">
         <form method="get" action="{{ path('app_imslp') }}">
             <div class="search-row">
+                {% if mode != 'composer' %}
                 <div class="search-field">
                     <label for="q">Composer / Title</label>
-                    <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. Bach, Sonata…" autofocus>
+                    <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. Telemann, Sonata…" autofocus>
                 </div>
+                {% endif %}
                 <div class="search-field">
                     <label for="instrumentation">Instrumentation</label>
                     <input type="text" id="instrumentation" name="instrumentation" value="{{ instrumentation }}" placeholder="e.g. fl vn viol bc">
@@ -303,92 +344,132 @@ body {
                         {% endfor %}
                     </select>
                 </div>
+                {% if mode == 'composer' %}
+                    <input type="hidden" name="composer" value="{{ composer }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                {% endif %}
                 <button type="submit" class="btn-search">Search</button>
             </div>
         </form>
-        <div class="db-status" id="db-status">Loading database status… · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Import status ↗</a></div>
+        <div class="db-status" id="db-status">
+            Loading… · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">Import status ↗</a>
+        </div>
     </div>
 
-    <!-- Results -->
-    {% if q != '' or instrumentation != '' or style != '' %}
+    {# ════════════════════════════════════════════════════════════════
+       MODE: composer browse
+    ════════════════════════════════════════════════════════════════ #}
+    {% if mode == 'composer' %}
+
+        {% if q %}
+        <a class="back-link" href="{{ path('app_imslp', {q: q}) }}">← Back to results for "{{ q }}"</a>
+        {% endif %}
+
+        <div class="composer-browse-header">
+            <h2>{{ composer }}</h2>
+            <span class="work-count">
+                {{ total|number_format }} work{{ total != 1 ? 's' : '' }}
+                {% if instrumentation or style %} matching filter{% endif %}
+            </span>
+        </div>
+
+        {% if works is not empty %}
+            {% include 'imslp/_work_list.html.twig' with {
+                works: works, page: page, pages: pages,
+                urlParams: {composer: composer, q: q, instrumentation: instrumentation, style: style}
+            } %}
+        {% else %}
+            <div class="empty-state">
+                <div class="icon">♩</div>
+                <h2>No works match this filter</h2>
+                <p>Try removing the instrumentation or style filter.</p>
+            </div>
+        {% endif %}
+
+    {# ════════════════════════════════════════════════════════════════
+       MODE: text search — composer cards + title matches
+    ════════════════════════════════════════════════════════════════ #}
+    {% elseif mode == 'search' %}
+
+        {# Composer cards #}
+        {% if composerMatches is not empty %}
+        <div>
+            <p class="section-label">Composers <strong>({{ composerMatches|length }})</strong></p>
+            <div class="composer-cards">
+                {% for c in composerMatches %}
+                <a class="composer-card"
+                   href="{{ path('app_imslp', {composer: c.name, q: q, instrumentation: instrumentation, style: style}) }}">
+                    <span class="cname">{{ c.name }}</span>
+                    <span class="ccount">{{ c.work_count|number_format }} works</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Title matches #}
+        {% if total > 0 or composerMatches is empty %}
+        <div>
+            <p class="section-label">
+                Works with <em>"{{ q }}"</em> in title
+                {% if total > 0 %}<strong>({{ total|number_format }})</strong>{% endif %}
+                {% if instrumentation %} · filtered by <code style="font-size:.75rem;color:#c8a96e">{{ instrumentation }}</code>{% endif %}
+            </p>
+
+            {% if works is not empty %}
+                {% include 'imslp/_work_list.html.twig' with {
+                    works: works, page: page, pages: pages,
+                    urlParams: {q: q, instrumentation: instrumentation, style: style},
+                    showComposer: true
+                } %}
+            {% else %}
+                <p style="color:#6a6058;font-size:.9rem;padding:.5rem 0">No title matches found.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if composerMatches is empty and works is empty %}
+        <div class="empty-state">
+            <div class="icon">♩</div>
+            <h2>No results for "{{ q }}"</h2>
+            <p>Try a different spelling or a broader search term.</p>
+        </div>
+        {% endif %}
+
+    {# ════════════════════════════════════════════════════════════════
+       MODE: instrumentation / style only
+    ════════════════════════════════════════════════════════════════ #}
+    {% elseif mode == 'instr' %}
 
         <div class="results-header">
             <div>
                 {% if total > 0 %}
-                    <strong>{{ total }}</strong> result{{ total != 1 ? 's' : '' }}
+                    <strong>{{ total|number_format }}</strong> work{{ total != 1 ? 's' : '' }}
                     {% if pages > 1 %} — page {{ page }} / {{ pages }}{% endif %}
                 {% else %}
-                    No results found
+                    No works found
                 {% endif %}
             </div>
-            <div>
-                {% if instrumentation != '' %}<em>Note: instrumentation filter only applies to detail-synced works.</em>{% endif %}
-            </div>
+            <div><em style="font-size:.8rem">Instrumentation filter applies to detail-synced works only.</em></div>
         </div>
 
         {% if works is not empty %}
-        <div class="work-list">
-            {% for work in works %}
-            <a class="work-item" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">
-                <div>
-                    <div class="work-title">
-                        {{ work.title }}
-                        {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
-                    </div>
-                    <div class="work-meta">
-                        <span class="composer">{{ work.composer }}</span>
-                        {% if work.workKey %} · {{ work.workKey }}{% endif %}
-                        {% if work.yearComposed %} · {{ work.yearComposed }}{% endif %}
-                    </div>
-                    {% if work.instrumentation %}
-                    <div class="work-instr">{{ work.instrumentation }}</div>
-                    {% endif %}
-                    {% if work.tags %}
-                    <div class="work-tags">{{ work.tags }}</div>
-                    {% endif %}
-                </div>
-                {% if work.pieceStyle %}
-                <div><span class="badge-style">{{ work.pieceStyle }}</span></div>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </div>
-
-        <!-- Pagination -->
-        {% if pages > 1 %}
-        <nav class="pagination" aria-label="Pages">
-            {% if page > 1 %}
-            <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: page - 1}) }}">&laquo;</a>
-            {% endif %}
-
-            {% set window = 2 %}
-            {% for p in 1..pages %}
-                {% if p == 1 or p == pages or (p >= page - window and p <= page + window) %}
-                    {% if loop.index > 1 and p > (loop.previtem is defined ? loop.previtem : 0) + 1 %}
-                        <span class="ellipsis">…</span>
-                    {% endif %}
-                    {% if p == page %}
-                        <span class="current">{{ p }}</span>
-                    {% else %}
-                        <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: p}) }}">{{ p }}</a>
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-
-            {% if page < pages %}
-            <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: page + 1}) }}">&raquo;</a>
-            {% endif %}
-        </nav>
-        {% endif %}
-
+            {% include 'imslp/_work_list.html.twig' with {
+                works: works, page: page, pages: pages,
+                urlParams: {instrumentation: instrumentation, style: style},
+                showComposer: true
+            } %}
         {% else %}
-        <div class="empty-state">
-            <div class="icon">♩</div>
-            <h2>No works found</h2>
-            <p>Try a different composer name or title. Note that instrumentation and style filters only apply to works that have been detail-synced.</p>
-        </div>
+            <div class="empty-state">
+                <div class="icon">♩</div>
+                <h2>No works found</h2>
+                <p>Try different abbreviations. Instrumentation filter only applies to detail-synced works.</p>
+            </div>
         {% endif %}
 
+    {# ════════════════════════════════════════════════════════════════
+       MODE: empty — show abbreviations table
+    ════════════════════════════════════════════════════════════════ #}
     {% else %}
     <div class="empty-state">
         <div class="icon">𝄞</div>
@@ -397,18 +478,18 @@ body {
         <table class="abbrev-table">
             <thead><tr><th colspan="6" class="abbrev-section">Instruments</th></tr></thead>
             <tbody>
-                <tr><td>fl</td><td>flute</td>      <td>ob</td><td>oboe</td>          <td>cl</td><td>clarinet</td></tr>
-                <tr><td>bn</td><td>bassoon</td>     <td>hn</td><td>horn</td>          <td>tr</td><td>trumpet</td></tr>
-                <tr><td>vn</td><td>violin</td>      <td>va</td><td>viola</td>         <td>vc</td><td>cello</td></tr>
-                <tr><td>viol</td><td>viola da gamba</td><td>db</td><td>double bass</td><td>str</td><td>strings</td></tr>
-                <tr><td>hpd</td><td>harpsichord</td><td>org</td><td>organ</td>        <td>pf</td><td>piano</td></tr>
-                <tr><td>lute</td><td>lute</td>      <td>bc</td><td>basso continuo</td><td></td><td></td></tr>
+                <tr><td>fl</td><td>flute</td>      <td>ob</td><td>oboe</td>             <td>cl</td><td>clarinet</td></tr>
+                <tr><td>bn</td><td>bassoon</td>     <td>hn</td><td>horn</td>             <td>tr</td><td>trumpet</td></tr>
+                <tr><td>vn</td><td>violin</td>      <td>va</td><td>viola</td>            <td>vc</td><td>cello</td></tr>
+                <tr><td>viol</td><td>viola da gamba</td><td>db</td><td>double bass</td>  <td>str</td><td>strings</td></tr>
+                <tr><td>hpd</td><td>harpsichord</td><td>org</td><td>organ</td>           <td>pf</td><td>piano</td></tr>
+                <tr><td>lute</td><td>lute</td>      <td>bc</td><td>basso continuo</td>   <td></td><td></td></tr>
             </tbody>
             <thead><tr><th colspan="6" class="abbrev-section">Voices</th></tr></thead>
             <tbody>
-                <tr><td>sop</td><td>soprano</td>   <td>mez</td><td>mezzo-soprano</td><td>alt</td><td>alto</td></tr>
-                <tr><td>ten</td><td>tenor</td>      <td>bass</td><td>bass voice</td>  <td>v</td><td>voice (any)</td></tr>
-                <tr><td>ch</td><td>choir</td>       <td>mch</td><td>male choir</td>   <td>vv</td><td>voices (e.g. 2vv)</td></tr>
+                <tr><td>sop</td><td>soprano</td>    <td>mez</td><td>mezzo-soprano</td>   <td>alt</td><td>alto</td></tr>
+                <tr><td>ten</td><td>tenor</td>       <td>bass</td><td>bass voice</td>    <td>v</td><td>voice (any)</td></tr>
+                <tr><td>ch</td><td>choir</td>        <td>mch</td><td>male choir</td>     <td>vv</td><td>voices (e.g. 2vv)</td></tr>
             </tbody>
         </table>
         <p style="margin-top:.8rem;font-size:.8rem;">e.g. <code>fl vn viol bc</code> &nbsp;·&nbsp; <code>fl vn va bc</code> &nbsp;·&nbsp; <code>sop alt ten bass bc</code></p>

@@ -1,0 +1,62 @@
+{# Reusable work list + pagination partial.
+   Variables: works, page, pages, urlParams (dict), showComposer (bool, default false) #}
+{% set showComposer = showComposer ?? false %}
+
+<div class="work-list">
+    {% for work in works %}
+    <a class="work-item" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">
+        <div>
+            <div class="work-title">
+                {{ work.title }}
+                {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
+            </div>
+            <div class="work-meta">
+                {% if showComposer %}
+                <a class="clink"
+                   href="{{ path('app_imslp', urlParams|merge({composer: work.composer, page: null})) }}"
+                   onclick="event.stopPropagation()">{{ work.composer }}</a>
+                {% else %}
+                <span>{{ work.composer }}</span>
+                {% endif %}
+                {% if work.workKey %} · {{ work.workKey }}{% endif %}
+                {% if work.yearComposed %} · {{ work.yearComposed }}{% endif %}
+            </div>
+            {% if work.instrumentation %}
+            <div class="work-instr">{{ work.instrumentation }}</div>
+            {% endif %}
+            {% if work.tags %}
+            <div class="work-tags">{{ work.tags }}</div>
+            {% endif %}
+        </div>
+        {% if work.pieceStyle %}
+        <div><span class="badge-style">{{ work.pieceStyle }}</span></div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+
+{% if pages > 1 %}
+{% set w = 2 %}
+<nav class="pagination" aria-label="Pages">
+    {% if page > 1 %}
+    <a href="{{ path('app_imslp', urlParams|merge({page: page - 1})) }}">&laquo;</a>
+    {% endif %}
+
+    {% for p in 1..pages %}
+        {% if p == 1 or p == pages or (p >= page - w and p <= page + w) %}
+            {% if not loop.first and p > loop.previtem + 1 %}
+                <span class="ellipsis">…</span>
+            {% endif %}
+            {% if p == page %}
+                <span class="current">{{ p }}</span>
+            {% else %}
+                <a href="{{ path('app_imslp', urlParams|merge({page: p})) }}">{{ p }}</a>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if page < pages %}
+    <a href="{{ path('app_imslp', urlParams|merge({page: page + 1})) }}">&raquo;</a>
+    {% endif %}
+</nav>
+{% endif %}
