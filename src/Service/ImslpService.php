@@ -335,16 +335,22 @@ class ImslpService
     {
         // [[Link|Display]] → Display, [[Link]] → Link
         $text = preg_replace('/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/', '$1', $text);
-        // {{Template|arg|arg}} — keep last pipe-separated arg
-        $text = preg_replace('/\{\{[^}]*\|([^|}]+)\}\}/', '$1', $text);
-        // {{Template}} — remove entirely
-        $text = preg_replace('/\{\{[^}]*\}\}/', '', $text);
+        // Remove {{...}} iteratively to handle nested templates (e.g. {{outer{{inner}}}})
+        $prev = null;
+        while ($prev !== $text) {
+            $prev = $text;
+            $text = preg_replace('/\{\{[^{}]*\}\}/', '', $text);
+        }
+        // Remove any leftover {{ or }} fragments
+        $text = str_replace(['{{', '}}'], '', $text);
         // '''bold''' and ''italic''
         $text = str_replace(["'''", "''"], '', $text);
         // HTML tags (e.g. <br>, <br/>, <ref>…</ref>)
         $text = preg_replace('/<[^>]+>/', ' ', $text);
-        // Wiki list markers at start of line (:, #, *)
-        $text = preg_replace('/^[:#*]+\s*/m', '', $text);
+        // Wiki list/definition markers at start of line (:, ;, #, *)
+        $text = preg_replace('/^[;:#*]+\s*/m', '', $text);
+        // Lines that are purely a number (artefacts from unresolved templates) → remove
+        $text = preg_replace('/^\d+$/m', '', $text);
         // Collapse multiple spaces on same line
         $text = preg_replace('/[ \t]{2,}/', ' ', $text);
         // Collapse blank lines

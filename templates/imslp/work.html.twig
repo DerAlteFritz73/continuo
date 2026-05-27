@@ -139,6 +139,16 @@ body {
 }
 .imslp-link:hover { background: #d9be88; }
 
+/* ── Movements list ── */
+.movements-list {
+    margin: .25rem 0 0 1.2rem;
+    padding: 0;
+    font-size: .88rem;
+    color: #d8d0c4;
+    line-height: 1.7;
+}
+.movements-list li::marker { color: #6a6058; }
+
 /* ── No detail notice ── */
 .notice {
     background: #2a2520;
@@ -199,7 +209,19 @@ body {
         <div class="meta-item"><dt>Type</dt><dd>{{ work.pageType }}</dd></div>
         {% endif %}
         {% if work.movements %}
-        <div class="meta-item" style="grid-column:1/-1"><dt>Movements / Sections</dt><dd>{{ work.movements }}</dd></div>
+        <div class="meta-item" style="grid-column:1/-1">
+            <dt>Movements / Sections</dt>
+            <dd>
+                <ol class="movements-list">
+                {% for line in work.movements|split('\n') %}
+                    {% set line = line|trim %}
+                    {% if line %}
+                    <li>{{ line }}</li>
+                    {% endif %}
+                {% endfor %}
+                </ol>
+            </dd>
+        </div>
         {% endif %}
         {% if work.tags %}
         <div class="meta-item" style="grid-column:1/-1"><dt>Tags</dt><dd>{{ work.tags }}</dd></div>
