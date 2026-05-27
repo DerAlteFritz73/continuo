@@ -42,16 +42,22 @@
     <a href="{{ path('app_imslp', urlParams|merge({page: page - 1})) }}">&laquo;</a>
     {% endif %}
 
+    {# Build the list of visible page numbers first, then render #}
+    {% set vp = [] %}
     {% for p in 1..pages %}
         {% if p == 1 or p == pages or (p >= page - w and p <= page + w) %}
-            {% if not loop.first and p > loop.previtem + 1 %}
-                <span class="ellipsis">…</span>
-            {% endif %}
-            {% if p == page %}
-                <span class="current">{{ p }}</span>
-            {% else %}
-                <a href="{{ path('app_imslp', urlParams|merge({page: p})) }}">{{ p }}</a>
-            {% endif %}
+            {% set vp = vp|merge([p]) %}
+        {% endif %}
+    {% endfor %}
+
+    {% for p in vp %}
+        {% if loop.index0 > 0 and p > vp[loop.index0 - 1] + 1 %}
+            <span class="ellipsis">…</span>
+        {% endif %}
+        {% if p == page %}
+            <span class="current">{{ p }}</span>
+        {% else %}
+            <a href="{{ path('app_imslp', urlParams|merge({page: p})) }}">{{ p }}</a>
         {% endif %}
     {% endfor %}
 
