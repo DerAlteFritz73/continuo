@@ -77,7 +77,7 @@ body {
     color: #d8d0c4;
 }
 
-/* ── Files section ── */
+/* ── Files / Editions section ── */
 .section-title {
     font-family: 'Playfair Display', serif;
     font-size: 1.2rem;
@@ -87,40 +87,61 @@ body {
     border-bottom: 1px solid #2e2e2e;
 }
 
-.file-list {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-    margin-bottom: 2rem;
+/* Edition card (one per #fte:imslpfile block) */
+.edition-card {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 10px;
+    margin-bottom: .9rem;
+    overflow: hidden;
 }
-
-.file-item {
+.edition-header {
+    padding: .75rem 1.1rem;
     background: #252525;
-    border: 1px solid #2e2e2e;
-    border-radius: 8px;
-    padding: .85rem 1.1rem;
+    border-bottom: 1px solid #2e2e2e;
 }
-.file-name {
-    font-family: monospace;
-    font-size: .8rem;
-    color: #9a8a78;
-    word-break: break-all;
-    margin-bottom: .3rem;
-}
-.file-desc {
-    font-size: .9rem;
+.edition-title {
+    font-size: .92rem;
     color: #d8d0c4;
+    font-weight: 500;
     margin-bottom: .25rem;
 }
-.file-meta {
-    font-size: .78rem;
+.edition-title em { color: #c8a96e; font-style: normal; }
+.edition-meta {
+    font-size: .75rem;
     color: #6a6058;
     display: flex;
     flex-wrap: wrap;
-    gap: .4rem 1rem;
+    gap: .3rem .9rem;
 }
-.file-meta span { }
-.file-meta .copyright { color: #8a8070; }
+.edition-meta .copyright { color: #8a8070; }
+
+/* File rows inside an edition */
+.edition-files {
+    display: flex;
+    flex-direction: column;
+}
+.file-row {
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    padding: .45rem 1.1rem;
+    border-bottom: 1px solid #1e1e1e;
+}
+.file-row:last-child { border-bottom: none; }
+.file-desc {
+    font-size: .88rem;
+    color: #d8d0c4;
+    flex: 1 1 auto;
+}
+.file-name {
+    font-family: monospace;
+    font-size: .75rem;
+    color: #6a6058;
+    flex: 0 1 auto;
+    word-break: break-all;
+    text-align: right;
+}
 
 /* ── IMSLP link ── */
 .imslp-link {
@@ -278,38 +299,77 @@ body {
     </dl>
     {% endif %}
 
-    <!-- Files -->
+    <!-- Files / Editions -->
     {% if work.filesJson is not empty %}
-    <h2 class="section-title">Score files ({{ work.filesJson|length }})</h2>
-    <div class="file-list">
-        {% for file in work.filesJson %}
-        <div class="file-item">
-            {% if file.description is defined and file.description %}
-            <div class="file-desc">{{ file.description }}</div>
-            {% endif %}
-            <div class="file-name">{{ file.filename }}</div>
-            <div class="file-meta">
-                {% if file.arranger is defined and file.arranger %}
-                <span>Arr. {{ file.arranger }}</span>
-                {% endif %}
-                {% if file.editor is defined and file.editor %}
-                <span>Ed. {{ file.editor }}</span>
-                {% endif %}
-                {% if file.publisher is defined and file.publisher %}
-                <span>{{ file.publisher }}</span>
-                {% endif %}
-                {% if file.dateSubmitted is defined and file.dateSubmitted %}
-                <span>Submitted {{ file.dateSubmitted }}</span>
-                {% endif %}
-                {% if file.copyright is defined and file.copyright %}
-                <span class="copyright">{{ file.copyright }}</span>
-                {% endif %}
+    {# Detect format: new = array of editions (each has a 'files' key);
+       old = flat array of file objects (each has a 'filename' key directly) #}
+    {% set isEditionFormat = work.filesJson[0] is defined and work.filesJson[0].files is defined %}
+
+    {% if isEditionFormat %}
+        {# Count total files across all editions #}
+        {% set totalFiles = 0 %}
+        {% for ed in work.filesJson %}{% set totalFiles = totalFiles + ed.files|length %}{% endfor %}
+        <h2 class="section-title">Score files — {{ work.filesJson|length }} edition{{ work.filesJson|length != 1 ? 's' : '' }}, {{ totalFiles }} file{{ totalFiles != 1 ? 's' : '' }}</h2>
+
+        {% for ed in work.filesJson %}
+        <div class="edition-card">
+            <div class="edition-header">
+                <div class="edition-title">
+                    {% if ed.editor is defined and ed.editor %}
+                        Ed. <em>{{ ed.editor }}</em>{% if ed.publisher is defined and ed.publisher %} — {{ ed.publisher }}{% endif %}
+                    {% elseif ed.arranger is defined and ed.arranger %}
+                        Arr. <em>{{ ed.arranger }}</em>{% if ed.publisher is defined and ed.publisher %} — {{ ed.publisher }}{% endif %}
+                    {% elseif ed.publisher is defined and ed.publisher %}
+                        {{ ed.publisher }}
+                    {% else %}
+                        <span style="color:#6a6058;font-style:italic">Anonymous edition</span>
+                    {% endif %}
+                </div>
+                <div class="edition-meta">
+                    {% if ed.dateSubmitted is defined and ed.dateSubmitted %}
+                    <span>Submitted {{ ed.dateSubmitted }}</span>
+                    {% endif %}
+                    {% if ed.copyright is defined and ed.copyright %}
+                    <span class="copyright">{{ ed.copyright }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="edition-files">
+                {% for file in ed.files %}
+                <div class="file-row">
+                    <div class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</div>
+                    {% if file.description is defined and file.description %}
+                    <div class="file-name">{{ file.filename }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
         </div>
         {% endfor %}
-    </div>
 
-    <p style="font-size:.8rem;color:#6a6058;margin-bottom:2rem;">
+    {% else %}
+        {# Legacy flat format — render as before #}
+        <h2 class="section-title">Score files ({{ work.filesJson|length }})</h2>
+        {% for file in work.filesJson %}
+        <div class="edition-card">
+            <div class="edition-header">
+                <div class="edition-meta">
+                    {% if file.editor is defined and file.editor %}<span>Ed. {{ file.editor }}</span>{% endif %}
+                    {% if file.publisher is defined and file.publisher %}<span>{{ file.publisher }}</span>{% endif %}
+                    {% if file.copyright is defined and file.copyright %}<span class="copyright">{{ file.copyright }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="edition-files">
+                <div class="file-row">
+                    <div class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</div>
+                    <div class="file-name">{{ file.filename }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <p style="font-size:.8rem;color:#6a6058;margin-bottom:2rem;margin-top:.5rem;">
         Download PDF files directly from the
         <a href="{{ work.permlink }}" target="_blank" rel="noopener" style="color:#c8a96e">IMSLP work page</a>.
     </p>

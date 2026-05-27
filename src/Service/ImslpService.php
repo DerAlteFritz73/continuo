@@ -184,7 +184,7 @@ class ImslpService
                 $parsed['tags'] ?: null,
                 mb_substr($parsed['pageType'] ?: '', 0, 100) ?: null,
                 $parsed['movements'] ?: null,
-                !empty($parsed['files']) ? json_encode($parsed['files']) : null,
+                !empty($parsed['editions']) ? json_encode($parsed['editions']) : null,
                 $now,
                 $work->getPageId(),
             ]
@@ -208,7 +208,7 @@ class ImslpService
             'tags'            => '',
             'pageType'        => '',
             'movements'       => '',
-            'files'           => [],
+            'editions'        => [],
         ];
 
         // Extract WORK INFO section (between *****WORK INFO***** and next *****)
@@ -231,28 +231,60 @@ class ImslpService
             }
         }
 
-        // Extract all #fte:imslpfile blocks
-        preg_match_all('/\{\{#fte:imslpfile\s+(.*?)\}\}/s', $wikitext, $fileBlocks);
+        // Extract all #fte:imslpfile blocks — each block = one edition.
+        // Use brace-counting to handle arbitrary nesting depth inside blocks
+        // (templates like {{LinkEd|...}} or {{FE|...}} inside mustn't close the outer match).
+        $fileBlocks = [[], []]; // mimic preg_match_all result: [0=>fullmatches, 1=>captures]
+        $searchFrom = 0;
+        while (($start = strpos($wikitext, '{{#fte:imslpfile', $searchFrom)) !== false) {
+            $depth = 0;
+            $len   = strlen($wikitext);
+            $i     = $start;
+            $end   = -1;
+            while ($i < $len) {
+                if (substr($wikitext, $i, 2) === '{{') { $depth++; $i += 2; }
+                elseif (substr($wikitext, $i, 2) === '}}') {
+                    $depth--;
+                    if ($depth === 0) { $end = $i; break; }
+                    $i += 2;
+                } else { $i++; }
+            }
+            if ($end !== -1) {
+                // Content is everything between '{{#fte:imslpfile' + whitespace and closing '}}'
+                $contentStart = $start + strlen('{{#fte:imslpfile');
+                $content = substr($wikitext, $contentStart, $end - $contentStart);
+                $fileBlocks[0][] = substr($wikitext, $start, $end + 2 - $start);
+                $fileBlocks[1][] = $content;
+                $searchFrom = $end + 2;
+            } else {
+                break; // unclosed block, stop
+            }
+        }
         foreach ($fileBlocks[1] as $block) {
             $fields = $this->parseWikiFields($block);
 
-            $shared = [
-                'copyright'    => $this->stripWikiMarkup($fields['Copyright'] ?? ''),
-                'publisher'    => $this->stripWikiMarkup($fields['Publisher Information'] ?? ''),
-                'arranger'     => $this->stripWikiMarkup($fields['Arranger'] ?? ''),
-                'editor'       => $this->stripWikiMarkup($fields['Editor'] ?? ''),
+            $edition = [
+                'copyright'     => $this->stripWikiMarkup($fields['Copyright'] ?? ''),
+                'publisher'     => $this->stripWikiMarkup($fields['Publisher Information'] ?? ''),
+                'arranger'      => $this->stripWikiMarkup($fields['Arranger'] ?? ''),
+                'editor'        => $this->stripWikiMarkup($fields['Editor'] ?? ''),
                 'dateSubmitted' => $fields['Date Submitted'] ?? '',
+                'files'         => [],
             ];
 
             for ($n = 1; $n <= 30; $n++) {
                 $filename = $fields["File Name $n"] ?? '';
                 if ($filename === '') break;
 
-                $file = array_merge(['filename' => $filename], $shared);
+                $file = ['filename' => $filename];
                 $desc = $this->stripWikiMarkup($fields["File Description $n"] ?? '');
                 if ($desc !== '') $file['description'] = $desc;
 
-                $result['files'][] = $file;
+                $edition['files'][] = $file;
+            }
+
+            if (!empty($edition['files'])) {
+                $result['editions'][] = $edition;
             }
         }
 
@@ -335,6 +367,12 @@ class ImslpService
     {
         // [[Link|Display]] → Display, [[Link]] → Link
         $text = preg_replace('/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/', '$1', $text);
+        // {{LinkEd|Firstname|Lastname|...}} → "Firstname Lastname"
+        $text = preg_replace_callback('/\{\{LinkEd\|([^|}\n]+)\|([^|}\n]+)(?:\|[^}]*)?\}\}/si', function ($m) {
+            return trim($m[1]) . ' ' . trim($m[2]);
+        }, $text);
+        // {{FE|...}} → "Facsimile" (IMSLP facsimile edition template)
+        $text = preg_replace('/\{\{FE(?:\|[^}]*)?\}\}/si', 'Facsimile', $text);
         // Remove {{...}} iteratively to handle nested templates (e.g. {{outer{{inner}}}})
         $prev = null;
         while ($prev !== $text) {
