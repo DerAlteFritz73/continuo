@@ -1,0 +1,432 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}IMSLP Browser{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #1a1a1a;
+    color: #e8e0d4;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Header ── */
+.site-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+.site-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem;
+    color: #f0e6c8;
+    letter-spacing: .03em;
+}
+.site-header .subtitle {
+    font-size: .85rem;
+    color: #8a8070;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    margin-bottom: .5rem;
+}
+.back-link {
+    display: inline-block;
+    color: #c8a96e;
+    text-decoration: none;
+    font-size: .85rem;
+    margin-bottom: 1.5rem;
+}
+.back-link:hover { text-decoration: underline; }
+
+/* ── Search card ── */
+.search-card {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+.search-row {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.search-field {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    flex: 1;
+    min-width: 180px;
+}
+.search-field label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #9a8a78;
+}
+.search-field input,
+.search-field select {
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e8e0d4;
+    font-family: inherit;
+    font-size: .9rem;
+    padding: .55rem .8rem;
+    outline: none;
+    transition: border-color .2s;
+}
+.search-field input:focus,
+.search-field select:focus { border-color: #c8a96e; }
+.search-field select option { background: #252525; }
+
+.btn-search {
+    background: #c8a96e;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 600;
+    padding: .55rem 1.4rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s;
+    align-self: flex-end;
+}
+.btn-search:hover { background: #d9be88; }
+
+/* ── Status bar ── */
+.db-status {
+    font-size: .8rem;
+    color: #6a6058;
+    margin-top: 1rem;
+    text-align: right;
+}
+.db-status strong { color: #9a8a78; }
+
+/* ── Results ── */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+    color: #8a8070;
+    font-size: .85rem;
+}
+.results-header strong { color: #c8a96e; font-size: 1rem; }
+
+.work-list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.work-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .5rem 1rem;
+    align-items: start;
+    background: #252525;
+    border: 1px solid #2e2e2e;
+    border-radius: 8px;
+    padding: .9rem 1.1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .2s, background .2s;
+}
+.work-item:hover {
+    border-color: #c8a96e44;
+    background: #2a2a2a;
+}
+.work-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: #f0e6c8;
+    line-height: 1.3;
+}
+.work-title .catalog {
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    color: #8a8070;
+    font-style: normal;
+    margin-left: .4rem;
+}
+.work-meta {
+    font-size: .8rem;
+    color: #9a8a78;
+    margin-top: .2rem;
+}
+.work-meta .composer { color: #c8a96e; }
+.work-tags {
+    font-size: .75rem;
+    color: #6a6058;
+    grid-column: 1 / -1;
+    margin-top: .15rem;
+}
+.work-instr {
+    font-size: .8rem;
+    color: #9a8a78;
+    grid-column: 1 / -1;
+}
+.badge-style {
+    font-size: .7rem;
+    background: #2e2e2e;
+    border: 1px solid #3a3a3a;
+    border-radius: 12px;
+    padding: .15rem .55rem;
+    color: #9a8a78;
+    white-space: nowrap;
+}
+
+/* ── Pagination ── */
+.pagination {
+    display: flex;
+    gap: .4rem;
+    justify-content: center;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+.pagination a, .pagination span {
+    display: inline-block;
+    padding: .35rem .75rem;
+    border-radius: 5px;
+    font-size: .85rem;
+    text-decoration: none;
+    border: 1px solid #333;
+    color: #c8a96e;
+    background: #252525;
+    transition: background .15s;
+}
+.pagination a:hover { background: #2e2e2e; }
+.pagination span.current {
+    background: #c8a96e22;
+    border-color: #c8a96e;
+    color: #f0e6c8;
+}
+.pagination span.ellipsis { border: none; background: none; color: #6a6058; }
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #6a6058;
+}
+.empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+.empty-state h2 { font-family: 'Playfair Display', serif; color: #8a8070; margin-bottom: .5rem; }
+.abbrev-table {
+    margin: 1rem auto 0;
+    border-collapse: collapse;
+    font-size: .82rem;
+}
+.abbrev-table td {
+    padding: .25rem .7rem;
+    text-align: left;
+}
+.abbrev-table td:nth-child(odd) {
+    font-family: 'Courier New', monospace;
+    color: #c8a96e;
+    text-align: right;
+    padding-right: .4rem;
+}
+.abbrev-table td:nth-child(even) {
+    color: #9a8a78;
+    padding-right: 1.5rem;
+}
+.abbrev-section {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #6a6058;
+    padding: .6rem 0 .2rem;
+    text-align: left;
+}
+.empty-state code {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: .1rem .4rem;
+    font-size: .8rem;
+    color: #c8a96e;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .search-row { flex-direction: column; }
+    .site-header h1 { font-size: 1.8rem; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+
+    <a class="back-link" href="{{ path('app_home') }}">← Basso Continuo Realizer</a>
+
+    <header class="site-header">
+        <p class="subtitle">Petrucci Music Library</p>
+        <h1>IMSLP Browser</h1>
+    </header>
+
+    <!-- Search -->
+    <div class="search-card">
+        <form method="get" action="{{ path('app_imslp') }}">
+            <div class="search-row">
+                <div class="search-field">
+                    <label for="q">Composer / Title</label>
+                    <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. Bach, Sonata…" autofocus>
+                </div>
+                <div class="search-field">
+                    <label for="instrumentation">Instrumentation</label>
+                    <input type="text" id="instrumentation" name="instrumentation" value="{{ instrumentation }}" placeholder="e.g. fl vn viol bc">
+                </div>
+                <div class="search-field" style="max-width:160px">
+                    <label for="style">Style</label>
+                    <select id="style" name="style">
+                        <option value="">— any —</option>
+                        {% for s in styles %}
+                        <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn-search">Search</button>
+            </div>
+        </form>
+        <div class="db-status" id="db-status">Loading database status… · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Import status ↗</a></div>
+    </div>
+
+    <!-- Results -->
+    {% if q != '' or instrumentation != '' or style != '' %}
+
+        <div class="results-header">
+            <div>
+                {% if total > 0 %}
+                    <strong>{{ total }}</strong> result{{ total != 1 ? 's' : '' }}
+                    {% if pages > 1 %} — page {{ page }} / {{ pages }}{% endif %}
+                {% else %}
+                    No results found
+                {% endif %}
+            </div>
+            <div>
+                {% if instrumentation != '' %}<em>Note: instrumentation filter only applies to detail-synced works.</em>{% endif %}
+            </div>
+        </div>
+
+        {% if works is not empty %}
+        <div class="work-list">
+            {% for work in works %}
+            <a class="work-item" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">
+                <div>
+                    <div class="work-title">
+                        {{ work.title }}
+                        {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
+                    </div>
+                    <div class="work-meta">
+                        <span class="composer">{{ work.composer }}</span>
+                        {% if work.workKey %} · {{ work.workKey }}{% endif %}
+                        {% if work.yearComposed %} · {{ work.yearComposed }}{% endif %}
+                    </div>
+                    {% if work.instrumentation %}
+                    <div class="work-instr">{{ work.instrumentation }}</div>
+                    {% endif %}
+                    {% if work.tags %}
+                    <div class="work-tags">{{ work.tags }}</div>
+                    {% endif %}
+                </div>
+                {% if work.pieceStyle %}
+                <div><span class="badge-style">{{ work.pieceStyle }}</span></div>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if pages > 1 %}
+        <nav class="pagination" aria-label="Pages">
+            {% if page > 1 %}
+            <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: page - 1}) }}">&laquo;</a>
+            {% endif %}
+
+            {% set window = 2 %}
+            {% for p in 1..pages %}
+                {% if p == 1 or p == pages or (p >= page - window and p <= page + window) %}
+                    {% if loop.index > 1 and p > (loop.previtem is defined ? loop.previtem : 0) + 1 %}
+                        <span class="ellipsis">…</span>
+                    {% endif %}
+                    {% if p == page %}
+                        <span class="current">{{ p }}</span>
+                    {% else %}
+                        <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: p}) }}">{{ p }}</a>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if page < pages %}
+            <a href="{{ path('app_imslp', {q: q, instrumentation: instrumentation, style: style, page: page + 1}) }}">&raquo;</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <div class="icon">♩</div>
+            <h2>No works found</h2>
+            <p>Try a different composer name or title. Note that instrumentation and style filters only apply to works that have been detail-synced.</p>
+        </div>
+        {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">𝄞</div>
+        <h2>Search the IMSLP catalogue</h2>
+        <p>Enter a composer name or work title above.<br>Use the instrumentation box with IMSLP abbreviations:</p>
+        <table class="abbrev-table">
+            <thead><tr><th colspan="6" class="abbrev-section">Instruments</th></tr></thead>
+            <tbody>
+                <tr><td>fl</td><td>flute</td>      <td>ob</td><td>oboe</td>          <td>cl</td><td>clarinet</td></tr>
+                <tr><td>bn</td><td>bassoon</td>     <td>hn</td><td>horn</td>          <td>tr</td><td>trumpet</td></tr>
+                <tr><td>vn</td><td>violin</td>      <td>va</td><td>viola</td>         <td>vc</td><td>cello</td></tr>
+                <tr><td>viol</td><td>viola da gamba</td><td>db</td><td>double bass</td><td>str</td><td>strings</td></tr>
+                <tr><td>hpd</td><td>harpsichord</td><td>org</td><td>organ</td>        <td>pf</td><td>piano</td></tr>
+                <tr><td>lute</td><td>lute</td>      <td>bc</td><td>basso continuo</td><td></td><td></td></tr>
+            </tbody>
+            <thead><tr><th colspan="6" class="abbrev-section">Voices</th></tr></thead>
+            <tbody>
+                <tr><td>sop</td><td>soprano</td>   <td>mez</td><td>mezzo-soprano</td><td>alt</td><td>alto</td></tr>
+                <tr><td>ten</td><td>tenor</td>      <td>bass</td><td>bass voice</td>  <td>v</td><td>voice (any)</td></tr>
+                <tr><td>ch</td><td>choir</td>       <td>mch</td><td>male choir</td>   <td>vv</td><td>voices (e.g. 2vv)</td></tr>
+            </tbody>
+        </table>
+        <p style="margin-top:.8rem;font-size:.8rem;">e.g. <code>fl vn viol bc</code> &nbsp;·&nbsp; <code>fl vn va bc</code> &nbsp;·&nbsp; <code>sop alt ten bass bc</code></p>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+fetch('{{ path('app_imslp_sync_status') }}?json')
+    .then(r => r.json())
+    .then(d => {
+        document.getElementById('db-status').innerHTML =
+            '<strong>' + d.works.toLocaleString() + '</strong> works · ' +
+            '<strong>' + d.worksWithDetail.toLocaleString() + '</strong> with detail · ' +
+            '<strong>' + d.composers.toLocaleString() + '</strong> composers' +
+            ' · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Import status ↗</a>';
+    })
+    .catch(() => { document.getElementById('db-status').textContent = ''; });
+</script>
+{% endblock %}

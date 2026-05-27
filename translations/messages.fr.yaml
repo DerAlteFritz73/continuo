@@ -1,0 +1,349 @@
+# ── App-wide UI ─────────────────────────────────────────────────────────────
+app:
+    subtitle: "Technologie musicale baroque"
+    title: "Assistant de basse continue"
+    desc: >
+        Téléversez un fichier MusicXML contenant une ligne de basse pour générer
+        une réalisation de continuo historiquement informée, basée sur les règles de
+        St. Lambert (1707), Dandrieu (1719), Heinichen (1728) et l'arbre de décision
+        de Wead & Knopke (ICMC 2007).
+    lang_switch: "English"
+
+# ── Params panel ─────────────────────────────────────────────────────────────
+params:
+    btn: "Paramètres"
+    voices_label: "Nombre de voix"
+    voices_4: "4 voix — réalisation complète (soprano + alto + ténor + basse)"
+    voices_3: "3 voix"
+
+# ── Upload card ──────────────────────────────────────────────────────────────
+upload:
+    card_title: "Charger une partition"
+    drop_label: "Déposez votre fichier MusicXML ici"
+    drop_hint: "ou cliquez pour parcourir — fichiers .xml / .musicxml, max 10 Mo"
+    realize_btn: "Réaliser la basse continue"
+    clear_btn: "Effacer"
+    sample_hint: "charger un exemple"
+    progress: "Analyse de la basse et réalisation harmonique en cours…"
+
+# ── Errors ───────────────────────────────────────────────────────────────────
+error:
+    no_file: "Veuillez téléverser un fichier MusicXML."
+    invalid_type: "Type de fichier invalide. Veuillez téléverser un fichier .xml ou .musicxml."
+    too_large: "Fichier trop volumineux (max 10 Mo)."
+    processing: "Erreur lors du traitement du fichier : %message%"
+
+# ── Result panel ─────────────────────────────────────────────────────────────
+result:
+    card_title: "Réalisation terminée"
+    success_msg: "La réalisation de basse continue a été générée avec succès."
+    top_chords: "Harmonies les plus fréquentes"
+    output_preview: "Aperçu du résultat"
+    download_btn: "Télécharger le MusicXML"
+    new_btn: "Nouvelle réalisation"
+    summary:
+        title: "Titre"
+        key: "Tonalité"
+        measures: "Mesures"
+        notes: "Notes réalisées"
+
+# ── Score viewer ─────────────────────────────────────────────────────────────
+viewer:
+    card_title: "Visualiseur de partition"
+    tab_orig: "Basse originale"
+    tab_real: "Basse réalisée"
+    waiting: "En attente de la réalisation…"
+    click_hint: "▶ Cliquez sur une note
+     ou un accord pour inspecter son harmonie et son arbre de décision"
+    rendering: "Rendu de la partition en cours…"
+    show_computed: "Afficher les chiffrages calculés"
+
+# ── Chord inspector ──────────────────────────────────────────────────────────
+inspector:
+    title: "Inspecteur d'accord"
+    close: "Fermer"
+    section_info: "Informations générales"
+    section_chord: "Accord réalisé"
+    section_tree: "Arbre de décision"
+    lbl_bass_pitch: "Hauteur de la basse"
+    lbl_note_type: "Type de note"
+    lbl_scale_degree: "Degré de la gamme"
+    lbl_key: "Tonalité"
+    lbl_figured_bass: "Basse chiffrée"
+    lbl_chord_symbol: "Symbole d'accord"
+    lbl_figures_source: "Origine des chiffres"
+    voice_soprano: "Soprano"
+    voice_alto: "Alto"
+    voice_tenor: "Ténor"
+    voice_bass: "Basse"
+    figures_computed: "Calculé par l'arbre de décision"
+    figures_from_file: "Issu de la partition (pré-noté)"
+    badge_from_file: "✓ Chiffres fournis dans la partition — aucun arbre de décision utilisé"
+    badge_computed: "⊕ Basse non chiffrée — arbre de décision appliqué"
+    from_file_note: "La notation de basse chiffrée a été lue directement dans le fichier téléversé. Aucune règle algorithmique n'a été appliquée."
+    ctx_scale_degree: "Degré de la gamme"
+    ctx_motion_in: "Mouvement entrant"
+    ctx_motion_out: "Mouvement sortant"
+    ctx_key: "Tonalité"
+
+# ── Scale degrees ────────────────────────────────────────────────────────────
+scale_degree:
+    1: "I — Tonique"
+    2: "II — Sus-tonique"
+    3: "III — Médiante"
+    4: "IV — Sous-dominante"
+    5: "V — Dominante"
+    6: "VI — Sus-dominante"
+    7: "VII — Note sensible"
+
+# ── Motion types ─────────────────────────────────────────────────────────────
+motion:
+    step_up: "mouvement conjoint ascendant"
+    step_down: "mouvement conjoint descendant"
+    leap_up: "saut ascendant"
+    leap_down: "saut descendant"
+    same: "note répétée"
+    start: "début de phrase"
+
+# ── Decision-tree rule tests, names, sources, reasons ────────────────────────
+rule:
+    test:
+        degree_7: "Degré = 7 (note sensible) ?"
+        major_mode: "Mode = majeur ?"
+        next_step_up_resolves: "Mouvement suivant = degré conjoint ascendant (résolution vers la tonique) ?"
+        motion_passing_step: "Mouvement conjoint à l'entrée et à la sortie (note de passage) ?"
+        degree_4_step_up: "Degré = 4 avec degré conjoint ascendant à l'entrée et à la sortie (passage) ?"
+        degree_4_next_step_up: "Degré = 4 avec mouvement suivant ascendant (IV → V) ?"
+        degree_2: "Degré = 2 (sus-tonique) ?"
+        motion_step_down: "Mouvement = degré conjoint descendant ?"
+        degree_3: "Degré = 3 (médiante) ?"
+        degree_6: "Degré = 6 (sus-dominante) ?"
+        motion_step_up: "Mouvement = degré conjoint ascendant ?"
+        degree_5: "Degré = 5 (dominante) ?"
+        next_step_down_tonic: "Mouvement suivant = degré conjoint descendant (vers la tonique) ?"
+        next_step_down: "Mouvement suivant = degré conjoint descendant (vers la tonique) ?"
+        degree_1: "Degré = 1 (tonique) ?"
+        degree_4: "Degré = 4 (sous-dominante) ?"
+        leap_fourth: "Saut de quarte (mouvement cadentiel) ?"
+        next_step_to_i_or_iii: "Mouvement suivant = degré conjoint vers le degré I ou III (contexte de petite sixte) ?"
+        degree_4_next_step_down: "Degré = 4 avec mouvement suivant descendant (IV → III) ?"
+        default: "Règle par défaut (aucune correspondance spécifique) ?"
+
+    leading_tone:
+        name: "Règle de la note sensible (V⁶₅)"
+        source: "Dandrieu [1719] ; Christensen 2002, 17"
+        reason: >
+            En mode majeur, la note sensible (7e degré) montant vers la tonique prend l'accord de
+            quinte diminuée (♭5 avec sixte et tierce implicites = V⁶₅). Selon Christensen §4 :
+            « Cet accord consiste en la quinte diminuée, la sixte et la tierce. Il se joue
+            ordinairement sur le septième degré de la gamme — la note sensible — pourvu qu'elle
+            monte vers la tonique (VII–I). » Dans d'autres contextes (gamme descendante, saut),
+            on utilise le simple accord de sixte (V⁶).
+
+    leading_tone_no_resolve:
+        reason: >
+            Le 7e degré en mode mineur est la sous-tonique naturelle (♭VII), non une note sensible.
+            Elle forme un accord majeur à l'état fondamental, harmonisation standard pour le septième
+            degré naturel en mode mineur.
+
+    ascending_passing:
+        name: "Règle du passage ascendant par sixte"
+        source: "Lambert [1707] ; Christensen 2002, 42"
+        reason: >
+            Quand le 4e degré est abordé ET quitté par degré conjoint ascendant (III → IV → V),
+            il agit comme une note de passage ascendante et prend le chiffre de sixte (premier
+            renversement). Selon St. Lambert : « Toutes les fois que la basse procède par degrés
+            conjoints, il suffit de réaliser les notes qui tombent sur les temps forts de la mesure
+            et de traiter les notes intermédiaires comme des notes de passage. »
+
+    petit_accord_supertonic:
+        name: "Petite sixte sur le 2e degré (6/4/3)"
+        source: "Dandrieu [1719] ; Christensen 2002, 14–15"
+        reason: >
+            Le 2e degré menant par degré conjoint vers la tonique (I) ou vers la médiante (III) prend
+            la petite sixte (6/4/3) — le deuxième renversement de l'accord de septième de dominante.
+            Selon Christensen : « L'accord de ⁶₄₃ se joue toujours lorsque la sixte se trouve sur le
+            deuxième degré de la gamme (II) et conduit vers I ou III. »
+
+    supertonic_first_inv:
+        name: "Règle du premier renversement de la sus-tonique"
+        source: "Christensen 2002, 13"
+        reason: >
+            Le 2e degré dans d'autres contextes prend le chiffre de sixte (premier renversement),
+            conformément à la règle française générale pour la sus-tonique.
+
+    mediant_first_inv:
+        name: "Règle du premier renversement de la médiante (note de passage)"
+        source: "Lambert [1707] ; Christensen 2002, 42"
+        reason: >
+            Le 3e degré prend le chiffre de sixte (premier renversement de I ou VI) lorsqu'il
+            agit comme une note de passage par degrés conjoints ascendants — abordé et quitté par
+            mouvement conjoint. Selon St. Lambert : « Toutes les fois que la basse procède par
+            degrés conjoints, il suffit de réaliser les notes qui tombent sur les temps forts de
+            la mesure et de traiter les notes intermédiaires comme des notes de passage. »
+
+    mediant_root:
+        reason: >
+            Le 3e degré apparaît ici par saut ou comme note structurelle plutôt que comme note de
+            passage ascendante par degrés conjoints. Dans ce contexte, il supporte l'état fondamental
+            (5 3) : en mode mineur, la médiante à la basse représente souvent la dominante (V) ou
+            la médiante (III) à l'état fondamental.
+
+    ascending_submediant:
+        name: "Règle de la sus-dominante ascendante"
+        source: "Christensen 2002, 10"
+        reason: >
+            Le 6e degré montant par degré conjoint prend l'état fondamental (5 3),
+            formant l'accord de sus-dominante (vi). Cela assure la stabilité harmonique
+            avant que la basse continue vers le haut.
+
+    descending_submediant:
+        name: "Règle de la sus-dominante descendante"
+        source: "Dandrieu [1719] ; Christensen 2002, 13"
+        reason: >
+            Le 6e degré descendant par degré conjoint prend le chiffre de sixte (IV⁶ en majeur).
+            Selon Dandrieu sur l'accord de sixte simple : « Il se joue ordinairement sur le troisième
+            degré de la gamme. » Le premier renversement évite un conflit harmonique et maintient
+            une conduite de voix fluide.
+
+    submediant_root_major:
+        name: "Sus-dominante à l'état fondamental (vi)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Le 6e degré avec un saut ou une note répétée prend l'état fondamental (5 3) en majeur,
+            formant l'accord de sus-dominante (vi).
+
+    submediant_first_inv_minor:
+        name: "Sus-dominante au premier renversement (mineur)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Le 6e degré avec un saut ou une note répétée prend le chiffre de sixte en mineur
+            (premier renversement), la sus-dominante mineure se trouvant naturellement au
+            premier renversement.
+
+    dominant_seventh:
+        name: "Règle de la septième de dominante (V⁷)"
+        source: "Rameau [1722], II.5 ; Christensen 2002, 28"
+        reason: >
+            Quand le 5e degré est suivi d'un mouvement conjoint descendant, il prend le chiffre
+            de septième (V⁷). Selon Rameau : « La dominante qui précède la tonique par degrés
+            descendants reçoit la septième. » L'accord de septième de dominante intensifie
+            l'attraction harmonique vers la tonique.
+
+    dominant_root:
+        name: "Dominante à l'état fondamental (V)"
+        source: "Christensen 2002, 28"
+        reason: >
+            Le 5e degré sans mouvement conjoint descendant suivant prend l'état fondamental (5 3),
+            formant l'accord de dominante (V). La septième complète n'est pas requise en l'absence
+            d'un mouvement de résolution qui suit.
+
+    subdominant_65:
+        name: "Règle de la sixte-quinte sur la sous-dominante (IV → V)"
+        source: "Dandrieu [1719] ; Christensen 2002, 21"
+        reason: >
+            Le 4e degré suivi d'un degré conjoint ascendant vers la dominante prend l'accord de
+            sixte-quinte (6/5). Selon Dandrieu : « Cet accord est formé de la quinte, de la sixte
+            et de la tierce. Il se joue généralement sur le quatrième degré de la gamme, la
+            sous-dominante, lorsqu'elle est suivie de la dominante. »
+
+    tonic_root:
+        name: "Tonique à l'état fondamental (I)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Le 1er degré (tonique) prend toujours l'état fondamental (5 3), formant l'accord de
+            tonique (I). C'est la règle la plus fondamentale : la note tonique à la basse représente
+            l'accord de base dans sa forme la plus stable.
+
+    cadential_64:
+        name: "Règle du 6/4 cadentiel"
+        source: "Heinichen [1728] ; Christensen 2002, 72"
+        reason: >
+            Un saut de quarte vers le 4e degré suggère un accord de 6/4 cadentiel (deuxième
+            renversement). Selon Heinichen : « Les accords de 6/4 et 5/4 se rencontrent le plus
+            souvent dans les cadences ; ils doivent être joués dans les cadences même lorsqu'ils
+            ne sont pas expressément indiqués dans les chiffres de la basse. »
+
+    subdominant_root:
+        name: "Sous-dominante à l'état fondamental (IV)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Le 4e degré (sous-dominante) prend dans la plupart des contextes l'état fondamental
+            (5 3), formant l'accord de sous-dominante (IV). Sans schéma de mouvement particulier
+            correspondant à une règle spécifique, l'état fondamental est l'harmonisation naturelle.
+
+    tritone_chord_iv:
+        name: "Accord de triton sur le IV (V⁴₂)"
+        source: "Christensen 2002, 24"
+        reason: >
+            Le 4e degré (sous-dominante) suivi d'un degré conjoint descendant vers la médiante (III)
+            prend l'accord de triton (♯4), qui s'étend en ♯4/6/2 — le troisième renversement de
+            l'accord de septième de dominante (V⁴₂). Selon Christensen §8 : « Dans cet accord, le
+            triton est combiné avec la sixte et la seconde. Il se joue généralement sur le quatrième
+            degré ou sous-dominante de la gamme (IV), lorsqu'il est suivi de la médiante (III).
+            Son chiffre peut être ♯4 ou ♮. »
+
+    default_rule:
+        name: "Règle par défaut (état fondamental)"
+        source: "Wead & Knopke, ICMC 2007"
+        reason: >
+            Aucune règle spécifique ne correspond à cette note de basse. L'harmonisation par
+            défaut est l'état fondamental (5 3), fournissant l'harmonisation la plus neutre
+            et stable selon le repli de l'arbre de décision de Wead & Knopke.
+
+# ── How It Works accordion ───────────────────────────────────────────────────
+how_it_works:
+    heading: "Fonctionnement"
+    algo_heading: "Vue d'ensemble de l'algorithme"
+    algo_intro: >
+        Le réalisateur implémente l'arbre de décision décrit par Wead & Knopke (ICMC 2007),
+        s'appuyant sur des traités baroques :
+    algo_gasparini: "L'Armonico Pratico al Cimbalo, Gasparini (3e éd., 1729, Venise)"
+    algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin, Delair (1690/1724, Paris)"
+    pipeline_heading: "Pipeline de traitement"
+    step1: "Analyse — Le MusicXML est lu ; la partie la plus grave est sélectionnée comme basse."
+    step2: >
+        Détection de la basse chiffrée — Si des éléments <figured-bass> sont présents, ils
+        sont utilisés directement. Sinon, l'arbre de décision pour basse non chiffrée s'exécute.
+    step3: "Arbre de décision — Calcule le degré de la gamme (1–7) et le mouvement mélodique (degré/saut, ascendant/descendant), puis sélectionne les chiffres selon les traités :"
+    step3_a: "Degré 7 en mode majeur → 6 (V⁶, Dandrieu)"
+    step3_b: "Degré 2 + descente par degrés → 6/4/3 (petite sixte, Dandrieu)"
+    step3_c: "Degré 4 + montée par degrés vers V → 6/5 (Dandrieu)"
+    step3_d: "Degré 4 + passage ascendant → 6 (St. Lambert)"
+    step3_e: "Degré 2, 3 → 6 (premier renversement)"
+    step3_f: "Degré 5 suivi d'un degré conjoint descendant → 7 (V⁷, Rameau)"
+    step3_g: "Tous les autres → 5 (état fondamental)"
+    step4: "Les chiffres abrégés sont développés : 6→6 3, 7→7 5 3, 6 5→6 5 3, etc."
+    step5: "Réalisation des voix — Trois voix supérieures (soprano, alto, ténor) sont choisies pour minimiser le mouvement vocal total (loi du chemin le plus court) tout en respectant :"
+    step5_a: "Pas de quintes ou d'octaves parfaites parallèles"
+    step5_b: "Pas de croisement de voix ni de doublement de la note sensible"
+    step5_c: "Tessiture des voix : soprano do4–sol5, alto sol3–do5, ténor do3–mi4"
+    step6: "Export — Le résultat est un MusicXML à deux parties : Partie 1 = basse originale, Partie 2 = réalisation (voix 1–3 supérieures)."
+    fb_heading: "Référence des chiffres de basse continue"
+    fb_sec_triads: "Triades"
+    fb_sec_sevenths: "Accords de septième"
+    fb_sec_ninths: "Neuvièmes"
+    fb_sec_suspensions: "Suspensions"
+    fb_sec_chromatic: "Chromatique / Altéré"
+    fb_sec_special: "Spécial"
+    fb_none: "tierce en état fondamental"
+    fb_6: "accord au premier renversement"
+    fb_64: "accord au deuxième renversement — cadentiel ou de passage"
+    fb_7: "accord de septième, état fondamental"
+    fb_65: "accord de septième, premier renversement (variante V⁶₅)"
+    fb_b5: "accord de quinte diminuée = V⁶₅ (premier renversement de l'accord de dominante)"
+    fb_43: "accord de septième, deuxième renversement / suspension 4–3"
+    fb_2: "accord de septième, troisième renversement"
+    fb_sharp4: "accord du triton = V⁴₂ (troisième renversement de l'accord de dominante)"
+    fb_9: "accord de neuvième / suspension 9–8"
+    fb_97: "neuvième avec septième"
+    fb_76: "suspension 7–6"
+    fb_54: "suspension 5–4 (–3)"
+    fb_sharp5: "accord de quinte augmentée — 3, ♯5, 7, 9 (Christensen §14)"
+    fb_b7: "accord de septième diminuée — 3, 5, ♭7 (Christensen §15)"
+    fb_8: "octave explicite au-dessus de la basse"
+    fb_acc: "préfixe d'altération — ♯ élève, ♭ abaisse, ♮ annule l'intervalle chiffré"
+
+# ── Bibliography accordion ────────────────────────────────────────────────────
+bibliography:
+    heading: "Bibliographie"

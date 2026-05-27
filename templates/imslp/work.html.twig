@@ -1,0 +1,248 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ work.title }} — IMSLP{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #1a1a1a;
+    color: #e8e0d4;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+.wrapper {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+.back-link {
+    display: inline-block;
+    color: #c8a96e;
+    text-decoration: none;
+    font-size: .85rem;
+    margin-bottom: 1.5rem;
+}
+.back-link:hover { text-decoration: underline; }
+
+/* ── Work header ── */
+.work-header {
+    margin-bottom: 2rem;
+}
+.work-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: #f0e6c8;
+    line-height: 1.25;
+    margin-bottom: .4rem;
+}
+.work-header .composer-line {
+    font-size: 1.1rem;
+    color: #c8a96e;
+    margin-bottom: .8rem;
+}
+.work-header .catalog-no {
+    font-size: .85rem;
+    color: #8a8070;
+}
+
+/* ── Metadata grid ── */
+.meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .6rem 2rem;
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 2rem;
+}
+@media (max-width: 600px) { .meta-grid { grid-template-columns: 1fr; } }
+.meta-item {}
+.meta-item dt {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #6a6058;
+    margin-bottom: .15rem;
+}
+.meta-item dd {
+    font-size: .9rem;
+    color: #d8d0c4;
+}
+
+/* ── Files section ── */
+.section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    color: #f0e6c8;
+    margin-bottom: 1rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid #2e2e2e;
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-bottom: 2rem;
+}
+
+.file-item {
+    background: #252525;
+    border: 1px solid #2e2e2e;
+    border-radius: 8px;
+    padding: .85rem 1.1rem;
+}
+.file-name {
+    font-family: monospace;
+    font-size: .8rem;
+    color: #9a8a78;
+    word-break: break-all;
+    margin-bottom: .3rem;
+}
+.file-desc {
+    font-size: .9rem;
+    color: #d8d0c4;
+    margin-bottom: .25rem;
+}
+.file-meta {
+    font-size: .78rem;
+    color: #6a6058;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem 1rem;
+}
+.file-meta span { }
+.file-meta .copyright { color: #8a8070; }
+
+/* ── IMSLP link ── */
+.imslp-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #c8a96e;
+    color: #1a1a1a;
+    text-decoration: none;
+    padding: .6rem 1.2rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: .9rem;
+    transition: background .2s;
+    margin-bottom: 2rem;
+}
+.imslp-link:hover { background: #d9be88; }
+
+/* ── No detail notice ── */
+.notice {
+    background: #2a2520;
+    border: 1px solid #3a3020;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-size: .85rem;
+    color: #9a8878;
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+
+    <a class="back-link" href="javascript:history.back()">← Back to search</a>
+
+    <div class="work-header">
+        <h1>{{ work.title }}</h1>
+        <div class="composer-line">{{ work.composer }}</div>
+        {% if work.catalogNumber %}
+        <div class="catalog-no">{{ work.catalogNumber }}</div>
+        {% endif %}
+    </div>
+
+    <a class="imslp-link" href="{{ work.permlink }}" target="_blank" rel="noopener">
+        Open on IMSLP ↗
+    </a>
+
+    {% if not work.hasDetail() %}
+    <div class="notice">
+        Detail data (instrumentation, files) has not been fetched yet for this work.
+        Run <code>php bin/console app:imslp:fetch-details</code> to populate it,
+        or visit the IMSLP page directly.
+    </div>
+    {% endif %}
+
+    <!-- Metadata -->
+    {% if work.hasDetail() %}
+    <dl class="meta-grid">
+        {% if work.workKey %}
+        <div class="meta-item"><dt>Key</dt><dd>{{ work.workKey }}</dd></div>
+        {% endif %}
+        {% if work.instrumentation %}
+        <div class="meta-item"><dt>Instrumentation</dt><dd>{{ work.instrumentation }}</dd></div>
+        {% endif %}
+        {% if work.pieceStyle %}
+        <div class="meta-item"><dt>Style</dt><dd>{{ work.pieceStyle }}</dd></div>
+        {% endif %}
+        {% if work.yearComposed %}
+        <div class="meta-item"><dt>Year composed</dt><dd>{{ work.yearComposed }}</dd></div>
+        {% endif %}
+        {% if work.yearPublished %}
+        <div class="meta-item"><dt>Year published</dt><dd>{{ work.yearPublished }}</dd></div>
+        {% endif %}
+        {% if work.pageType %}
+        <div class="meta-item"><dt>Type</dt><dd>{{ work.pageType }}</dd></div>
+        {% endif %}
+        {% if work.movements %}
+        <div class="meta-item" style="grid-column:1/-1"><dt>Movements / Sections</dt><dd>{{ work.movements }}</dd></div>
+        {% endif %}
+        {% if work.tags %}
+        <div class="meta-item" style="grid-column:1/-1"><dt>Tags</dt><dd>{{ work.tags }}</dd></div>
+        {% endif %}
+    </dl>
+    {% endif %}
+
+    <!-- Files -->
+    {% if work.filesJson is not empty %}
+    <h2 class="section-title">Score files ({{ work.filesJson|length }})</h2>
+    <div class="file-list">
+        {% for file in work.filesJson %}
+        <div class="file-item">
+            {% if file.description is defined and file.description %}
+            <div class="file-desc">{{ file.description }}</div>
+            {% endif %}
+            <div class="file-name">{{ file.filename }}</div>
+            <div class="file-meta">
+                {% if file.arranger is defined and file.arranger %}
+                <span>Arr. {{ file.arranger }}</span>
+                {% endif %}
+                {% if file.editor is defined and file.editor %}
+                <span>Ed. {{ file.editor }}</span>
+                {% endif %}
+                {% if file.publisher is defined and file.publisher %}
+                <span>{{ file.publisher }}</span>
+                {% endif %}
+                {% if file.dateSubmitted is defined and file.dateSubmitted %}
+                <span>Submitted {{ file.dateSubmitted }}</span>
+                {% endif %}
+                {% if file.copyright is defined and file.copyright %}
+                <span class="copyright">{{ file.copyright }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <p style="font-size:.8rem;color:#6a6058;margin-bottom:2rem;">
+        Download PDF files directly from the
+        <a href="{{ work.permlink }}" target="_blank" rel="noopener" style="color:#c8a96e">IMSLP work page</a>.
+    </p>
+    {% endif %}
+
+</div>
+{% endblock %}

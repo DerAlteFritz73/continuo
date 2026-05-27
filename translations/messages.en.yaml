@@ -1,0 +1,338 @@
+# ── App-wide UI ─────────────────────────────────────────────────────────────
+app:
+    subtitle: "Baroque Music Technology"
+    title: "Basso Continuo Realizer"
+    desc: >
+        Upload a MusicXML file containing a bass line to generate an
+        historically-informed continuo realization using rules from
+        Gasparini (1729), Delair (1724), and the Wead–Knopke decision tree (ICMC 2007).
+    lang_switch: "Français"
+
+# ── Params panel ─────────────────────────────────────────────────────────────
+params:
+    btn: "Params"
+    voices_label: "Number of voices"
+    voices_4: "4 voices — full realization (soprano + alto + tenor + bass)"
+    voices_3: "3 voices — whenever possible (alto + soprano + bass)"
+
+# ── Upload card ──────────────────────────────────────────────────────────────
+upload:
+    card_title: "Upload Score"
+    drop_label: "Drop your MusicXML file here"
+    drop_hint: "or click to browse — .xml / .musicxml files, max 10 MB"
+    realize_btn: "Realize Continuo"
+    clear_btn: "Clear"
+    sample_hint: "load sample file"
+    progress: "Analyzing bass line and realizing harmony…"
+
+# ── Errors ───────────────────────────────────────────────────────────────────
+error:
+    no_file: "Please upload a MusicXML file."
+    invalid_type: "Invalid file type. Please upload a .xml or .musicxml file."
+    too_large: "File too large (max 10 MB)."
+    processing: "Error processing file: %message%"
+
+# ── Result panel ─────────────────────────────────────────────────────────────
+result:
+    card_title: "Realization Complete"
+    success_msg: "Continuo realization generated successfully."
+    top_chords: "Most frequent harmonies"
+    output_preview: "Output preview"
+    download_btn: "Download MusicXML"
+    new_btn: "Realize Another"
+    summary:
+        title: "Title"
+        key: "Key"
+        measures: "Measures"
+        notes: "Notes Realized"
+
+# ── Score viewer ─────────────────────────────────────────────────────────────
+viewer:
+    card_title: "Score Viewer"
+    tab_orig: "Original Bass Line"
+    tab_real: "Continuo Realization"
+    waiting: "Waiting for realization…"
+    click_hint: "▶ Click any note or chord to inspect its harmony & decision tree"
+    rendering: "Rendering score…"
+    show_computed: "Show computed figures"
+
+# ── Chord inspector ──────────────────────────────────────────────────────────
+inspector:
+    title: "Chord Inspector"
+    close: "Close"
+    section_info: "General Information"
+    section_chord: "Realized Chord"
+    section_tree: "Decision Tree"
+    lbl_bass_pitch: "Bass Pitch"
+    lbl_note_type: "Note Type"
+    lbl_scale_degree: "Scale Degree"
+    lbl_key: "Key"
+    lbl_figured_bass: "Figured Bass"
+    lbl_chord_symbol: "Chord Symbol"
+    lbl_figures_source: "Figures Source"
+    voice_soprano: "Soprano"
+    voice_alto: "Alto"
+    voice_tenor: "Tenor"
+    voice_bass: "Bass"
+    figures_computed: "Computed by decision tree"
+    figures_from_file: "From score (pre-notated)"
+    badge_from_file: "✓ Figures provided in score — no decision tree needed"
+    badge_computed: "⊕ Unfigured bass — decision tree applied"
+    from_file_note: "The figured bass notation was read directly from the uploaded file. No algorithmic rule was applied."
+    ctx_scale_degree: "Scale degree"
+    ctx_motion_in: "Motion in"
+    ctx_motion_out: "Motion out"
+    ctx_key: "Key"
+
+# ── Scale degrees ────────────────────────────────────────────────────────────
+scale_degree:
+    1: "I — Tonic"
+    2: "II — Supertonic"
+    3: "III — Mediant"
+    4: "IV — Subdominant"
+    5: "V — Dominant"
+    6: "VI — Submediant"
+    7: "VII — Leading Tone"
+
+# ── Motion types ─────────────────────────────────────────────────────────────
+motion:
+    step_up: "ascending step"
+    step_down: "descending step"
+    leap_up: "ascending leap"
+    leap_down: "descending leap"
+    same: "repeated note"
+    start: "start of phrase"
+
+# ── Decision-tree rule tests, names, sources, reasons ────────────────────────
+rule:
+    test:
+        degree_7: "Scale degree = 7 (leading tone)?"
+        major_mode: "Mode = major?"
+        next_step_up_resolves: "Next motion = ascending step (resolving upward to tonic)?"
+        motion_passing_step: "Stepwise motion both in and out (passing tone context)?"
+        degree_4_step_up: "Scale degree = 4 with ascending step both in and out (passing context)?"
+        degree_4_next_step_up: "Scale degree = 4 with next motion ascending (IV → V)?"
+        degree_2: "Scale degree = 2 (supertonic)?"
+        motion_step_down: "Motion = descending step?"
+        degree_3: "Scale degree = 3 (mediant)?"
+        degree_6: "Scale degree = 6 (submediant)?"
+        motion_step_up: "Motion = ascending step?"
+        degree_5: "Scale degree = 5 (dominant)?"
+        next_step_down_tonic: "Next motion = descending step (approaching tonic)?"
+        next_step_down: "Next motion = descending step (to tonic)?"
+        degree_1: "Scale degree = 1 (tonic)?"
+        degree_4: "Scale degree = 4 (subdominant)?"
+        leap_fourth: "Leap of a 4th (cadential motion)?"
+        next_step_to_i_or_iii: "Next motion = step to scale degree I or III (petit accord context)?"
+        degree_4_next_step_down: "Scale degree = 4 with next motion descending (IV → III)?"
+        default: "Default rule (no specific match)?"
+
+    leading_tone:
+        name: "Leading Tone Rule (V⁶₅)"
+        source: "Dandrieu [1719]; Christensen 2002, 17"
+        reason: >
+            In major mode, the leading tone (scale degree 7) resolving to the tonic takes the
+            diminished-fifth chord (♭5 with implied 6th and 3rd = V⁶₅). Per Christensen §4:
+            "This chord consists of the diminished fifth, the sixth, and the third. It is usually
+            played on the seventh degree of the scale – the leading tone – provided that it
+            proceeds to the tonic (VII–I)." In other contexts (descending scale, leap), a simple
+            sixth chord (V⁶) is used.
+
+    leading_tone_no_resolve:
+        reason: >
+            Scale degree 7 in minor mode is the natural subtonic (♭VII), not a leading tone.
+            It forms a major triad in root position, which is the standard harmonization
+            for the natural seventh degree in the minor mode.
+
+    ascending_passing:
+        name: "Ascending Passing 6th Rule"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            When scale degree 4 is approached AND quitted by ascending step (III → IV → V),
+            it acts as an ascending passing tone and takes a 6th figure (first inversion).
+            Per St. Lambert: "Whenever the bass proceeds in stepwise motion, it suffices to
+            harmonize the notes that fall on the main beats of the bar and to treat the notes
+            between them as passing notes."
+
+    petit_accord_supertonic:
+        name: "Petite Sixte on Scale Degree 2 (6/4/3)"
+        source: "Dandrieu [1719]; Christensen 2002, 14–15"
+        reason: >
+            Scale degree 2 leading by step to the tonic (I) or to the mediant (III) takes the
+            petite sixte (6/4/3) — the second inversion of the dominant seventh chord. Per
+            Christensen: "the ⁶₄₃ chord is always played when the 6 occurs on the second degree
+            of the scale (II) and leads to I or III."
+
+    subdominant_65:
+        name: "Subdominant Six-Five Rule (IV → V)"
+        source: "Dandrieu [1719]; Christensen 2002, 21"
+        reason: >
+            Scale degree 4 followed by an ascending step to the dominant takes the six-five chord
+            (6/5). Per Dandrieu: "This chord is formed of the fifth, the sixth, and the third.
+            It is generally played on the fourth degree of the scale, the subdominant, when
+            followed by the dominant."
+
+    supertonic_first_inv:
+        name: "Supertonic First Inversion Rule"
+        source: "Christensen 2002, 13"
+        reason: >
+            Scale degree 2 in other contexts takes a 6th figure (first inversion), per the
+            general French rule for the supertonic.
+
+    mediant_first_inv:
+        name: "Mediant Passing First Inversion Rule"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            Scale degree 3 takes a 6th figure (first inversion of I or VI) when it acts as a
+            stepwise ascending passing tone — approached and quitted by step. Per St. Lambert:
+            "Whenever the bass proceeds in stepwise motion, it suffices to harmonize the notes
+            that fall on the main beats of the bar and to treat the notes between them as passing notes."
+
+    mediant_root:
+        reason: >
+            Scale degree 3 appears here at a leap or as a structural note rather than as a
+            stepwise ascending passing tone. In this context it supports root position (5):
+            in minor mode the mediant bass often represents the dominant triad (V) or
+            mediant triad (III) in root position.
+
+    ascending_submediant:
+        name: "Ascending Submediant Rule"
+        source: "Christensen 2002, 10"
+        reason: >
+            Scale degree 6 ascending by step takes root position (5), forming the submediant
+            triad (vi). This provides harmonic stability before the bass continues upward.
+
+    descending_submediant:
+        name: "Descending Submediant Rule"
+        source: "Dandrieu [1719]; Christensen 2002, 13"
+        reason: >
+            Scale degree 6 descending by step takes a 6th figure (IV⁶ in major). Per Dandrieu
+            on the simple sixth chord: "It is usually played on the third degree of the scale."
+            The first inversion avoids harmonic conflict and maintains smooth voice leading.
+
+    submediant_root_major:
+        name: "Submediant Root Position (vi)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Scale degree 6 with leap or repeated note takes root position (5) in major,
+            forming the submediant triad (vi).
+
+    submediant_first_inv_minor:
+        name: "Submediant First Inversion (minor)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Scale degree 6 with leap or repeated note takes a 6th figure in minor (first
+            inversion), since the minor submediant chord sits naturally in first inversion.
+
+    dominant_seventh:
+        name: "Dominant Seventh Rule (V⁷)"
+        source: "Rameau [1722], II.5; Christensen 2002, 28"
+        reason: >
+            When scale degree 5 is followed by a descending step, it takes a 7th figure (V⁷).
+            Per Rameau: "La dominante qui précède la tonique par degrés descendants reçoit la septième."
+            The dominant seventh chord intensifies the harmonic pull toward the tonic.
+
+    dominant_root:
+        name: "Dominant Root Position (V)"
+        source: "Christensen 2002, 28"
+        reason: >
+            Scale degree 5 without a following descending step takes root position (5),
+            forming the dominant triad (V). The full seventh chord is not required when there
+            is no strong resolution motion following.
+
+    tonic_root:
+        name: "Tonic Root Position (I)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Scale degree 1 (tonic) always takes root position (5), forming the tonic triad (I).
+            This is the most fundamental rule: the tonic note in the bass represents the home
+            chord in its most stable form.
+
+    cadential_64:
+        name: "Cadential 6/4 Rule"
+        source: "Heinichen [1728]; Christensen 2002, 72"
+        reason: >
+            A leap of a 4th to scale degree 4 suggests a cadential 6/4 chord (second inversion).
+            Per Heinichen: "The 6/4 and 5/4 chords occur most frequently in cadences; they should
+            be played in cadences even when not expressly called for in the bass figures."
+
+    subdominant_root:
+        name: "Subdominant Root Position (IV)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Scale degree 4 (subdominant) in most contexts takes root position (5), forming the
+            subdominant triad (IV). Without a specific motion pattern, root position is the
+            natural harmonization.
+
+    tritone_chord_iv:
+        name: "Tritone Chord on IV (V⁴₂)"
+        source: "Christensen 2002, 24"
+        reason: >
+            Scale degree 4 (subdominant) followed by a descending step to the mediant (III) takes
+            the tritone chord (♯4), which expands to ♯4/6/2 — the third inversion of the dominant
+            seventh chord (V⁴₂). Per Christensen §8: "In this chord, the tritone is combined with
+            the sixth and the second. It is generally played on the fourth or subdominant degree of
+            the scale (IV) when followed by the mediant (III). Its figure may read ♯4 or ♮."
+
+    default_rule:
+        name: "Root Position Default"
+        source: "Wead & Knopke, ICMC 2007"
+        reason: >
+            No specific rule matched this bass note. The default harmonization is root position
+            (5), providing the most neutral and stable harmonization per the Wead–Knopke
+            decision tree fallback.
+
+# ── How It Works accordion ───────────────────────────────────────────────────
+how_it_works:
+    heading: "How It Works"
+    algo_heading: "Algorithm Overview"
+    algo_intro: >
+        The realizer implements the decision tree described by Wead & Knopke (ICMC 2007),
+        drawing on two primary Baroque treatises:
+    algo_gasparini: "L'Armonico Pratico al Cimbalo (3rd ed., 1729, Venice)"
+    algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin (1724, Paris)"
+    pipeline_heading: "Processing Pipeline"
+    step1: "Parse — MusicXML is read; the lowest-pitched part is selected as the bass line."
+    step2: >
+        Figured Bass Detection — If <figured-bass> elements are present, they are used
+        directly. Otherwise, the unfigured bass decision tree runs.
+    step3: "Unfigured Decision Tree — Computes scale degree (1–7) and melodic motion (step/leap, up/down), then selects figures per Gasparini/Delair:"
+    step3_a: "Scale degree 7 (leading tone) → 6 (V⁶)"
+    step3_b: "Scale degrees 2, 3 → 6 (first inversion)"
+    step3_c: "Scale degree 5 approaching tonic by step → 7 (V⁷)"
+    step3_d: "Ascending step on degree 4 → 6 (passing)"
+    step3_e: "All others → 5 (root position)"
+    step4: "Interval Expansion — Abbreviated figures are expanded: 6→6, 7→7 5, 6 5→6 5, 4 3→4 3, 2→4 2."
+    step5: "Voice Realization — Three upper voices (soprano, alto, tenor) are chosen to minimize total voice movement (law of the shortest way) while enforcing:"
+    step5_a: "No parallel perfect fifths or octaves"
+    step5_b: "No voice crossing or doubling of the leading tone"
+    step5_c: "Voice ranges: soprano C4–G5, alto G3–C5, tenor C3–E4"
+    step6: "Export — Output is a two-part MusicXML: Part 1 = original bass, Part 2 = realized realization (voices 1–3 upper + voice 4 bass)."
+    fb_heading: "Figured Bass Notation Reference"
+    fb_sec_triads: "Triads"
+    fb_sec_sevenths: "Seventh Chords"
+    fb_sec_ninths: "Ninths"
+    fb_sec_suspensions: "Suspensions"
+    fb_sec_chromatic: "Chromatic / Altered"
+    fb_sec_special: "Special"
+    fb_none: "root position triad"
+    fb_6: "first inversion triad"
+    fb_64: "second inversion triad — cadential or passing"
+    fb_7: "seventh chord, root position"
+    fb_65: "seventh chord, first inversion (V⁶₅ variant)"
+    fb_b5: "diminished-fifth chord = V⁶₅ (first inversion dominant seventh)"
+    fb_43: "seventh chord, second inversion / 4–3 suspension"
+    fb_2: "seventh chord, third inversion"
+    fb_sharp4: "tritone chord = V⁴₂ (third inversion dominant seventh)"
+    fb_9: "ninth chord / 9–8 suspension"
+    fb_97: "ninth with seventh"
+    fb_76: "7–6 suspension"
+    fb_54: "5–4 (–3) suspension"
+    fb_sharp5: "augmented-fifth chord — 3, ♯5, 7, 9 (Christensen §14)"
+    fb_b7: "diminished seventh chord — 3, 5, ♭7 (Christensen §15)"
+    fb_8: "explicit octave above bass"
+    fb_acc: "accidental prefix — ♯ raises, ♭ lowers, ♮ cancels the figured interval"
+
+# ── Bibliography accordion ────────────────────────────────────────────────────
+bibliography:
+    heading: "Bibliography"

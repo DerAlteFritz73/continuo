@@ -1,0 +1,392 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}IMSLP Import Status{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #1a1a1a;
+    color: #e8e0d4;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.wrapper {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+
+/* ── Header ── */
+.site-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+.site-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    color: #f0e6c8;
+    letter-spacing: .03em;
+    margin-bottom: .35rem;
+}
+.site-header .subtitle {
+    font-size: .85rem;
+    color: #8a8070;
+}
+.back-link {
+    display: inline-block;
+    color: #c8a96e;
+    text-decoration: none;
+    font-size: .85rem;
+    margin-bottom: 1.8rem;
+}
+.back-link:hover { text-decoration: underline; }
+
+/* ── Status badge ── */
+.status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+    font-weight: 600;
+    padding: .4rem .9rem;
+    border-radius: 999px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.status-badge.running {
+    background: rgba(100, 200, 120, .12);
+    color: #6ec87a;
+    border: 1px solid rgba(110, 200, 122, .3);
+}
+.status-badge.idle {
+    background: rgba(200, 169, 110, .1);
+    color: #c8a96e;
+    border: 1px solid rgba(200, 169, 110, .25);
+}
+.pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #6ec87a;
+    animation: pulse 1.4s ease-in-out infinite;
+}
+.dot-idle {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #c8a96e;
+    opacity: .6;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .4; transform: scale(.7); }
+}
+
+/* ── Stat cards ── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+@media (max-width: 560px) { .stats-grid { grid-template-columns: 1fr; } }
+
+.stat-card {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    text-align: center;
+}
+.stat-card .value {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: #f0e6c8;
+    line-height: 1.1;
+    margin-bottom: .2rem;
+}
+.stat-card .label {
+    font-size: .78rem;
+    color: #8a8070;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+
+/* ── Progress section ── */
+.progress-section {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 2rem;
+}
+.progress-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    color: #f0e6c8;
+    margin-bottom: 1.2rem;
+}
+.progress-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: .82rem;
+    color: #a09080;
+    margin-bottom: .5rem;
+}
+.progress-label-row .pct {
+    color: #c8a96e;
+    font-weight: 600;
+}
+.progress-bar-track {
+    background: #333;
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 1.2rem;
+}
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #c8a96e 0%, #e8c87a 100%);
+    transition: width .5s ease;
+}
+.progress-bar-fill.animated {
+    background: linear-gradient(90deg, #6ec87a 0%, #9edba8 100%);
+    animation: shimmer 2s linear infinite;
+    background-size: 200% 100%;
+}
+@keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+}
+.remaining {
+    font-size: .82rem;
+    color: #8a8070;
+    text-align: right;
+    margin-top: -.8rem;
+    margin-bottom: .4rem;
+}
+
+/* ── Start button ── */
+.action-section {
+    text-align: center;
+    margin-top: 1rem;
+}
+.btn-start {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    background: linear-gradient(135deg, #c8a96e 0%, #e8c87a 100%);
+    color: #1a1a1a;
+    border: none;
+    padding: .75rem 2rem;
+    border-radius: 8px;
+    font-size: .95rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    letter-spacing: .03em;
+    transition: opacity .15s, transform .1s;
+}
+.btn-start:hover  { opacity: .9; }
+.btn-start:active { transform: scale(.97); }
+.btn-start:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+.btn-start svg {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+}
+
+.refresh-note {
+    margin-top: .9rem;
+    font-size: .78rem;
+    color: #6a6058;
+}
+
+/* ── Log tail ── */
+.log-section {
+    margin-top: 2rem;
+}
+.log-section h3 {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #6a6058;
+    margin-bottom: .6rem;
+}
+.log-box {
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: 'Courier New', monospace;
+    font-size: .78rem;
+    color: #7a9a7a;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+
+    <a href="{{ path('app_imslp') }}" class="back-link">← Back to IMSLP Browser</a>
+
+    <header class="site-header">
+        <h1>Import Status</h1>
+        <p class="subtitle">IMSLP detail fetch progress</p>
+    </header>
+
+    <div class="status-row">
+        {% if running %}
+            <span class="status-badge running">
+                <span class="pulse"></span>
+                Running
+            </span>
+            <span style="font-size:.82rem;color:#6a6058;">Auto-refreshing every 10 s</span>
+        {% else %}
+            <span class="status-badge idle">
+                <span class="dot-idle"></span>
+                Idle
+            </span>
+        {% endif %}
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="value">{{ composers|number_format(0, '.', ' ') }}</div>
+            <div class="label">Composers</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ works|number_format(0, '.', ' ') }}</div>
+            <div class="label">Works total</div>
+        </div>
+        <div class="stat-card">
+            <div class="value">{{ worksWithDetail|number_format(0, '.', ' ') }}</div>
+            <div class="label">With details</div>
+        </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-section">
+        <h2>Detail fetch progress</h2>
+        <div class="progress-label-row">
+            <span>{{ worksWithDetail|number_format }} of {{ works|number_format }} works fetched</span>
+            <span class="pct">{{ detailPercent }}%</span>
+        </div>
+        <div class="progress-bar-track">
+            <div class="progress-bar-fill{% if running %} animated{% endif %}"
+                 style="width: {{ detailPercent }}%"></div>
+        </div>
+        {% if worksWithoutDetail > 0 %}
+            <p class="remaining">{{ worksWithoutDetail|number_format }} works remaining</p>
+        {% else %}
+            <p class="remaining" style="color:#6ec87a;">✓ All works have been fetched</p>
+        {% endif %}
+    </div>
+
+    <!-- Action -->
+    <div class="action-section">
+        {% if running %}
+            <p style="color:#6ec87a;font-size:.9rem;">
+                ✦ Fetch is running — details are being added continuously.
+            </p>
+        {% elseif worksWithoutDetail > 0 %}
+            <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post">
+                <button type="submit" class="btn-start" id="start-btn">
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M3 2.5l10 5.5-10 5.5V2.5z"/>
+                    </svg>
+                    Start fetch-details
+                </button>
+            </form>
+            <p class="refresh-note">Fetches instrumentation &amp; file data for the remaining {{ worksWithoutDetail|number_format }} works.<br>The process runs in the background.</p>
+        {% else %}
+            <p style="color:#6ec87a;font-size:.9rem;">✓ Import complete — all works have full detail data.</p>
+        {% endif %}
+    </div>
+
+    {% if running %}
+    <div class="log-section" id="log-section">
+        <h3>Recent log</h3>
+        <div class="log-box" id="log-box">Loading…</div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+(function () {
+    const running = {{ running ? 'true' : 'false' }};
+
+    // Start button: disable on submit and show feedback
+    const form = document.getElementById('start-form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('start-btn');
+            btn.disabled = true;
+            btn.textContent = 'Starting…';
+
+            fetch(form.action, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.started) {
+                        location.reload();
+                    } else {
+                        btn.disabled = false;
+                        btn.textContent = 'Start fetch-details';
+                        alert('Could not start: ' + (data.message || 'unknown error'));
+                    }
+                })
+                .catch(() => location.reload());
+        });
+    }
+
+    // Auto-refresh + log tail when running
+    if (running) {
+        // Reload page every 10 s to update counts
+        setTimeout(() => location.reload(), 10000);
+
+        // Fetch log tail
+        function loadLog() {
+            fetch('{{ path('app_imslp_fetch_log') }}')
+                .then(r => r.ok ? r.text() : Promise.reject())
+                .then(txt => {
+                    const box = document.getElementById('log-box');
+                    if (box) {
+                        box.textContent = txt || '(no output yet)';
+                        box.scrollTop = box.scrollHeight;
+                    }
+                })
+                .catch(() => {
+                    const box = document.getElementById('log-box');
+                    if (box) box.textContent = '(log not available)';
+                });
+        }
+        loadLog();
+        setInterval(loadLog, 5000);
+    }
+})();
+</script>
+{% endblock %}
