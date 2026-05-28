@@ -42,53 +42,6 @@ body {
 }
 .back-link:hover { text-decoration: underline; }
 
-/* ── Status badge ── */
-.status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: .75rem;
-}
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    font-size: .85rem;
-    font-weight: 600;
-    padding: .4rem .9rem;
-    border-radius: 999px;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-}
-.status-badge.running {
-    background: rgba(100, 200, 120, .12);
-    color: #6ec87a;
-    border: 1px solid rgba(110, 200, 122, .3);
-}
-.status-badge.idle {
-    background: rgba(200, 169, 110, .1);
-    color: #c8a96e;
-    border: 1px solid rgba(200, 169, 110, .25);
-}
-.pulse {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #6ec87a;
-    animation: pulse 1.4s ease-in-out infinite;
-}
-.dot-idle {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #c8a96e;
-    opacity: .6;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: .4; transform: scale(.7); }
-}
-
 /* ── Stat cards ── */
 .stats-grid {
     display: grid;
@@ -310,20 +263,9 @@ body {
         <p class="subtitle">IMSLP sync &amp; detail fetch progress</p>
     </header>
 
-    <div class="status-row">
-        {% if running or syncRunning %}
-            <span class="status-badge running">
-                <span class="pulse"></span>
-                Running
-            </span>
-            <span style="font-size:.82rem;color:#6a6058;">Auto-refreshing every 10 s</span>
-        {% else %}
-            <span class="status-badge idle">
-                <span class="dot-idle"></span>
-                Idle
-            </span>
-        {% endif %}
-    </div>
+    {% if running or syncRunning %}
+    <p style="font-size:.82rem;color:#6a6058;margin-bottom:1.5rem;">Auto-refreshing every 10 s</p>
+    {% endif %}
 
     <!-- Stat cards -->
     <div class="stats-grid">
