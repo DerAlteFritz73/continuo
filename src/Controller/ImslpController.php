@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Entity\ImslpWork;
 use App\Repository\ImslpWorkRepository;
+use App\Repository\WorkFilters;
+use App\Service\ImslpAiSearchService;
 use App\Service\ImslpService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,67 +17,85 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/imslp')]
 class ImslpController extends AbstractController
 {
+    private const STYLES = ['Ancient', 'Baroque', 'Classical', 'Medieval', 'Modern', 'Renaissance', 'Romantic', 'Traditional'];
+
     public function __construct(
-        private readonly ImslpWorkRepository  $workRepo,
-        private readonly ImslpService         $imslp,
+        private readonly ImslpWorkRepository    $workRepo,
+        private readonly ImslpService           $imslp,
+        private readonly ImslpAiSearchService   $aiSearch,
         private readonly EntityManagerInterface $em,
     ) {}
 
     #[Route('', name: 'app_imslp', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $q               = trim($request->query->getString('q'));
-        $composer        = trim($request->query->getString('composer'));
-        $instrumentation = trim($request->query->getString('instrumentation'));
-        $style           = trim($request->query->getString('style'));
-        $page            = max(1, $request->query->getInt('page', 1));
-        $perPage         = 30;
+        $q        = trim($request->query->getString('q'));
+        $composer = trim($request->query->getString('composer'));
+        $page     = max(1, $request->query->getInt('page', 1));
+        $perPage  = 30;
+
+        $filters = new WorkFilters(
+            instrumentation: trim($request->query->getString('instrumentation')),
+            style:           trim($request->query->getString('style')),
+            genre:           trim($request->query->getString('genre')),
+            key:             trim($request->query->getString('key')),
+            yearFrom:        $request->query->getInt('year_from') ?: null,
+            yearTo:          $request->query->getInt('year_to')   ?: null,
+        );
 
         $works           = [];
         $composerMatches = [];
         $total           = 0;
         $pages           = 0;
-        $mode            = 'empty'; // empty | search | composer | instr
+        $mode            = 'empty'; // empty | search | composer | filter
 
         if ($composer !== '') {
-            // ── Composer browse ──────────────────────────────────────────────
             $mode  = 'composer';
-            $total = $this->workRepo->countByComposer($composer, $instrumentation, $style);
+            $total = $this->workRepo->countByComposer($composer, $filters);
             $pages = (int) ceil($total / $perPage);
-            $works = $this->workRepo->findByComposer($composer, $instrumentation, $style, $page, $perPage);
+            $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
 
         } elseif ($q !== '') {
-            // ── Text search: composer cards + title matches ───────────────────
             $mode            = 'search';
             $composerMatches = $this->workRepo->findComposersLike($q);
-            $total           = $this->workRepo->countByTitleSearch($q, $instrumentation, $style);
+            $total           = $this->workRepo->countByTitleSearch($q, $filters);
             $pages           = (int) ceil($total / $perPage);
-            $works           = $this->workRepo->findByTitleSearch($q, $instrumentation, $style, $page, $perPage);
+            $works           = $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage);
 
-        } elseif ($instrumentation !== '' || $style !== '') {
-            // ── Instrumentation / style only ──────────────────────────────────
-            $mode  = 'instr';
-            $total = $this->workRepo->countByInstrStyle($instrumentation, $style);
+        } elseif (!$filters->isEmpty()) {
+            $mode  = 'filter';
+            $total = $this->workRepo->countByFilters($filters);
             $pages = (int) ceil($total / $perPage);
-            $works = $this->workRepo->findByInstrStyle($instrumentation, $style, $page, $perPage);
+            $works = $this->workRepo->findByFilters($filters, $page, $perPage);
         }
 
-        $styles = $this->workRepo->findDistinctStyles();
-
         return $this->render('imslp/index.html.twig', [
-            'q'               => $q,
-            'composer'        => $composer,
-            'instrumentation' => $instrumentation,
-            'style'           => $style,
-            'page'            => $page,
-            'perPage'         => $perPage,
-            'total'           => $total,
-            'pages'           => $pages,
-            'works'           => $works,
+            'q'        => $q,
+            'composer' => $composer,
+            'filters'  => $filters,
+            'page'     => $page,
+            'perPage'  => $perPage,
+            'total'    => $total,
+            'pages'    => $pages,
+            'works'    => $works,
             'composerMatches' => $composerMatches,
-            'styles'          => $styles,
-            'mode'            => $mode,
+            'styles'   => self::STYLES,
+            'genres'   => $this->workRepo->findDistinctGenres(),
+            'mode'     => $mode,
         ]);
+    }
+
+    #[Route('/ai-search', name: 'app_imslp_ai_search', methods: ['POST'])]
+    public function aiSearch(Request $request): JsonResponse
+    {
+        $body  = json_decode($request->getContent(), true) ?? [];
+        $query = trim($body['query'] ?? $request->request->getString('query'));
+
+        if ($query === '') {
+            return $this->json(['error' => 'Empty query'], 400);
+        }
+
+        return $this->json($this->aiSearch->parseQuery($query));
     }
 
     #[Route('/work/{pageId}', name: 'app_imslp_work', methods: ['GET'], requirements: ['pageId' => '\d+'])]
@@ -88,7 +108,6 @@ class ImslpController extends AbstractController
             throw $this->createNotFoundException('Work not found in local database. Run app:imslp:sync first.');
         }
 
-        // Fetch detail on demand if not yet cached
         if (!$work->hasDetail()) {
             try {
                 $this->imslp->fetchWorkDetail($work);
@@ -193,10 +212,6 @@ class ImslpController extends AbstractController
         return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
     #[Route('/fetch-log', name: 'app_imslp_fetch_log', methods: ['GET'])]
     public function fetchLog(): Response
     {
@@ -206,12 +221,15 @@ class ImslpController extends AbstractController
             return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
         }
 
-        // Return last 50 lines
-        $lines  = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail   = array_slice($lines, -50);
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        $tail  = array_slice($lines, -50);
 
         return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
     }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
     private function buildStatusData(): array
     {

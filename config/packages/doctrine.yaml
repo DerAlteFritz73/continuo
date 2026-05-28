@@ -25,6 +25,8 @@ doctrine:
         dql:
             string_functions:
                 REGEXP: App\Doctrine\RegexpFunction
+            numeric_functions:
+                YEAR_EXTRACT: App\Doctrine\YearExtractFunction
         controller_resolver:
             auto_mapping: false
 

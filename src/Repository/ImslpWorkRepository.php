@@ -25,7 +25,6 @@ class ImslpWorkRepository extends ServiceEntityRepository
     public function findComposersLike(string $q, int $limit = 20): array
     {
         $escaped = '%' . addcslashes($q, '%_\\') . '%';
-        // LIMIT must be inlined — DBAL cannot bind integers for LIMIT clauses in all drivers
         return $this->getEntityManager()->getConnection()->fetchAllAssociative(
             'SELECT composer AS name, COUNT(*) AS work_count
              FROM imslp_work
@@ -38,14 +37,14 @@ class ImslpWorkRepository extends ServiceEntityRepository
     }
 
     // -------------------------------------------------------------------------
-    // Title-only search (used alongside composer cards)
+    // Title search
     // -------------------------------------------------------------------------
 
-    public function findByTitleSearch(string $q, string $instrumentation, string $style, int $page, int $perPage): array
+    public function findByTitleSearch(string $q, WorkFilters $f, int $page, int $perPage): array
     {
         $qb = $this->createQueryBuilder('w');
         $this->applyTitleFilter($qb, $q);
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
         $qb->orderBy('w.composer')->addOrderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -53,25 +52,25 @@ class ImslpWorkRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function countByTitleSearch(string $q, string $instrumentation, string $style): int
+    public function countByTitleSearch(string $q, WorkFilters $f): int
     {
         $qb = $this->createQueryBuilder('w')->select('COUNT(w.id)');
         $this->applyTitleFilter($qb, $q);
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     // -------------------------------------------------------------------------
-    // Composer browse (exact composer name, used after clicking a composer card)
+    // Composer browse
     // -------------------------------------------------------------------------
 
-    public function findByComposer(string $composer, string $instrumentation, string $style, int $page, int $perPage): array
+    public function findByComposer(string $composer, WorkFilters $f, int $page, int $perPage): array
     {
         $qb = $this->createQueryBuilder('w')
             ->where('w.composer = :composer')
             ->setParameter('composer', $composer);
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
         $qb->orderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -79,25 +78,25 @@ class ImslpWorkRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function countByComposer(string $composer, string $instrumentation, string $style): int
+    public function countByComposer(string $composer, WorkFilters $f): int
     {
         $qb = $this->createQueryBuilder('w')
             ->select('COUNT(w.id)')
             ->where('w.composer = :composer')
             ->setParameter('composer', $composer);
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     // -------------------------------------------------------------------------
-    // Instrumentation-only search (no q, no composer)
+    // Filter-only search (no q, no exact composer)
     // -------------------------------------------------------------------------
 
-    public function findByInstrStyle(string $instrumentation, string $style, int $page, int $perPage): array
+    public function findByFilters(WorkFilters $f, int $page, int $perPage): array
     {
         $qb = $this->createQueryBuilder('w');
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
         $qb->orderBy('w.composer')->addOrderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -105,10 +104,10 @@ class ImslpWorkRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function countByInstrStyle(string $instrumentation, string $style): int
+    public function countByFilters(WorkFilters $f): int
     {
         $qb = $this->createQueryBuilder('w')->select('COUNT(w.id)');
-        $this->applyInstrStyle($qb, $instrumentation, $style);
+        $this->applyFilters($qb, $f);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
@@ -137,17 +136,20 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function findDistinctStyles(): array
+    /** Top $limit genres by frequency (first semicolon-delimited token of tags). */
+    public function findDistinctGenres(int $limit = 60): array
     {
-        $rows = $this->createQueryBuilder('w')
-            ->select('DISTINCT w.pieceStyle')
-            ->where('w.pieceStyle IS NOT NULL AND w.pieceStyle != :empty')
-            ->setParameter('empty', '')
-            ->orderBy('w.pieceStyle')
-            ->getQuery()
-            ->getArrayResult();
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT TRIM(SUBSTRING_INDEX(tags, \';\', 1)) AS genre, COUNT(*) AS cnt
+             FROM imslp_work
+             WHERE tags IS NOT NULL AND tags != \'\'
+               AND TRIM(SUBSTRING_INDEX(tags, \';\', 1)) REGEXP \'^[a-z]\'
+             GROUP BY genre
+             ORDER BY cnt DESC
+             LIMIT ' . (int) $limit
+        );
 
-        return array_column($rows, 'pieceStyle');
+        return array_column($rows, 'genre');
     }
 
     // -------------------------------------------------------------------------
@@ -162,10 +164,11 @@ class ImslpWorkRepository extends ServiceEntityRepository
         }
     }
 
-    private function applyInstrStyle(QueryBuilder $qb, string $instrumentation, string $style): void
+    private function applyFilters(QueryBuilder $qb, WorkFilters $f): void
     {
-        if ($instrumentation !== '') {
-            $terms = array_filter(array_map('trim', preg_split('/[\s,]+/', $instrumentation)));
+        // instrumentation — word-boundary REGEXP on tags, LIKE fallback on instrumentation text
+        if ($f->instrumentation !== '') {
+            $terms = array_filter(array_map('trim', preg_split('/[\s,]+/', $f->instrumentation)));
             foreach ($terms as $i => $term) {
                 $escapedLike  = addcslashes($term, '%_\\');
                 $escapedRegex = preg_quote($term, '/');
@@ -176,9 +179,34 @@ class ImslpWorkRepository extends ServiceEntityRepository
                    ->setParameter($pi, '%' . $escapedLike . '%');
             }
         }
-        if ($style !== '') {
+
+        // style
+        if ($f->style !== '') {
             $qb->andWhere('w.pieceStyle = :style')
-               ->setParameter('style', $style);
+               ->setParameter('style', $f->style);
+        }
+
+        // genre — must appear as a semicolon-delimited token in tags
+        if ($f->genre !== '') {
+            $escapedRegex = preg_quote(trim($f->genre), '/');
+            $qb->andWhere('REGEXP(w.tags, :genrePattern) = 1')
+               ->setParameter('genrePattern', '(^|;\s*)' . $escapedRegex . '(\s*;|$)');
+        }
+
+        // key — fuzzy match
+        if ($f->key !== '') {
+            $qb->andWhere('w.workKey LIKE :key')
+               ->setParameter('key', '%' . addcslashes($f->key, '%_\\') . '%');
+        }
+
+        // year range — extract first 4-digit number from year_composed string
+        if ($f->yearFrom !== null) {
+            $qb->andWhere('YEAR_EXTRACT(w.yearComposed) >= :yearFrom AND YEAR_EXTRACT(w.yearComposed) > 0')
+               ->setParameter('yearFrom', $f->yearFrom);
+        }
+        if ($f->yearTo !== null) {
+            $qb->andWhere('YEAR_EXTRACT(w.yearComposed) <= :yearTo AND YEAR_EXTRACT(w.yearComposed) > 0')
+               ->setParameter('yearTo', $f->yearTo);
         }
     }
 }

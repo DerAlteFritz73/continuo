@@ -73,7 +73,7 @@ body {
     flex-direction: column;
     gap: .35rem;
     flex: 1;
-    min-width: 180px;
+    min-width: 150px;
 }
 .search-field label {
     font-size: .75rem;
@@ -95,7 +95,10 @@ body {
 }
 .search-field input:focus,
 .search-field select:focus { border-color: #c8a96e; }
+.search-field input.ai-filled { border-color: #c8a96e88; background: #1e1a14; }
 .search-field select option { background: #252525; }
+.search-field.narrow { min-width: 90px; flex: 0 0 100px; }
+.search-field.medium { min-width: 120px; flex: 0 1 160px; }
 .btn-search {
     background: #c8a96e;
     color: #1a1a1a;
@@ -111,6 +114,77 @@ body {
     align-self: flex-end;
 }
 .btn-search:hover { background: #d9be88; }
+.search-divider {
+    border: none;
+    border-top: 1px solid #2e2e2e;
+    margin: 1rem 0 .75rem;
+}
+
+/* ── AI search section ── */
+.ai-section {
+    margin-bottom: 1rem;
+}
+.ai-row {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-end;
+}
+.ai-input {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e8e0d4;
+    font-family: inherit;
+    font-size: .9rem;
+    padding: .55rem .8rem;
+    outline: none;
+    transition: border-color .2s;
+}
+.ai-input:focus { border-color: #c8a96e; }
+.ai-input::placeholder { color: #5a524a; }
+.btn-ai {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #2a2520;
+    border: 1px solid #c8a96e55;
+    color: #c8a96e;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    padding: .55rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s, border-color .2s;
+}
+.btn-ai:hover { background: #342e26; border-color: #c8a96e; }
+.btn-ai:disabled { opacity: .5; cursor: not-allowed; }
+.ai-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-top: .55rem;
+    min-height: 1.4rem;
+}
+.ai-chip {
+    font-size: .72rem;
+    background: #1e1a14;
+    border: 1px solid #c8a96e44;
+    color: #c8a96e;
+    border-radius: 999px;
+    padding: .15rem .6rem;
+    font-family: 'Courier New', monospace;
+}
+.ai-chip.ai-chip-label {
+    font-family: inherit;
+    color: #8a8070;
+    border-color: #3a3a3a;
+    background: transparent;
+}
+.ai-error { font-size: .78rem; color: #c87a6e; margin-top: .4rem; }
+
 .db-status {
     font-size: .8rem;
     color: #6a6058;
@@ -336,8 +410,27 @@ body {
 
     {# ── Search form ── #}
     <div class="search-card">
-        <form method="get" action="{{ path('app_imslp') }}">
-            <div class="search-row">
+
+        {# AI search #}
+        <div class="ai-section">
+            <div class="ai-row">
+                <input type="text" id="ai-query" class="ai-input"
+                       placeholder="Describe what you're looking for… e.g. Baroque trio sonatas for two violins and basso continuo">
+                <button type="button" id="ai-btn" class="btn-ai">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/>
+                    </svg>
+                    Ask AI
+                </button>
+            </div>
+            <div class="ai-chips" id="ai-chips"></div>
+        </div>
+
+        <hr class="search-divider">
+
+        <form method="get" action="{{ path('app_imslp') }}" id="search-form">
+            {# Row 1: title/composer + instrumentation + style + search button #}
+            <div class="search-row" style="margin-bottom:.6rem">
                 {% if mode != 'composer' %}
                 <div class="search-field">
                     <label for="q">Composer / Title</label>
@@ -346,14 +439,15 @@ body {
                 {% endif %}
                 <div class="search-field">
                     <label for="instrumentation">Instrumentation</label>
-                    <input type="text" id="instrumentation" name="instrumentation" value="{{ instrumentation }}" placeholder="e.g. fl vn viol bc">
+                    <input type="text" id="f-instrumentation" name="instrumentation"
+                           value="{{ filters.instrumentation }}" placeholder="e.g. fl vn viol bc">
                 </div>
-                <div class="search-field" style="max-width:160px">
-                    <label for="style">Style</label>
-                    <select id="style" name="style">
+                <div class="search-field medium">
+                    <label for="f-style">Period</label>
+                    <select id="f-style" name="style">
                         <option value="">— any —</option>
                         {% for s in styles %}
-                        <option value="{{ s }}" {% if s == style %}selected{% endif %}>{{ s }}</option>
+                        <option value="{{ s }}" {% if s == filters.style %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -363,7 +457,35 @@ body {
                 {% endif %}
                 <button type="submit" class="btn-search">Search</button>
             </div>
+            {# Row 2: advanced filters #}
+            <div class="search-row">
+                <div class="search-field">
+                    <label for="f-genre">Genre</label>
+                    <input type="text" id="f-genre" name="genre"
+                           value="{{ filters.genre }}" placeholder="sonatas, concertos…"
+                           list="genre-list" autocomplete="off">
+                    <datalist id="genre-list">
+                        {% for g in genres %}<option value="{{ g }}">{% endfor %}
+                    </datalist>
+                </div>
+                <div class="search-field medium">
+                    <label for="f-key">Key</label>
+                    <input type="text" id="f-key" name="key"
+                           value="{{ filters.key }}" placeholder="D minor…">
+                </div>
+                <div class="search-field narrow">
+                    <label for="f-year-from">Year from</label>
+                    <input type="number" id="f-year-from" name="year_from"
+                           value="{{ filters.yearFrom ?: '' }}" placeholder="1600" min="800" max="2100">
+                </div>
+                <div class="search-field narrow">
+                    <label for="f-year-to">to</label>
+                    <input type="number" id="f-year-to" name="year_to"
+                           value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
+                </div>
+            </div>
         </form>
+
         <div class="db-status" id="db-status">
             Loading… · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">Import status ↗</a>
         </div>
@@ -382,14 +504,14 @@ body {
             <h2>{{ composer }}</h2>
             <span class="work-count">
                 {{ total|number_format }} work{{ total != 1 ? 's' : '' }}
-                {% if instrumentation or style %} matching filter{% endif %}
+                {% if not filters.isEmpty() %} matching filter{% endif %}
             </span>
         </div>
 
         {% if works is not empty %}
             {% include 'imslp/_work_list.html.twig' with {
                 works: works, page: page, pages: pages,
-                urlParams: {composer: composer, q: q, instrumentation: instrumentation, style: style}
+                urlParams: {composer: composer, q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo}
             } %}
         {% else %}
             <div class="empty-state">
@@ -411,7 +533,7 @@ body {
             <div class="composer-cards">
                 {% for c in composerMatches %}
                 <a class="composer-card"
-                   href="{{ path('app_imslp', {composer: c.name, q: q, instrumentation: instrumentation, style: style}) }}">
+                   href="{{ path('app_imslp', {composer: c.name, q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo}) }}">
                     <span class="cname">{{ c.name }}</span>
                     <span class="ccount">{{ c.work_count|number_format }} works</span>
                 </a>
@@ -426,13 +548,13 @@ body {
             <p class="section-label">
                 Works with <em>"{{ q }}"</em> in title
                 {% if total > 0 %}<strong>({{ total|number_format }})</strong>{% endif %}
-                {% if instrumentation %} · filtered by <code style="font-size:.75rem;color:#c8a96e">{{ instrumentation }}</code>{% endif %}
+                {% if not filters.isEmpty() %} · filtered{% endif %}
             </p>
 
             {% if works is not empty %}
                 {% include 'imslp/_work_list.html.twig' with {
                     works: works, page: page, pages: pages,
-                    urlParams: {q: q, instrumentation: instrumentation, style: style},
+                    urlParams: {q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo},
                     showComposer: true
                 } %}
             {% else %}
@@ -452,7 +574,7 @@ body {
     {# ════════════════════════════════════════════════════════════════
        MODE: instrumentation / style only
     ════════════════════════════════════════════════════════════════ #}
-    {% elseif mode == 'instr' %}
+    {% elseif mode == 'filter' %}
 
         <div class="results-header">
             <div>
@@ -469,7 +591,7 @@ body {
         {% if works is not empty %}
             {% include 'imslp/_work_list.html.twig' with {
                 works: works, page: page, pages: pages,
-                urlParams: {instrumentation: instrumentation, style: style},
+                urlParams: {instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo},
                 showComposer: true
             } %}
         {% else %}
@@ -522,5 +644,114 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
             ' · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Import status ↗</a>';
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
+
+// ── AI search ──
+(function () {
+    const btn    = document.getElementById('ai-btn');
+    const input  = document.getElementById('ai-query');
+    const chips  = document.getElementById('ai-chips');
+    const form   = document.getElementById('search-form');
+
+    const FIELD_LABELS = {
+        instrumentation: 'Instrumentation',
+        style:           'Period',
+        genre:           'Genre',
+        key:             'Key',
+        year_from:       'From',
+        year_to:         'To',
+        composer:        'Composer',
+        title:           'Title',
+    };
+
+    function setChips(filters) {
+        chips.innerHTML = '';
+        let any = false;
+        for (const [k, v] of Object.entries(filters)) {
+            if (!v || k === 'error') continue;
+            any = true;
+            const label = document.createElement('span');
+            label.className = 'ai-chip ai-chip-label';
+            label.textContent = FIELD_LABELS[k] || k;
+            const val = document.createElement('span');
+            val.className = 'ai-chip';
+            val.textContent = v;
+            chips.appendChild(label);
+            chips.appendChild(val);
+        }
+        return any;
+    }
+
+    function fillForm(filters) {
+        const map = {
+            instrumentation: 'f-instrumentation',
+            style:           'f-style',
+            genre:           'f-genre',
+            key:             'f-key',
+            year_from:       'f-year-from',
+            year_to:         'f-year-to',
+        };
+        for (const [key, elId] of Object.entries(map)) {
+            if (filters[key]) {
+                const el = document.getElementById(elId);
+                if (el) {
+                    el.value = filters[key];
+                    el.classList.add('ai-filled');
+                }
+            }
+        }
+        // composer / title go into the q field
+        if (filters.composer && !filters.title) {
+            const q = document.getElementById('q');
+            if (q) { q.value = filters.composer; q.classList.add('ai-filled'); }
+        } else if (filters.title) {
+            const q = document.getElementById('q');
+            if (q) { q.value = filters.title; q.classList.add('ai-filled'); }
+        }
+    }
+
+    btn.addEventListener('click', async () => {
+        const query = input.value.trim();
+        if (!query) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Thinking…';
+        chips.innerHTML = '';
+
+        try {
+            const resp = await fetch('{{ path('app_imslp_ai_search') }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query}),
+            });
+            const data = await resp.json();
+
+            if (data.error) {
+                const err = document.createElement('div');
+                err.className = 'ai-error';
+                err.textContent = data.error;
+                chips.appendChild(err);
+            } else {
+                const any = setChips(data);
+                if (any) fillForm(data);
+                else {
+                    const err = document.createElement('div');
+                    err.className = 'ai-error';
+                    err.textContent = 'No filters could be extracted. Try rephrasing.';
+                    chips.appendChild(err);
+                }
+            }
+        } catch (e) {
+            const err = document.createElement('div');
+            err.className = 'ai-error';
+            err.textContent = 'Request failed. Check your connection.';
+            chips.appendChild(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/></svg> Ask AI';
+        }
+    });
+
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+})();
 </script>
 {% endblock %}

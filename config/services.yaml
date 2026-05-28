@@ -19,5 +19,9 @@ services:
     App\:
         resource: '../src/'
 
+    App\Service\ImslpAiSearchService:
+        arguments:
+            $apiKey: '%env(string:default::ANTHROPIC_API_KEY)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
