@@ -21,8 +21,13 @@ class ImslpSyncCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('type', null, InputOption::VALUE_REQUIRED,
-            'What to sync: composers, works, or all', 'all');
+        $this
+            ->addOption('type', null, InputOption::VALUE_REQUIRED,
+                'What to sync: composers, works, or all', 'all')
+            ->addOption('start', null, InputOption::VALUE_REQUIRED,
+                'Start offset for works sync (multiple of 1000)', 0)
+            ->addOption('resume', null, InputOption::VALUE_NONE,
+                'Resume works sync from the last known offset (rounds down to nearest 1000)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -46,10 +51,16 @@ class ImslpSyncCommand extends Command
         }
 
         if ($type === 'works' || $type === 'all') {
+            $start = (int) $input->getOption('start');
+            if ($input->getOption('resume')) {
+                $start = $this->imslp->worksResumeOffset();
+                $io->note(sprintf('Resuming from offset %d', $start));
+            }
+
             $io->section('Syncing works…');
             $bar = new ProgressBar($output);
-            $bar->start();
-            $count = $this->imslp->syncWorks(function (int $n) use ($bar) { $bar->setProgress($n); });
+            $bar->start($start);
+            $count = $this->imslp->syncWorks(function (int $n) use ($bar) { $bar->setProgress($n); }, $start);
             $bar->finish();
             $io->newLine();
             $io->success(sprintf('Synced %d works.', $count));

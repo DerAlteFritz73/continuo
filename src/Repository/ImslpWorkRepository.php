@@ -171,7 +171,7 @@ class ImslpWorkRepository extends ServiceEntityRepository
                 $escapedRegex = preg_quote($term, '/');
                 $pt = 'instrT' . $i;
                 $pi = 'instrI' . $i;
-                $qb->andWhere("(w.tags REGEXP :$pt OR w.instrumentation LIKE :$pi)")
+                $qb->andWhere("(REGEXP(w.tags, :$pt) = 1 OR w.instrumentation LIKE :$pi)")
                    ->setParameter($pt, '(^|[^a-zA-Z0-9])' . $escapedRegex . '([^a-zA-Z0-9]|$)')
                    ->setParameter($pi, '%' . $escapedLike . '%');
             }

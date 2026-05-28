@@ -205,6 +205,7 @@ body {
 .results-header strong { color: #c8a96e; font-size: 1rem; }
 .work-list { display: flex; flex-direction: column; gap: .5rem; }
 .work-item {
+    position: relative;
     display: grid;
     grid-template-columns: 1fr auto;
     gap: .5rem 1rem;
@@ -213,11 +214,21 @@ body {
     border: 1px solid #2e2e2e;
     border-radius: 8px;
     padding: .9rem 1.1rem;
-    text-decoration: none;
     color: inherit;
     transition: border-color .2s, background .2s;
 }
 .work-item:hover { border-color: #c8a96e44; background: #2a2a2a; }
+.work-link {
+    text-decoration: none;
+    color: inherit;
+    outline-offset: 2px;
+}
+.work-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+}
 .work-title {
     font-family: 'Playfair Display', serif;
     font-size: 1rem;
@@ -233,6 +244,8 @@ body {
 }
 .work-meta { font-size: .8rem; color: #9a8a78; margin-top: .2rem; }
 .work-meta .clink {
+    position: relative;
+    z-index: 1;
     color: #c8a96e;
     text-decoration: none;
 }

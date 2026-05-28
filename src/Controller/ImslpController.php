@@ -147,6 +147,52 @@ class ImslpController extends AbstractController
         return $this->json(['started' => false, 'message' => 'Failed to start process'], 500);
     }
 
+    #[Route('/sync-works/start', name: 'app_imslp_sync_works_start', methods: ['POST'])]
+    public function startSyncWorks(): JsonResponse
+    {
+        if ($this->isSyncRunning()) {
+            return $this->json(['started' => false, 'message' => 'Already running']);
+        }
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $pidFile    = $projectDir . '/var/imslp-sync.pid';
+        $logFile    = $projectDir . '/var/log/imslp-sync.log';
+
+        if (!is_dir(dirname($logFile))) {
+            mkdir(dirname($logFile), 0777, true);
+        }
+
+        $cmd = sprintf(
+            'nohup php %s app:imslp:sync --type=works --resume >> %s 2>&1 & echo $!',
+            escapeshellarg($projectDir . '/bin/console'),
+            escapeshellarg($logFile)
+        );
+
+        $pid = (int) shell_exec($cmd);
+
+        if ($pid > 0) {
+            file_put_contents($pidFile, $pid);
+            return $this->json(['started' => true, 'pid' => $pid]);
+        }
+
+        return $this->json(['started' => false, 'message' => 'Failed to start process'], 500);
+    }
+
+    #[Route('/sync-log', name: 'app_imslp_sync_log', methods: ['GET'])]
+    public function syncLog(): Response
+    {
+        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-sync.log';
+
+        if (!file_exists($logFile)) {
+            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        $tail  = array_slice($lines, -50);
+
+        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -176,28 +222,32 @@ class ImslpController extends AbstractController
         $pct = $total > 0 ? round($withDetail / $total * 100, 1) : 0;
 
         return [
-            'works'          => $total,
-            'worksWithDetail' => $withDetail,
+            'works'              => $total,
+            'worksWithDetail'    => $withDetail,
             'worksWithoutDetail' => $total - $withDetail,
-            'composers'      => $totalComposers,
-            'detailPercent'  => $pct,
-            'running'        => $this->isFetchRunning(),
+            'composers'          => $totalComposers,
+            'detailPercent'      => $pct,
+            'running'            => $this->isFetchRunning(),
+            'syncRunning'        => $this->isSyncRunning(),
         ];
     }
 
     private function isFetchRunning(): bool
     {
-        $pidFile = $this->getParameter('kernel.project_dir') . '/var/imslp-fetch.pid';
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-fetch.pid');
+    }
+
+    private function isSyncRunning(): bool
+    {
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-sync.pid');
+    }
+
+    private function isPidAlive(string $pidFile): bool
+    {
         if (!file_exists($pidFile)) {
             return false;
         }
-
         $pid = (int) file_get_contents($pidFile);
-        if ($pid <= 0) {
-            return false;
-        }
-
-        // /proc/{pid} exists only while the process is alive (Linux)
-        return is_dir('/proc/' . $pid);
+        return $pid > 0 && is_dir('/proc/' . $pid);
     }
 }

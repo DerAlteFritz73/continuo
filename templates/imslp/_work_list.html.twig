@@ -4,17 +4,17 @@
 
 <div class="work-list">
     {% for work in works %}
-    <a class="work-item" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">
+    <div class="work-item">
         <div>
             <div class="work-title">
-                {{ work.title }}
-                {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
+                <a class="work-link" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ work.title }}
+                    {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
+                </a>
             </div>
             <div class="work-meta">
                 {% if showComposer %}
                 <a class="clink"
-                   href="{{ path('app_imslp', urlParams|merge({composer: work.composer, page: null})) }}"
-                   onclick="event.stopPropagation()">{{ work.composer }}</a>
+                   href="{{ path('app_imslp', urlParams|merge({composer: work.composer, page: null})) }}">{{ work.composer }}</a>
                 {% else %}
                 <span>{{ work.composer }}</span>
                 {% endif %}
@@ -31,7 +31,7 @@
         {% if work.pieceStyle %}
         <div><span class="badge-style">{{ work.pieceStyle }}</span></div>
         {% endif %}
-    </a>
+    </div>
     {% endfor %}
 </div>
 

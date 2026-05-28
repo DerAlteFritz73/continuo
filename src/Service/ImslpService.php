@@ -58,11 +58,16 @@ class ImslpService
     // Sync: works (type=2)
     // -------------------------------------------------------------------------
 
-    public function syncWorks(callable $progress = null): int
+    public function worksResumeOffset(): int
+    {
+        $count = (int) $this->db->fetchOne('SELECT COUNT(*) FROM imslp_work');
+        return (int) floor($count / 1000) * 1000;
+    }
+
+    public function syncWorks(callable $progress = null, int $start = 0): int
     {
         $now   = (new \DateTime())->format('Y-m-d H:i:s');
-        $total = 0;
-        $start = 0;
+        $total = $start;
 
         do {
             $data = $this->fetchApi(2, $start);
@@ -363,17 +368,68 @@ class ImslpService
         return is_string($body) ? $body : '';
     }
 
+    /**
+     * Replace a named wiki template (e.g. {{FE|...}}) with a fixed string,
+     * using brace-counting so nested templates don't break the match.
+     * Case-insensitive on the template name.
+     */
+    private function replaceNamedTemplate(string $text, string $name, string $replacement): string
+    {
+        return $this->replaceTemplateWithCallback($text, $name, fn() => $replacement);
+    }
+
+    /**
+     * Extract the pipe-split parameters of a wiki template (the content between {{ and }}).
+     * Returns a list of positional parameter values (trimmed).
+     * E.g. "{{LinkEd|Wilhelm|Friedrich|1898|1952}}" → ['LinkEd', 'Wilhelm', 'Friedrich', '1898', '1952']
+     * Works with the raw match from replaceNamedTemplate-style extraction.
+     */
+    private function extractTemplateParams(string $templateContent): array
+    {
+        // templateContent is the inner text: e.g. "LinkEd|Wilhelm|Friedrich|1898|1952"
+        // Split on top-level | (not inside nested {{ }})
+        $params = [];
+        $current = '';
+        $depth   = 0;
+        $len     = strlen($templateContent);
+        for ($i = 0; $i < $len; $i++) {
+            if (substr($templateContent, $i, 2) === '{{') { $depth++; $current .= '{{'; $i++; }
+            elseif (substr($templateContent, $i, 2) === '}}') { $depth--; $current .= '}}'; $i++; }
+            elseif ($templateContent[$i] === '|' && $depth === 0) {
+                $params[] = trim($current);
+                $current  = '';
+            } else {
+                $current .= $templateContent[$i];
+            }
+        }
+        $params[] = trim($current);
+        return $params;
+    }
+
     private function stripWikiMarkup(string $text): string
     {
         // [[Link|Display]] → Display, [[Link]] → Link
         $text = preg_replace('/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/', '$1', $text);
-        // {{LinkEd|Firstname|Lastname|...}} → "Firstname Lastname"
-        $text = preg_replace_callback('/\{\{LinkEd\|([^|}\n]+)\|([^|}\n]+)(?:\|[^}]*)?\}\}/si', function ($m) {
-            return trim($m[1]) . ' ' . trim($m[2]);
-        }, $text);
+
+        // {{LinkEd|Firstname|Lastname|birthYear|deathYear}} → "Firstname Lastname"
+        $text = $this->replaceTemplateWithCallback($text, 'LinkEd', function (string $inner) {
+            $params = $this->extractTemplateParams($inner);
+            // params[0]=template name, [1]=Firstname, [2]=Lastname
+            $first = $params[1] ?? '';
+            $last  = $params[2] ?? '';
+            return trim("$first $last");
+        });
+
         // {{FE|...}} → "Facsimile" (IMSLP facsimile edition template)
-        $text = preg_replace('/\{\{FE(?:\|[^}]*)?\}\}/si', 'Facsimile', $text);
-        // Remove {{...}} iteratively to handle nested templates (e.g. {{outer{{inner}}}})
+        $text = $this->replaceNamedTemplate($text, 'FE', 'Facsimile');
+
+        // {{P|PublisherName|...}} → publisher name only (first positional param after name)
+        $text = $this->replaceTemplateWithCallback($text, 'P', function (string $inner) {
+            $params = $this->extractTemplateParams($inner);
+            return trim($params[1] ?? '');
+        });
+
+        // Remove remaining {{...}} iteratively (any nesting depth, outermost first)
         $prev = null;
         while ($prev !== $text) {
             $prev = $text;
@@ -394,5 +450,48 @@ class ImslpService
         // Collapse blank lines
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
         return trim($text);
+    }
+
+    /**
+     * Like replaceNamedTemplate but passes the inner content (between {{ and }})
+     * to a callback and uses its return value as the replacement.
+     */
+    private function replaceTemplateWithCallback(string $text, string $name, callable $callback): string
+    {
+        $result = '';
+        $offset = 0;
+        $open   = '{{' . $name;
+        while (($pos = stripos($text, $open, $offset)) !== false) {
+            // Make sure it's followed by | or }} (not just a longer template name)
+            $after = substr($text, $pos + strlen($open), 1);
+            if ($after !== '|' && $after !== '}' && $after !== '') {
+                $result .= substr($text, $offset, $pos - $offset + strlen($open));
+                $offset  = $pos + strlen($open);
+                continue;
+            }
+            $result .= substr($text, $offset, $pos - $offset);
+            $depth = 0;
+            $i     = $pos;
+            $len   = strlen($text);
+            $end   = -1;
+            while ($i < $len) {
+                if (substr($text, $i, 2) === '{{') { $depth++; $i += 2; }
+                elseif (substr($text, $i, 2) === '}}') {
+                    $depth--;
+                    if ($depth === 0) { $end = $i + 2; break; }
+                    $i += 2;
+                } else { $i++; }
+            }
+            if ($end !== -1) {
+                $inner   = substr($text, $pos + 2, $end - 2 - ($pos + 2)); // strip outer {{ }}
+                $result .= $callback($inner);
+                $offset  = $end;
+            } else {
+                $result .= substr($text, $pos, 2);
+                $offset  = $pos + 2;
+            }
+        }
+        $result .= substr($text, $offset);
+        return $result;
     }
 }
