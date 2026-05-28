@@ -45,13 +45,109 @@ class ImslpService
                 $total += count($rows);
             }
 
-            if ($progress) $progress($total);
+            $lastName = $rows ? end($rows)['name'] : '';
+            if ($progress && $progress($total, $lastName) === false) break;
             $start += 1000;
             if ($data['more']) usleep(300_000);
 
         } while ($data['more']);
 
         return $total;
+    }
+
+    // -------------------------------------------------------------------------
+    // Sync: composer birth/death years
+    // -------------------------------------------------------------------------
+
+    public function countTotalComposers(): int
+    {
+        return (int) $this->db->fetchOne(
+            "SELECT COUNT(DISTINCT composer) FROM imslp_work WHERE composer != ''"
+        );
+    }
+
+    public function countComposersWithoutDates(): int
+    {
+        return (int) $this->db->fetchOne(
+            'SELECT COUNT(DISTINCT w.composer)
+             FROM imslp_work w
+             LEFT JOIN imslp_composer c ON c.name = w.composer
+             WHERE w.composer != \'\' AND c.dates_synced_at IS NULL'
+        );
+    }
+
+    /**
+     * Fetch birth/death years from the composer's MediaWiki category page
+     * for all composers that appear in imslp_work but have not yet been checked.
+     */
+    public function syncComposerDates(callable $progress = null, int $delay = 200): int
+    {
+        $names = $this->db->fetchFirstColumn(
+            'SELECT DISTINCT w.composer
+             FROM imslp_work w
+             LEFT JOIN imslp_composer c ON c.name = w.composer
+             WHERE w.composer != \'\' AND c.dates_synced_at IS NULL
+             ORDER BY w.composer'
+        );
+
+        $now  = (new \DateTime())->format('Y-m-d H:i:s');
+        $done = 0;
+        foreach ($names as $name) {
+            [$born, $died] = $this->fetchComposerDates($name);
+
+            $this->db->executeStatement(
+                'UPDATE imslp_composer SET born_year = ?, died_year = ?, dates_synced_at = ? WHERE name = ?',
+                [$born, $died, $now, $name]
+            );
+
+            $done++;
+            if ($progress && $progress($done, count($names), $name, $born, $died) === false) break;
+            if ($delay > 0) usleep($delay * 1000);
+        }
+
+        return $done;
+    }
+
+    /**
+     * Returns [bornYear|null, diedYear|null] for a composer name
+     * by parsing the #imslpcomposer: template on their category page.
+     */
+    public function fetchComposerDates(string $composerName): array
+    {
+        $title = 'Category:' . str_replace(' ', '_', $composerName);
+        $url   = self::MW_API . '?' . http_build_query([
+            'action'  => 'query',
+            'titles'  => $title,
+            'prop'    => 'revisions',
+            'rvprop'  => 'content',
+            'format'  => 'json',
+        ]);
+
+        $body = $this->fetchGet($url);
+        if ($body === '') return [null, null];
+
+        $json  = json_decode($body, true);
+        $pages = $json['query']['pages'] ?? [];
+        $page  = reset($pages);
+        if (!$page || isset($page['missing'])) return [null, null];
+
+        $wikitext = $page['revisions'][0]['slots']['main']['*']
+                 ?? $page['revisions'][0]['*']
+                 ?? '';
+
+        if ($wikitext === '') return [null, null];
+
+        $born = null;
+        $died = null;
+
+        if (preg_match('/\|\s*Born Year\s*=\s*(-?\d+)/i', $wikitext, $m)) {
+            $born = (int) $m[1];
+        }
+        if (preg_match('/\|\s*Died Year\s*=\s*(-?\d+)/i', $wikitext, $m)) {
+            $died = (int) $m[1];
+        }
+
+        return [$born, $died];
     }
 
     // -------------------------------------------------------------------------
@@ -98,7 +194,11 @@ class ImslpService
                 $total += count($rows);
             }
 
-            if ($progress) $progress($total);
+            $lastRow = $rows ? end($rows) : [];
+            $lastTitle = isset($lastRow['title'], $lastRow['composer'])
+                ? $lastRow['title'] . ' — ' . $lastRow['composer']
+                : '';
+            if ($progress && $progress($total, $lastTitle) === false) break;
             $start += 1000;
             usleep(300_000);
 
@@ -146,21 +246,32 @@ class ImslpService
         ]);
 
         $body = $this->fetchGet($url);
-        if ($body === '') return;
+        if ($body === '') {
+            throw new \RuntimeException('Empty response from IMSLP API');
+        }
 
         $json  = json_decode($body, true);
         $pages = $json['query']['pages'] ?? [];
         $page  = reset($pages);
-        if (!$page || isset($page['missing'])) return;
+        if (!$page || isset($page['missing'])) {
+            $this->markDetailSynced($work->getPageId());
+            return;
+        }
 
         $revisions = $page['revisions'] ?? [];
-        if (empty($revisions)) return;
+        if (empty($revisions)) {
+            $this->markDetailSynced($work->getPageId());
+            return;
+        }
 
         $wikitext = $revisions[0]['slots']['main']['*']
                  ?? $revisions[0]['*']
                  ?? '';
 
-        if ($wikitext === '') return;
+        if ($wikitext === '') {
+            $this->markDetailSynced($work->getPageId());
+            return;
+        }
 
         $parsed = $this->parseWikitext($wikitext);
 
@@ -196,6 +307,14 @@ class ImslpService
         );
 
         $work->setDetailSyncedAt(new \DateTime());
+    }
+
+    private function markDetailSynced(int $pageId): void
+    {
+        $this->db->executeStatement(
+            'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
+            [(new \DateTime())->format('Y-m-d H:i:s'), $pageId]
+        );
     }
 
     // -------------------------------------------------------------------------

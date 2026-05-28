@@ -7,6 +7,7 @@ use App\Repository\ImslpWorkRepository;
 use App\Repository\WorkFilters;
 use App\Service\ImslpAiSearchService;
 use App\Service\ImslpService;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,6 +25,7 @@ class ImslpController extends AbstractController
         private readonly ImslpService           $imslp,
         private readonly ImslpAiSearchService   $aiSearch,
         private readonly EntityManagerInterface $em,
+        private readonly Connection             $db,
     ) {}
 
     #[Route('', name: 'app_imslp', methods: ['GET'])]
@@ -39,8 +41,8 @@ class ImslpController extends AbstractController
             style:           trim($request->query->getString('style')),
             genre:           trim($request->query->getString('genre')),
             key:             trim($request->query->getString('key')),
-            yearFrom:        $request->query->getInt('year_from') ?: null,
-            yearTo:          $request->query->getInt('year_to')   ?: null,
+            yearFrom:        ($v = trim($request->query->getString('year_from'))) !== '' ? (int) $v : null,
+            yearTo:          ($v = trim($request->query->getString('year_to')))   !== '' ? (int) $v : null,
         );
 
         $works           = [];
@@ -49,11 +51,20 @@ class ImslpController extends AbstractController
         $pages           = 0;
         $mode            = 'empty'; // empty | search | composer | filter
 
+        $composerStyle = '';
         if ($composer !== '') {
             $mode  = 'composer';
             $total = $this->workRepo->countByComposer($composer, $filters);
             $pages = (int) ceil($total / $perPage);
             $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
+
+            // Derive the composer's dominant period from their works (for style pre-fill)
+            $composerStyle = (string) ($this->db->fetchOne(
+                'SELECT piece_style FROM imslp_work
+                 WHERE composer = ? AND piece_style IS NOT NULL
+                 GROUP BY piece_style ORDER BY COUNT(*) DESC LIMIT 1',
+                [$composer]
+            ) ?: '');
 
         } elseif ($q !== '') {
             $mode            = 'search';
@@ -69,6 +80,8 @@ class ImslpController extends AbstractController
             $works = $this->workRepo->findByFilters($filters, $page, $perPage);
         }
 
+        $composerDates = $this->loadComposerDates($works);
+
         return $this->render('imslp/index.html.twig', [
             'q'        => $q,
             'composer' => $composer,
@@ -78,7 +91,9 @@ class ImslpController extends AbstractController
             'total'    => $total,
             'pages'    => $pages,
             'works'    => $works,
+            'composerDates'   => $composerDates,
             'composerMatches' => $composerMatches,
+            'composerStyle'   => $composerStyle,
             'styles'   => self::STYLES,
             'genres'   => $this->workRepo->findDistinctGenres(),
             'mode'     => $mode,
@@ -144,15 +159,19 @@ class ImslpController extends AbstractController
 
         $projectDir = $this->getParameter('kernel.project_dir');
         $pidFile    = $projectDir . '/var/imslp-fetch.pid';
+        $stopFile   = $projectDir . '/var/imslp-fetch.stop';
         $logFile    = $projectDir . '/var/log/imslp-fetch.log';
 
         if (!is_dir(dirname($logFile))) {
             mkdir(dirname($logFile), 0777, true);
         }
 
+        @unlink($stopFile);
+
         $cmd = sprintf(
-            'nohup php %s app:imslp:fetch-details --delay=500 >> %s 2>&1 & echo $!',
+            'nohup php %s app:imslp:fetch-details --delay=500 --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
+            escapeshellarg($stopFile),
             escapeshellarg($logFile)
         );
 
@@ -166,6 +185,56 @@ class ImslpController extends AbstractController
         return $this->json(['started' => false, 'message' => 'Failed to start process'], 500);
     }
 
+    #[Route('/sync-composers/start', name: 'app_imslp_sync_composers_start', methods: ['POST'])]
+    public function startSyncComposers(): JsonResponse
+    {
+        if ($this->isComposersRunning()) {
+            return $this->json(['started' => false, 'message' => 'Already running']);
+        }
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $pidFile    = $projectDir . '/var/imslp-composers.pid';
+        $stopFile   = $projectDir . '/var/imslp-composers.stop';
+        $logFile    = $projectDir . '/var/log/imslp-composers.log';
+
+        if (!is_dir(dirname($logFile))) {
+            mkdir(dirname($logFile), 0777, true);
+        }
+
+        @unlink($stopFile);
+
+        $cmd = sprintf(
+            'nohup php %s app:imslp:sync --type=composers --stop-file=%s >> %s 2>&1 & echo $!',
+            escapeshellarg($projectDir . '/bin/console'),
+            escapeshellarg($stopFile),
+            escapeshellarg($logFile)
+        );
+
+        $pid = (int) shell_exec($cmd);
+
+        if ($pid > 0) {
+            file_put_contents($pidFile, $pid);
+            return $this->json(['started' => true, 'pid' => $pid]);
+        }
+
+        return $this->json(['started' => false, 'message' => 'Failed to start process'], 500);
+    }
+
+    #[Route('/composers-log', name: 'app_imslp_composers_log', methods: ['GET'])]
+    public function composersLog(): Response
+    {
+        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-composers.log';
+
+        if (!file_exists($logFile)) {
+            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        $tail  = array_slice($lines, -200);
+
+        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
+
     #[Route('/sync-works/start', name: 'app_imslp_sync_works_start', methods: ['POST'])]
     public function startSyncWorks(): JsonResponse
     {
@@ -175,15 +244,19 @@ class ImslpController extends AbstractController
 
         $projectDir = $this->getParameter('kernel.project_dir');
         $pidFile    = $projectDir . '/var/imslp-sync.pid';
+        $stopFile   = $projectDir . '/var/imslp-sync.stop';
         $logFile    = $projectDir . '/var/log/imslp-sync.log';
 
         if (!is_dir(dirname($logFile))) {
             mkdir(dirname($logFile), 0777, true);
         }
 
+        @unlink($stopFile);
+
         $cmd = sprintf(
-            'nohup php %s app:imslp:sync --type=works --resume >> %s 2>&1 & echo $!',
+            'nohup php %s app:imslp:sync --type=works --resume --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
+            escapeshellarg($stopFile),
             escapeshellarg($logFile)
         );
 
@@ -207,7 +280,7 @@ class ImslpController extends AbstractController
         }
 
         $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -50);
+        $tail  = array_slice($lines, -200);
 
         return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
     }
@@ -222,7 +295,57 @@ class ImslpController extends AbstractController
         }
 
         $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -50);
+        $tail  = array_slice($lines, -200);
+
+        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
+
+    #[Route('/sync-dates/start', name: 'app_imslp_sync_dates_start', methods: ['POST'])]
+    public function startSyncDates(): JsonResponse
+    {
+        if ($this->isDatesRunning()) {
+            return $this->json(['started' => false, 'message' => 'Already running']);
+        }
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $pidFile    = $projectDir . '/var/imslp-dates.pid';
+        $stopFile   = $projectDir . '/var/imslp-dates.stop';
+        $logFile    = $projectDir . '/var/log/imslp-dates.log';
+
+        if (!is_dir(dirname($logFile))) {
+            mkdir(dirname($logFile), 0777, true);
+        }
+
+        @unlink($stopFile);
+
+        $cmd = sprintf(
+            'nohup php %s app:imslp:sync-composer-dates --delay=300 --stop-file=%s >> %s 2>&1 & echo $!',
+            escapeshellarg($projectDir . '/bin/console'),
+            escapeshellarg($stopFile),
+            escapeshellarg($logFile)
+        );
+
+        $pid = (int) shell_exec($cmd);
+
+        if ($pid > 0) {
+            file_put_contents($pidFile, $pid);
+            return $this->json(['started' => true, 'pid' => $pid]);
+        }
+
+        return $this->json(['started' => false, 'message' => 'Failed to start process'], 500);
+    }
+
+    #[Route('/dates-log', name: 'app_imslp_dates_log', methods: ['GET'])]
+    public function datesLog(): Response
+    {
+        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-dates.log';
+
+        if (!file_exists($logFile)) {
+            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
+        $tail  = array_slice($lines, -200);
 
         return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
     }
@@ -235,19 +358,75 @@ class ImslpController extends AbstractController
     {
         $total          = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
         $withDetail     = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w WHERE w.detailSyncedAt IS NOT NULL')->getSingleScalarResult();
-        $totalComposers = (int) $this->em->createQuery('SELECT COUNT(c.id) FROM App\Entity\ImslpComposer c')->getSingleScalarResult();
+        $totalComposers = (int) $this->db->fetchOne(
+            'SELECT COUNT(DISTINCT composer) FROM imslp_work WHERE composer != \'\''
+        );
 
-        $pct = $total > 0 ? round($withDetail / $total * 100, 1) : 0;
+        $composersChecked = (int) $this->db->fetchOne(
+            'SELECT COUNT(DISTINCT w.composer)
+             FROM imslp_work w
+             JOIN imslp_composer c ON c.name = w.composer
+             WHERE w.composer != \'\' AND c.dates_synced_at IS NOT NULL'
+        );
+
+        $pct      = $total > 0 ? round($withDetail / $total * 100, 1) : 0;
+        $datesPct = $totalComposers > 0 ? round($composersChecked / $totalComposers * 100, 1) : 0;
 
         return [
-            'works'              => $total,
-            'worksWithDetail'    => $withDetail,
-            'worksWithoutDetail' => $total - $withDetail,
-            'composers'          => $totalComposers,
-            'detailPercent'      => $pct,
-            'running'            => $this->isFetchRunning(),
-            'syncRunning'        => $this->isSyncRunning(),
+            'works'                => $total,
+            'worksWithDetail'      => $withDetail,
+            'worksWithoutDetail'   => $total - $withDetail,
+            'composers'            => $totalComposers,
+            'composersWithDates'   => $composersChecked,
+            'detailPercent'        => $pct,
+            'datesPercent'         => $datesPct,
+            'running'              => $this->isFetchRunning(),
+            'syncRunning'          => $this->isSyncRunning(),
+            'datesRunning'         => $this->isDatesRunning(),
+            'composersRunning'     => $this->isComposersRunning(),
         ];
+    }
+
+    #[Route('/fetch-details/stop', name: 'app_imslp_fetch_stop', methods: ['POST'])]
+    public function stopFetch(): JsonResponse
+    {
+        return $this->stopProcess($this->getParameter('kernel.project_dir') . '/var/imslp-fetch.pid');
+    }
+
+    #[Route('/sync-works/stop', name: 'app_imslp_sync_works_stop', methods: ['POST'])]
+    public function stopSyncWorks(): JsonResponse
+    {
+        return $this->stopProcess($this->getParameter('kernel.project_dir') . '/var/imslp-sync.pid');
+    }
+
+    #[Route('/sync-dates/stop', name: 'app_imslp_sync_dates_stop', methods: ['POST'])]
+    public function stopSyncDates(): JsonResponse
+    {
+        return $this->stopProcess($this->getParameter('kernel.project_dir') . '/var/imslp-dates.pid');
+    }
+
+    #[Route('/sync-composers/stop', name: 'app_imslp_sync_composers_stop', methods: ['POST'])]
+    public function stopSyncComposers(): JsonResponse
+    {
+        return $this->stopProcess($this->getParameter('kernel.project_dir') . '/var/imslp-composers.pid');
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private function stopProcess(string $pidFile): JsonResponse
+    {
+        $stopFile = str_replace('.pid', '.stop', $pidFile);
+
+        if (!file_exists($pidFile)) {
+            return $this->json(['stopped' => false, 'message' => 'Not running']);
+        }
+
+        file_put_contents($stopFile, '1');
+        @unlink($pidFile);
+
+        return $this->json(['stopped' => true]);
     }
 
     private function isFetchRunning(): bool
@@ -258,6 +437,40 @@ class ImslpController extends AbstractController
     private function isSyncRunning(): bool
     {
         return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-sync.pid');
+    }
+
+    private function isDatesRunning(): bool
+    {
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-dates.pid');
+    }
+
+    private function isComposersRunning(): bool
+    {
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-composers.pid');
+    }
+
+    /** @param ImslpWork[] $works */
+    private function loadComposerDates(array $works): array
+    {
+        if (empty($works)) return [];
+
+        $names = array_values(array_unique(array_filter(
+            array_map(fn($w) => $w->getComposer(), $works)
+        )));
+
+        if (empty($names)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($names), '?'));
+        $rows = $this->db->fetchAllAssociative(
+            "SELECT name, born_year, died_year FROM imslp_composer WHERE name IN ($placeholders)",
+            $names
+        );
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[$row['name']] = ['born' => $row['born_year'], 'died' => $row['died_year']];
+        }
+        return $map;
     }
 
     private function isPidAlive(string $pidFile): bool

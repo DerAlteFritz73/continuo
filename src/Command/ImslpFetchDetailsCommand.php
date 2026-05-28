@@ -7,11 +7,9 @@ use App\Service\ImslpService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:imslp:fetch-details',
@@ -34,34 +32,39 @@ class ImslpFetchDetailsCommand extends Command
         $this->addOption('limit', null, InputOption::VALUE_REQUIRED,
                 'Maximum number of works to fetch in this run (0 = all)', 0)
              ->addOption('delay', null, InputOption::VALUE_REQUIRED,
-                'Milliseconds to sleep between requests', 300);
+                'Milliseconds to sleep between requests', 300)
+             ->addOption('stop-file', null, InputOption::VALUE_REQUIRED,
+                'Path to a stop-file; process exits gracefully when the file appears', '');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io    = new SymfonyStyle($input, $output);
-        $limit = (int) $input->getOption('limit');
-        $delay = (int) $input->getOption('delay');
+        $limit    = (int) $input->getOption('limit');
+        $delay    = (int) $input->getOption('delay');
+        $stopFile = (string) $input->getOption('stop-file');
 
+        $total   = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
         $pending = $this->workRepo->countWithoutDetail();
         $toFetch = ($limit > 0) ? min($limit, $pending) : $pending;
+        $offset  = $total - $pending; // works already fetched before this run
 
-        $io->info(sprintf('%d works need detail data. Fetching %s now (batch=%d, delay=%dms).',
-            $pending,
-            $toFetch === $pending ? 'all' : $toFetch,
+        $output->writeln(sprintf('[%s] %d/%d works have detail data. Fetching %s now (batch=%d, delay=%dms).',
+            $this->ts(),
+            $offset,
+            $total,
+            $toFetch === $pending ? 'all remaining' : $toFetch,
             self::BATCH,
             $delay
         ));
 
         if ($toFetch === 0) {
-            $io->success('Nothing to fetch — all works already have detail data.');
+            $output->writeln(sprintf('[%s] Nothing to fetch — all works already have detail data.', $this->ts()));
             return Command::SUCCESS;
         }
 
-        $bar    = new ProgressBar($output, $toFetch);
-        $bar->start();
-        $done   = 0;
-        $errors = 0;
+        $done      = 0;
+        $errors    = 0;
+        $startTime = microtime(true);
 
         while ($done < $toFetch) {
             $batchSize = min(self::BATCH, $toFetch - $done);
@@ -69,10 +72,16 @@ class ImslpFetchDetailsCommand extends Command
             if (empty($works)) break;
 
             foreach ($works as $work) {
+                if ($stopFile && file_exists($stopFile)) {
+                    @unlink($stopFile);
+                    $output->writeln(sprintf('[%s] Stopped via stop-file after %d works.', $this->ts(), $done));
+                    break 2;
+                }
+
+                $label = sprintf('%s — %s', $work->getComposer(), $work->getTitle());
                 try {
                     $this->imslp->fetchWorkDetail($work);
-                } catch (\Throwable) {
-                    // Mark as attempted via DBAL so we don't retry broken pages endlessly
+                } catch (\Throwable $e) {
                     try {
                         $this->em->getConnection()->executeStatement(
                             'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
@@ -80,29 +89,52 @@ class ImslpFetchDetailsCommand extends Command
                         );
                     } catch (\Throwable) {}
                     $errors++;
+                    $done++;
+                    $eta = $this->eta($done, $toFetch, $startTime);
+                    $output->writeln(sprintf('[%s] [%d/%d] SKIP %s (%s)%s',
+                        $this->ts(), $offset + $done, $total, $label, $e->getMessage(), $eta));
+                    if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
+                    continue;
                 }
-                $bar->advance();
                 $done++;
+                $eta = $this->eta($done, $toFetch, $startTime);
+                $output->writeln(sprintf('[%s] [%d/%d] %s%s', $this->ts(), $offset + $done, $total, $label, $eta));
                 if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
             }
 
-            // Release entities from memory between batches
             $this->em->clear();
         }
 
-        $bar->finish();
-        $io->newLine();
-
         $remaining = $this->workRepo->countWithoutDetail();
-        if ($errors > 0) {
-            $io->warning(sprintf('Fetched %d works with %d errors (network/parse failures marked as done).', $done, $errors));
-        } else {
-            $io->success(sprintf('Fetched details for %d works.', $done));
-        }
-        if ($remaining > 0) {
-            $io->note(sprintf('%d works still pending.', $remaining));
-        }
+        $output->writeln(sprintf('[%s] Done. Fetched %d works (%d errors). %d still pending.',
+            $this->ts(), $done, $errors, $remaining));
 
         return Command::SUCCESS;
+    }
+
+    private function eta(int $done, int $total, float $startTime): string
+    {
+        $elapsed = microtime(true) - $startTime;
+        if ($elapsed < 0.5 || $done === 0) return '';
+        $remaining = ($total - $done) * $elapsed / $done;
+        return '  ETA ' . $this->formatDuration($remaining);
+    }
+
+    private function formatDuration(float $seconds): string
+    {
+        if ($seconds < 60) return '< 1 min';
+        $minutes = (int) round($seconds / 60);
+        if ($minutes < 60) return sprintf('~%d min', $minutes);
+        $hours = (int) ($minutes / 60);
+        $mins  = $minutes % 60;
+        if ($hours < 24) return $mins > 0 ? sprintf('~%dh%02dm', $hours, $mins) : sprintf('~%dh', $hours);
+        $days = (int) ($hours / 24);
+        $hrs  = $hours % 24;
+        return $hrs > 0 ? sprintf('~%dd%dh', $days, $hrs) : sprintf('~%dd', $days);
+    }
+
+    private function ts(): string
+    {
+        return (new \DateTime('now', new \DateTimeZone('Europe/Paris')))->format('Y-m-d H:i:s');
     }
 }
