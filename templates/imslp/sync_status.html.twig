@@ -235,6 +235,7 @@ body {
 .btn-log {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: .35rem;
     background: none;
     border: 1px solid #3a3a3a;
@@ -247,6 +248,7 @@ body {
     letter-spacing: .04em;
     transition: border-color .15s, color .15s;
     white-space: nowrap;
+    min-width: 5.5rem;
 }
 .btn-log:hover   { border-color: #c8a96e; color: #c8a96e; }
 .btn-log.active  { border-color: #c8a96e; color: #c8a96e; background: rgba(200,169,110,.07); }
@@ -380,9 +382,21 @@ body {
         <div class="job-card">
             <div class="job-card-head">
                 <h2>Composers</h2>
-                <span class="ps-badge {% if composersRunning or datesRunning %}running{% else %}idle{% endif %}">
-                    {% if composersRunning or datesRunning %}● Running{% else %}Idle{% endif %}
-                </span>
+                <div style="display:flex;align-items:center;gap:.4rem;">
+                    <span class="ps-badge {% if composersRunning or datesRunning %}running{% else %}idle{% endif %}">
+                        {% if composersRunning or datesRunning %}● Running{% else %}Idle{% endif %}
+                    </span>
+                    {% if composersRunning %}
+                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_composers_stop') }}">
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                    </button>
+                    {% endif %}
+                    {% if datesRunning %}
+                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_dates_stop') }}">
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                    </button>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="job-overview">
@@ -430,16 +444,6 @@ body {
                     </form>
                 </div>
                 <div class="job-footer-right">
-                    {% if composersRunning %}
-                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_composers_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
-                    </button>
-                    {% endif %}
-                    {% if datesRunning %}
-                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_dates_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
-                    </button>
-                    {% endif %}
                     <div style="display:flex;flex-direction:column;gap:.3rem;">
                         <button class="btn-log" data-log="composers" data-label="Composer sync">List log</button>
                         <button class="btn-log" data-log="dates" data-label="Composer dates">Dates log</button>
@@ -452,9 +456,16 @@ body {
         <div class="job-card">
             <div class="job-card-head">
                 <h2>Works</h2>
-                <span class="ps-badge {% if syncRunning %}running{% else %}idle{% endif %}">
-                    {% if syncRunning %}● Running{% else %}Idle{% endif %}
-                </span>
+                <div style="display:flex;align-items:center;gap:.4rem;">
+                    <span class="ps-badge {% if syncRunning %}running{% else %}idle{% endif %}">
+                        {% if syncRunning %}● Running{% else %}Idle{% endif %}
+                    </span>
+                    {% if syncRunning %}
+                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_works_stop') }}">
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                    </button>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="job-overview">
@@ -486,11 +497,6 @@ body {
                     </button>
                 </form>
                 <div class="job-footer-right">
-                    {% if syncRunning %}
-                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_works_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
-                    </button>
-                    {% endif %}
                     <button class="btn-log" data-log="sync" data-label="Works sync">Log</button>
                 </div>
             </div>
@@ -500,9 +506,16 @@ body {
         <div class="job-card">
             <div class="job-card-head">
                 <h2>Details</h2>
-                <span class="ps-badge {% if running %}running{% else %}idle{% endif %}">
-                    {% if running %}● Running{% else %}Idle{% endif %}
-                </span>
+                <div style="display:flex;align-items:center;gap:.4rem;">
+                    <span class="ps-badge {% if running %}running{% else %}idle{% endif %}">
+                        {% if running %}● Running{% else %}Idle{% endif %}
+                    </span>
+                    {% if running %}
+                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_fetch_stop') }}">
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                    </button>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="job-overview">
@@ -544,11 +557,6 @@ body {
                 <span style="font-size:.78rem;color:#6ec87a;">✓ Complete</span>
                 {% endif %}
                 <div class="job-footer-right">
-                    {% if running %}
-                    <button class="btn-stop" data-stop-url="{{ path('app_imslp_fetch_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
-                    </button>
-                    {% endif %}
                     <button class="btn-log" data-log="fetch" data-label="Detail fetch">Log</button>
                 </div>
             </div>
