@@ -42,12 +42,18 @@ body {
 }
 .back-link:hover { text-decoration: underline; }
 
+/* ── Shared column: jobs-grid + log-panel guaranteed same width ── */
+.cards-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+}
+
 /* ── Job cards grid ── */
 .jobs-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.2rem;
-    margin-bottom: 2rem;
 }
 @media (max-width: 680px) { .jobs-grid { grid-template-columns: 1fr; } }
 
@@ -292,7 +298,6 @@ body {
     border-radius: 10px;
     overflow: hidden;
     display: none;
-    margin-bottom: 2rem;
 }
 .log-panel.visible { display: block; }
 .log-panel-header {
@@ -375,7 +380,8 @@ body {
         {% endfor %}
     </div>
 
-    <!-- Job cards (overview + detail combined) -->
+    <!-- Job cards + log panel in a shared column so widths are identical -->
+    <div class="cards-stack">
     <div class="jobs-grid">
 
         <!-- Composers card -->
@@ -564,7 +570,7 @@ body {
 
     </div>
 
-    <!-- Shared log panel -->
+    <!-- Shared log panel (same column as jobs-grid) -->
     <div class="log-panel" id="log-panel">
         <div class="log-panel-header">
             <span class="log-panel-title" id="log-panel-title">Log</span>
@@ -572,6 +578,8 @@ body {
         </div>
         <div class="log-box" id="log-panel-box">(select a log above)</div>
     </div>
+
+    </div>{# end .cards-stack #}
 
 </div>
 
