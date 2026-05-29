@@ -534,8 +534,8 @@ body {
 
             <div class="job-footer">
                 {% if worksWithoutDetail > 0 %}
-                <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post">
-                    <button type="submit" class="btn-card" id="start-btn"{% if running %} disabled{% endif %}>
+                <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post" style="flex:1;">
+                    <button type="submit" class="btn-card" id="start-btn"{% if running %} disabled{% endif %} style="width:100%;justify-content:center;">
                         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
                         {% if running %}Fetching…{% else %}Fetch details{% endif %}
                     </button>
