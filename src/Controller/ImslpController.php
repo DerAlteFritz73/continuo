@@ -69,9 +69,30 @@ class ImslpController extends AbstractController
         } elseif ($q !== '') {
             $mode            = 'search';
             $composerMatches = $this->workRepo->findComposersLike($q);
-            $total           = $this->workRepo->countByTitleSearch($q, $filters);
-            $pages           = (int) ceil($total / $perPage);
-            $works           = $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage);
+
+            // If q is an exact (case-insensitive) match for a single composer, switch to
+            // composer mode so any active filters apply to the work list rather than
+            // appearing to return the full unfiltered composer catalogue.
+            if (count($composerMatches) === 1
+                && strcasecmp($composerMatches[0]['name'], $q) === 0
+            ) {
+                $composer        = $composerMatches[0]['name'];
+                $mode            = 'composer';
+                $composerMatches = [];
+                $composerStyle   = (string) ($this->db->fetchOne(
+                    'SELECT piece_style FROM imslp_work
+                     WHERE composer = ? AND piece_style IS NOT NULL
+                     GROUP BY piece_style ORDER BY COUNT(*) DESC LIMIT 1',
+                    [$composer]
+                ) ?: '');
+                $total = $this->workRepo->countByComposer($composer, $filters);
+                $pages = (int) ceil($total / $perPage);
+                $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
+            } else {
+                $total = $this->workRepo->countByTitleSearch($q, $filters);
+                $pages = (int) ceil($total / $perPage);
+                $works = $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage);
+            }
 
         } elseif (!$filters->isEmpty()) {
             $mode  = 'filter';

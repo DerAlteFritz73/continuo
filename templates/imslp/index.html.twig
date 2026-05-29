@@ -292,40 +292,66 @@ body {
     transition: border-color .2s, background .2s;
 }
 .work-item:hover { border-color: #c8a96e44; background: #2a2a2a; }
-.work-link {
-    text-decoration: none;
-    color: inherit;
-    outline-offset: 2px;
-}
 .work-link::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: 8px;
 }
-.work-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1rem;
-    color: #f0e6c8;
-    line-height: 1.3;
+.work-composer {
+    font-size: .82rem;
+    color: #9a8a78;
+    margin-bottom: .18rem;
 }
-.work-title .catalog {
-    font-family: 'Inter', sans-serif;
-    font-size: .8rem;
-    color: #8a8070;
-    font-style: normal;
-    margin-left: .4rem;
-}
-.work-meta { font-size: .8rem; color: #9a8a78; margin-top: .2rem; }
-.work-meta .clink {
+.work-composer .clink {
     position: relative;
     z-index: 1;
     color: #c8a96e;
     text-decoration: none;
 }
-.work-meta .clink:hover { text-decoration: underline; }
-.work-tags { font-size: .75rem; color: #6a6058; grid-column: 1 / -1; margin-top: .15rem; }
-.work-instr { font-size: .8rem; color: #9a8a78; grid-column: 1 / -1; }
+.work-composer .clink:hover { text-decoration: underline; }
+.composer-dates {
+    font-size: .75rem;
+    color: #6a6058;
+    margin-left: .3rem;
+}
+.work-title {
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+.work-link {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: #f0e6c8;
+    line-height: 1.3;
+    text-decoration: none;
+}
+.work-title .catalog {
+    position: relative;
+    z-index: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    color: #6a6058;
+    font-style: normal;
+}
+.work-year {
+    font-size: .8rem;
+    color: #8a8070;
+    white-space: nowrap;
+}
+.work-details {
+    font-size: .78rem;
+    color: #6a6058;
+    margin-top: .2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 .6rem;
+}
+.work-key { color: #9a8a78; }
+.work-instr-text { color: #8a8070; }
+.work-tags-text { color: #5a5248; }
 .badge-style {
     font-size: .7rem;
     background: #2e2e2e;
@@ -429,14 +455,15 @@ body {
         <hr class="search-divider">
 
         <form method="get" action="{{ path('app_imslp') }}" id="search-form">
+            {% if mode == 'composer' %}<input type="hidden" name="composer" value="{{ composer }}">{% endif %}
             {# Row 1: title/composer + instrumentation + style + search button #}
             <div class="search-row" style="margin-bottom:.6rem">
-                {% if mode != 'composer' %}
                 <div class="search-field">
                     <label for="q">Composer / Title</label>
-                    <input type="text" id="q" name="q" value="{{ q }}" placeholder="e.g. Telemann, Sonata…" autofocus>
+                    <input type="text" id="q" name="q"
+                           value="{{ mode == 'composer' ? composer : q }}"
+                           placeholder="e.g. Telemann, Sonata…" autofocus>
                 </div>
-                {% endif %}
                 <div class="search-field">
                     <label for="instrumentation">Instrumentation</label>
                     <input type="text" id="f-instrumentation" name="instrumentation"
@@ -446,15 +473,12 @@ body {
                     <label for="f-style">Period</label>
                     <select id="f-style" name="style">
                         <option value="">— any —</option>
+                        {% set activeStyle = filters.style ?: composerStyle|default('') %}
                         {% for s in styles %}
-                        <option value="{{ s }}" {% if s == filters.style %}selected{% endif %}>{{ s }}</option>
+                        <option value="{{ s }}" {% if s == activeStyle %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                {% if mode == 'composer' %}
-                    <input type="hidden" name="composer" value="{{ composer }}">
-                    <input type="hidden" name="q" value="{{ q }}">
-                {% endif %}
                 <button type="submit" class="btn-search">Search</button>
             </div>
             {# Row 2: advanced filters #}
@@ -491,6 +515,16 @@ body {
         </div>
     </div>
 
+    {# Clean filter params — null values are omitted from path() query strings #}
+    {% set fp = {
+        instrumentation: filters.instrumentation ?: null,
+        style:           filters.style           ?: null,
+        genre:           filters.genre           ?: null,
+        key:             filters.key             ?: null,
+        year_from:       filters.yearFrom        ?: null,
+        year_to:         filters.yearTo          ?: null
+    } %}
+
     {# ════════════════════════════════════════════════════════════════
        MODE: composer browse
     ════════════════════════════════════════════════════════════════ #}
@@ -510,8 +544,8 @@ body {
 
         {% if works is not empty %}
             {% include 'imslp/_work_list.html.twig' with {
-                works: works, page: page, pages: pages,
-                urlParams: {composer: composer, q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo}
+                works: works, page: page, pages: pages, composerDates: composerDates,
+                urlParams: {composer: composer, q: q ?: null}|merge(fp)
             } %}
         {% else %}
             <div class="empty-state">
@@ -533,7 +567,7 @@ body {
             <div class="composer-cards">
                 {% for c in composerMatches %}
                 <a class="composer-card"
-                   href="{{ path('app_imslp', {composer: c.name, q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo}) }}">
+                   href="{{ path('app_imslp', {composer: c.name, q: q ?: null}|merge(fp)) }}">
                     <span class="cname">{{ c.name }}</span>
                     <span class="ccount">{{ c.work_count|number_format }} works</span>
                 </a>
@@ -553,8 +587,8 @@ body {
 
             {% if works is not empty %}
                 {% include 'imslp/_work_list.html.twig' with {
-                    works: works, page: page, pages: pages,
-                    urlParams: {q: q, instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo},
+                    works: works, page: page, pages: pages, composerDates: composerDates,
+                    urlParams: {q: q ?: null}|merge(fp),
                     showComposer: true
                 } %}
             {% else %}
@@ -590,8 +624,8 @@ body {
 
         {% if works is not empty %}
             {% include 'imslp/_work_list.html.twig' with {
-                works: works, page: page, pages: pages,
-                urlParams: {instrumentation: filters.instrumentation, style: filters.style, genre: filters.genre, key: filters.key, year_from: filters.yearFrom, year_to: filters.yearTo},
+                works: works, page: page, pages: pages, composerDates: composerDates,
+                urlParams: fp,
                 showComposer: true
             } %}
         {% else %}
@@ -644,6 +678,13 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
             ' · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Import status ↗</a>';
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
+
+// ── Strip empty params from search form before submit ──
+document.getElementById('search-form').addEventListener('submit', function () {
+    this.querySelectorAll('input, select').forEach(el => {
+        if (el.value === '' || el.value === null) el.disabled = true;
+    });
+});
 
 // ── AI search ──
 (function () {
