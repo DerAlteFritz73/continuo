@@ -21,7 +21,7 @@ services:
 
     App\Service\ImslpAiSearchService:
         arguments:
-            $apiKey: '%env(string:default::GOOGLE_AI_API_KEY)%'
+            $apiKey: '%env(string:default::GROQ_API_KEY)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

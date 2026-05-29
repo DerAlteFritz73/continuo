@@ -4,7 +4,8 @@ namespace App\Service;
 
 class ImslpAiSearchService
 {
-    private const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+    private const API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+    private const MODEL   = 'llama-3.3-70b-versatile';
     private const SYSTEM  = 'You are a music library search assistant for IMSLP (International Music Score Library Project). '
         . 'Extract structured search parameters from natural language queries about classical music works. '
         . 'Call set_search_filters with only the fields you are confident about — omit fields that are not mentioned or implied.';
@@ -19,14 +20,18 @@ class ImslpAiSearchService
     public function parseQuery(string $query): array
     {
         if ($this->apiKey === '') {
-            return ['error' => 'GOOGLE_AI_API_KEY not configured'];
+            return ['error' => 'GROQ_API_KEY not configured'];
         }
 
         $payload = json_encode([
-            'system_instruction' => ['parts' => [['text' => self::SYSTEM]]],
-            'contents' => [['role' => 'user', 'parts' => [['text' => $query]]]],
+            'model'    => self::MODEL,
+            'messages' => [
+                ['role' => 'system', 'content' => self::SYSTEM],
+                ['role' => 'user',   'content' => $query],
+            ],
             'tools' => [[
-                'function_declarations' => [[
+                'type'     => 'function',
+                'function' => [
                     'name'        => 'set_search_filters',
                     'description' => 'Set structured IMSLP search filters from a natural language query. Only include fields that are clearly mentioned or strongly implied — leave others absent.',
                     'parameters'  => [
@@ -76,19 +81,22 @@ class ImslpAiSearchService
                             ],
                         ],
                     ],
-                ]],
+                ],
             ]],
-            'tool_config' => ['function_calling_config' => ['mode' => 'ANY']],
-            'generationConfig' => ['maxOutputTokens' => 256],
+            'tool_choice'     => 'required',
+            'max_tokens'      => 256,
         ]);
 
-        $ch = curl_init(self::API_URL . '?key=' . urlencode($this->apiKey));
+        $ch = curl_init(self::API_URL);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_TIMEOUT        => 15,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->apiKey,
+            ],
         ]);
 
         $response = curl_exec($ch);
@@ -97,15 +105,16 @@ class ImslpAiSearchService
 
         if ($httpCode !== 200 || !$response) {
             $detail = $response ? (json_decode($response, true)['error']['message'] ?? $response) : 'no response';
-            return ['error' => 'Gemini API error ' . $httpCode . ': ' . $detail];
+            return ['error' => 'Groq API error ' . $httpCode . ': ' . $detail];
         }
 
         $data = json_decode($response, true);
 
-        $parts = $data['candidates'][0]['content']['parts'] ?? [];
-        foreach ($parts as $part) {
-            if (isset($part['functionCall']) && $part['functionCall']['name'] === 'set_search_filters') {
-                return $part['functionCall']['args'] ?? [];
+        $toolCalls = $data['choices'][0]['message']['tool_calls'] ?? [];
+        foreach ($toolCalls as $call) {
+            if (($call['function']['name'] ?? '') === 'set_search_filters') {
+                $args = json_decode($call['function']['arguments'], true);
+                return $args ?? [];
             }
         }
 
