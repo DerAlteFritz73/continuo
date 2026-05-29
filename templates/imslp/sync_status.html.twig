@@ -414,16 +414,16 @@ body {
             {% endif %}
 
             <div class="job-footer">
-                <div style="display:flex;flex-direction:column;gap:.3rem;">
-                    <form id="composers-form" action="{{ path('app_imslp_sync_composers_start') }}" method="post">
-                        <button type="submit" class="btn-card" id="composers-btn"{% if composersRunning %} disabled{% endif %}>
+                <div style="display:flex;flex-direction:column;gap:.3rem;width:100%;">
+                    <form id="composers-form" action="{{ path('app_imslp_sync_composers_start') }}" method="post" style="width:100%;">
+                        <button type="submit" class="btn-card" id="composers-btn"{% if composersRunning %} disabled{% endif %} style="width:100%;justify-content:center;">
                             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
                             {% if composersRunning %}Syncing…{% else %}Sync list{% endif %}
                         </button>
                     </form>
-                    <form id="dates-form" action="{{ path('app_imslp_sync_dates_start') }}" method="post">
+                    <form id="dates-form" action="{{ path('app_imslp_sync_dates_start') }}" method="post" style="width:100%;">
                         <button type="submit" class="btn-card" id="dates-btn"{% if datesRunning %} disabled{% endif %}
-                                style="background:linear-gradient(135deg,#8a7050 0%,#b09060 100%);">
+                                style="background:linear-gradient(135deg,#8a7050 0%,#b09060 100%);width:100%;justify-content:center;">
                             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
                             {% if datesRunning %}Fetching…{% else %}Sync dates{% endif %}
                         </button>
