@@ -96,7 +96,8 @@ class ImslpAiSearchService
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
-            return ['error' => 'API request failed (HTTP ' . $httpCode . ')'];
+            $detail = $response ? (json_decode($response, true)['error']['message'] ?? $response) : 'no response';
+            return ['error' => 'Gemini API error ' . $httpCode . ': ' . $detail];
         }
 
         $data = json_decode($response, true);
