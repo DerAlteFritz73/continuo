@@ -393,6 +393,17 @@ class ImslpController extends AbstractController
         $pct      = $total > 0 ? round($withDetail / $total * 100, 1) : 0;
         $datesPct = $totalComposers > 0 ? round($composersChecked / $totalComposers * 100, 1) : 0;
 
+        $fmt = function (?string $raw): ?string {
+            if ($raw === null) return null;
+            $dt = new \DateTime($raw);
+            return $dt->format('d.m.Y H:i');
+        };
+
+        $lastWorkSync      = $fmt($this->db->fetchOne('SELECT MAX(synced_at) FROM imslp_work') ?: null);
+        $lastDetailSync    = $fmt($this->db->fetchOne('SELECT MAX(detail_synced_at) FROM imslp_work') ?: null);
+        $lastComposerSync  = $fmt($this->db->fetchOne('SELECT MAX(synced_at) FROM imslp_composer') ?: null);
+        $lastDatesSync     = $fmt($this->db->fetchOne('SELECT MAX(dates_synced_at) FROM imslp_composer') ?: null);
+
         return [
             'works'                => $total,
             'worksWithDetail'      => $withDetail,
@@ -405,6 +416,10 @@ class ImslpController extends AbstractController
             'syncRunning'          => $this->isSyncRunning(),
             'datesRunning'         => $this->isDatesRunning(),
             'composersRunning'     => $this->isComposersRunning(),
+            'lastWorkSync'         => $lastWorkSync,
+            'lastDetailSync'       => $lastDetailSync,
+            'lastComposerSync'     => $lastComposerSync,
+            'lastDatesSync'        => $lastDatesSync,
         ];
     }
 
@@ -492,6 +507,59 @@ class ImslpController extends AbstractController
             $map[$row['name']] = ['born' => $row['born_year'], 'died' => $row['died_year']];
         }
         return $map;
+    }
+
+    #[Route('/system-stats', name: 'app_imslp_system_stats', methods: ['GET'])]
+    public function systemStats(): JsonResponse
+    {
+        // CPU: two samples 200 ms apart for a real delta
+        $sample = function (): array {
+            $line = file('/proc/stat')[0];
+            $f    = array_slice(preg_split('/\s+/', trim($line)), 1);
+            $idle = (int)$f[3] + (int)$f[4];
+            $total = array_sum(array_map('intval', $f));
+            return [$idle, $total];
+        };
+
+        [$idle1, $total1] = $sample();
+        usleep(200_000);
+        [$idle2, $total2] = $sample();
+
+        $diffTotal = $total2 - $total1;
+        $diffIdle  = $idle2  - $idle1;
+        $cpuPct    = $diffTotal > 0 ? round(100 * (1 - $diffIdle / $diffTotal)) : 0;
+
+        // Memory
+        $memInfo = [];
+        foreach (file('/proc/meminfo') as $line) {
+            [$key, $val] = explode(':', $line, 2);
+            $memInfo[trim($key)] = (int) trim(str_replace(' kB', '', $val));
+        }
+        $memTotal     = $memInfo['MemTotal']     ?? 1;
+        $memAvailable = $memInfo['MemAvailable'] ?? $memTotal;
+        $memUsed      = $memTotal - $memAvailable;
+        $memPct       = (int) round(100 * $memUsed / $memTotal);
+
+        // Disk (project root or /)
+        $diskPath  = $this->getParameter('kernel.project_dir');
+        $diskTotal = disk_total_space($diskPath);
+        $diskFree  = disk_free_space($diskPath);
+        $diskUsed  = $diskTotal - $diskFree;
+        $diskPct   = $diskTotal > 0 ? (int) round(100 * $diskUsed / $diskTotal) : 0;
+
+        $fmt = fn(int $kb): string => $kb >= 1_048_576
+            ? round($kb / 1_048_576, 1) . ' GB'
+            : round($kb / 1_024, 0) . ' MB';
+
+        $fmtBytes = fn(int $b): string => $b >= 1_073_741_824
+            ? round($b / 1_073_741_824, 1) . ' GB'
+            : round($b / 1_048_576, 0) . ' MB';
+
+        return $this->json([
+            'cpu'  => ['pct' => $cpuPct],
+            'mem'  => ['pct' => $memPct,  'used' => $fmt($memUsed),  'total' => $fmt($memTotal)],
+            'disk' => ['pct' => $diskPct, 'used' => $fmtBytes($diskUsed), 'total' => $fmtBytes($diskTotal)],
+        ]);
     }
 
     private function isPidAlive(string $pidFile): bool
