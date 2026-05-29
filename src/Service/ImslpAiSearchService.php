@@ -4,7 +4,7 @@ namespace App\Service;
 
 class ImslpAiSearchService
 {
-    private const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
     private const SYSTEM  = 'You are a music library search assistant for IMSLP (International Music Score Library Project). '
         . 'Extract structured search parameters from natural language queries about classical music works. '
         . 'Call set_search_filters with only the fields you are confident about — omit fields that are not mentioned or implied.';
