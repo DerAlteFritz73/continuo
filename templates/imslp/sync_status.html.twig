@@ -479,8 +479,8 @@ body {
             {% endif %}
 
             <div class="job-footer">
-                <form id="sync-form" action="{{ path('app_imslp_sync_works_start') }}" method="post">
-                    <button type="submit" class="btn-card" id="sync-btn"{% if syncRunning %} disabled{% endif %}>
+                <form id="sync-form" action="{{ path('app_imslp_sync_works_start') }}" method="post" style="flex:1;">
+                    <button type="submit" class="btn-card" id="sync-btn"{% if syncRunning %} disabled{% endif %} style="width:100%;justify-content:center;">
                         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
                         {% if syncRunning %}Syncing…{% else %}Import works{% endif %}
                     </button>
