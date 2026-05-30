@@ -87,8 +87,7 @@ class ImslpAiSearchService
             'max_tokens'      => 256,
         ]);
 
-        $ch = curl_init(self::API_URL);
-        curl_setopt_array($ch, [
+        $opts = [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
@@ -97,15 +96,22 @@ class ImslpAiSearchService
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $this->apiKey,
             ],
-        ]);
+        ];
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        // Retry once on 400 (intermittent model JSON generation failure)
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $ch = curl_init(self::API_URL);
+            curl_setopt_array($ch, $opts);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) {
-            $detail = $response ? (json_decode($response, true)['error']['message'] ?? $response) : 'no response';
-            return ['error' => 'Groq API error ' . $httpCode . ': ' . $detail];
+            if ($httpCode === 200) break;
+
+            if ($httpCode !== 400 || $attempt === 1) {
+                $detail = $response ? (json_decode($response, true)['error']['message'] ?? $response) : 'no response';
+                return ['error' => 'Groq API error ' . $httpCode . ': ' . $detail];
+            }
         }
 
         $data = json_decode($response, true);
