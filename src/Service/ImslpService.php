@@ -93,11 +93,11 @@ class ImslpService
         $now  = (new \DateTime())->format('Y-m-d H:i:s');
         $done = 0;
         foreach ($names as $name) {
-            [$born, $died] = $this->fetchComposerDates($name);
+            [$born, $died, $nationality, $timePeriod] = $this->fetchComposerDates($name);
 
             $this->db->executeStatement(
-                'UPDATE imslp_composer SET born_year = ?, died_year = ?, dates_synced_at = ? WHERE name = ?',
-                [$born, $died, $now, $name]
+                'UPDATE imslp_composer SET born_year = ?, died_year = ?, nationality = ?, time_period = ?, dates_synced_at = ? WHERE name = ?',
+                [$born, $died, $nationality, $timePeriod, $now, $name]
             );
 
             $done++;
@@ -137,8 +137,10 @@ class ImslpService
 
         if ($wikitext === '') return [null, null];
 
-        $born = null;
-        $died = null;
+        $born        = null;
+        $died        = null;
+        $nationality = null;
+        $timePeriod  = null;
 
         if (preg_match('/\|\s*Born Year\s*=\s*(-?\d+)/i', $wikitext, $m)) {
             $born = (int) $m[1];
@@ -146,8 +148,16 @@ class ImslpService
         if (preg_match('/\|\s*Died Year\s*=\s*(-?\d+)/i', $wikitext, $m)) {
             $died = (int) $m[1];
         }
+        if (preg_match('/\|\s*Born Country\s*=\s*(.+)/i', $wikitext, $m)) {
+            $nationality = trim($m[1]);
+            if ($nationality === '') $nationality = null;
+        }
+        if (preg_match('/\|\s*Time Period\s*=\s*(.+)/i', $wikitext, $m)) {
+            $timePeriod = trim($m[1]);
+            if ($timePeriod === '') $timePeriod = null;
+        }
 
-        return [$born, $died];
+        return [$born, $died, $nationality, $timePeriod];
     }
 
     // -------------------------------------------------------------------------
@@ -287,21 +297,44 @@ class ImslpService
             }
         }
 
+        $genreCats = $this->genresFromCategories($page['categories'] ?? [], $work->getComposer());
+
+        // Parse new normalised fields
+        $durationSeconds  = $this->parseDurationSeconds($parsed['averageDuration'] ?? '');
+        [$firstPerfDate, $firstPerfLocation] = $this->parseFirstPerformance($parsed['firstPerformance'] ?? '');
+
+        // Resolve composer_id
+        $composerId = $this->db->fetchOne(
+            'SELECT id FROM imslp_composer WHERE name = ?',
+            [$work->getComposer()]
+        ) ?: null;
+
         // Use DBAL directly to avoid ORM EntityManager closure on DB errors,
         // and to apply VARCHAR column limits explicitly.
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $this->db->executeStatement(
             'UPDATE imslp_work SET
-                work_key         = ?,
-                instrumentation  = ?,
-                piece_style      = ?,
-                year_composed    = ?,
-                year_published   = ?,
-                tags             = ?,
-                page_type        = ?,
-                movements        = ?,
-                files_json       = ?,
-                detail_synced_at = ?
+                work_key            = ?,
+                instrumentation     = ?,
+                piece_style         = ?,
+                year_composed       = ?,
+                year_published      = ?,
+                tags                = ?,
+                genre_cats          = ?,
+                language            = ?,
+                alternative_title   = ?,
+                average_duration    = ?,
+                librettist          = ?,
+                dedication          = ?,
+                first_performance   = ?,
+                page_type           = ?,
+                movements           = ?,
+                files_json          = ?,
+                composer_id         = ?,
+                duration_seconds    = ?,
+                first_perf_date     = ?,
+                first_perf_location = ?,
+                detail_synced_at    = ?
              WHERE page_id = ?',
             [
                 mb_substr($parsed['key'] ?: '', 0, 255) ?: null,
@@ -310,15 +343,227 @@ class ImslpService
                 mb_substr($parsed['yearComposed'] ?: '', 0, 100) ?: null,
                 mb_substr($parsed['yearPublished'] ?: '', 0, 100) ?: null,
                 $parsed['tags'] ?: null,
+                !empty($genreCats) ? implode(' ; ', $genreCats) : null,
+                mb_substr($parsed['language'] ?: '', 0, 255) ?: null,
+                mb_substr($parsed['alternativeTitle'] ?: '', 0, 512) ?: null,
+                mb_substr($parsed['averageDuration'] ?: '', 0, 100) ?: null,
+                $parsed['librettist'] ?: null,
+                $parsed['dedication'] ?: null,
+                mb_substr($parsed['firstPerformance'] ?: '', 0, 255) ?: null,
                 mb_substr($parsed['pageType'] ?: '', 0, 100) ?: null,
                 $parsed['movements'] ?: null,
                 !empty($parsed['editions']) ? json_encode($parsed['editions']) : null,
+                $composerId,
+                $durationSeconds,
+                mb_substr($firstPerfDate ?? '', 0, 50) ?: null,
+                mb_substr($firstPerfLocation ?? '', 0, 255) ?: null,
                 $now,
                 $work->getPageId(),
             ]
         );
 
+        // Upsert editions + files into normalised tables
+        if (!empty($parsed['editions'])) {
+            $this->upsertEditions($work->getPageId(), $parsed['editions']);
+        }
+
+        // Upsert categories into normalised tables
+        if (!empty($genreCats)) {
+            $this->upsertWorkCategories($work->getPageId(), $genreCats);
+        }
+
         $work->setDetailSyncedAt(new \DateTime());
+    }
+
+    // -------------------------------------------------------------------------
+    // Normalised table helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Deletes existing imslp_edition (+ cascading imslp_edition_file) rows for the given
+     * work and re-inserts from the parsed editions array.
+     */
+    public function upsertEditions(int $pageId, array $editions): void
+    {
+        // Resolve work row id
+        $workId = $this->db->fetchOne('SELECT id FROM imslp_work WHERE page_id = ?', [$pageId]);
+        if (!$workId) return;
+
+        // Delete existing edition rows (files cascade via app logic below)
+        $existingEditionIds = $this->db->fetchFirstColumn(
+            'SELECT id FROM imslp_edition WHERE work_id = ?', [(int) $workId]
+        );
+        if (!empty($existingEditionIds)) {
+            $this->db->executeStatement(
+                'DELETE FROM imslp_edition_file WHERE edition_id IN (' . implode(',', $existingEditionIds) . ')'
+            );
+            $this->db->executeStatement(
+                'DELETE FROM imslp_edition WHERE work_id = ?', [(int) $workId]
+            );
+        }
+
+        foreach ($editions as $sortOrder => $edition) {
+            $this->db->executeStatement(
+                'INSERT INTO imslp_edition (work_id, sort_order, copyright, publisher, arranger, editor,
+                    date_submitted, image_type, uploader, scanner, plate_number, misc_notes)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    (int) $workId,
+                    $sortOrder,
+                    mb_substr($edition['copyright'] ?? '', 0, 255) ?: null,
+                    ($edition['publisher'] ?? '') ?: null,
+                    mb_substr($edition['arranger'] ?? '', 0, 512) ?: null,
+                    mb_substr($edition['editor'] ?? '', 0, 512) ?: null,
+                    mb_substr($edition['dateSubmitted'] ?? '', 0, 20) ?: null,
+                    mb_substr($edition['imageType'] ?? '', 0, 100) ?: null,
+                    mb_substr($edition['uploader'] ?? '', 0, 255) ?: null,
+                    mb_substr($edition['scanner'] ?? '', 0, 255) ?: null,
+                    mb_substr($edition['plateNumber'] ?? '', 0, 255) ?: null,
+                    ($edition['miscNotes'] ?? '') ?: null,
+                ]
+            );
+            $editionId = (int) $this->db->lastInsertId();
+
+            foreach (($edition['files'] ?? []) as $pos => $file) {
+                $this->db->executeStatement(
+                    'INSERT INTO imslp_edition_file (edition_id, position, filename, description) VALUES (?, ?, ?, ?)',
+                    [
+                        $editionId,
+                        $pos + 1,
+                        mb_substr($file['filename'] ?? '', 0, 512),
+                        mb_substr($file['description'] ?? '', 0, 512) ?: null,
+                    ]
+                );
+            }
+        }
+    }
+
+    /**
+     * Upserts category names and inserts junction rows for a work.
+     * Existing junction rows for this work are deleted first to avoid duplicates.
+     */
+    public function upsertWorkCategories(int $pageId, array $genreCats): void
+    {
+        $workId = $this->db->fetchOne('SELECT id FROM imslp_work WHERE page_id = ?', [$pageId]);
+        if (!$workId) return;
+
+        // Delete existing junctions for this work
+        $this->db->executeStatement(
+            'DELETE FROM imslp_work_category WHERE work_id = ?', [(int) $workId]
+        );
+
+        foreach ($genreCats as $catName) {
+            $catName = trim($catName);
+            if ($catName === '') continue;
+
+            // Upsert category name
+            $this->db->executeStatement(
+                'INSERT INTO imslp_category (name) VALUES (?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)',
+                [$catName]
+            );
+            $catId = (int) $this->db->lastInsertId();
+
+            // Insert junction (ignore duplicate if already exists)
+            $this->db->executeStatement(
+                'INSERT IGNORE INTO imslp_work_category (work_id, category_id) VALUES (?, ?)',
+                [(int) $workId, $catId]
+            );
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Duration + first performance parsers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Parses a human-readable duration string into total seconds.
+     * Examples:
+     *   "20 minutes" → 1200
+     *   "1 hour 30 minutes" → 5400
+     *   "2 hours" → 7200
+     *   "10-15 minutes" → 750  (average)
+     *   "ca. 20 minutes" → 1200
+     *   "45'" → 2700
+     * Returns null if nothing parseable.
+     */
+    public function parseDurationSeconds(string $duration): ?int
+    {
+        if ($duration === '') return null;
+
+        // Strip "ca.", "c.", "about", "approximately", "approx."
+        $d = preg_replace('/\b(ca\.?|c\.|about|approximately|approx\.?)\s*/i', '', $duration);
+        $d = trim($d);
+
+        // "45'" or "45 min'" style
+        if (preg_match("/^(\d+)['′]/", $d, $m)) {
+            return (int) $m[1] * 60;
+        }
+
+        // Range: "10-15 minutes" or "10–15 minutes"
+        if (preg_match('/^(\d+)\s*[-–]\s*(\d+)\s*(hours?|hrs?|h\b|minutes?|mins?|m\b)?/i', $d, $m)) {
+            $avg  = ((int) $m[1] + (int) $m[2]) / 2;
+            $unit = strtolower($m[3] ?? 'min');
+            return (int) round($avg * (preg_match('/^h/i', $unit) ? 3600 : 60));
+        }
+
+        $seconds = 0;
+        $matched = false;
+
+        // Hours
+        if (preg_match('/(\d+)\s*(hours?|hrs?|h\b)/i', $d, $m)) {
+            $seconds += (int) $m[1] * 3600;
+            $matched  = true;
+        }
+        // Minutes
+        if (preg_match('/(\d+)\s*(minutes?|mins?|m\b)/i', $d, $m)) {
+            $seconds += (int) $m[1] * 60;
+            $matched  = true;
+        }
+        // Seconds
+        if (preg_match('/(\d+)\s*(seconds?|secs?|s\b)/i', $d, $m)) {
+            $seconds += (int) $m[1];
+            $matched  = true;
+        }
+
+        return $matched ? $seconds : null;
+    }
+
+    /**
+     * Parses a first-performance string into [dateString|null, locationString|null].
+     * Examples:
+     *   "1725-03-25 in Leipzig"      → ['1725-03-25', 'Leipzig']
+     *   "1724 in Leipzig, Germany"   → ['1724', 'Leipzig, Germany']
+     *   "1890, Paris"                → ['1890', 'Paris']
+     * Returns [null, null] if nothing parseable.
+     */
+    public function parseFirstPerformance(string $fp): array
+    {
+        if ($fp === '') return [null, null];
+
+        $date     = null;
+        $location = null;
+
+        // Normalise slashes to dashes in date part before parsing
+        $fp = preg_replace('/^(\d{4})\/(\d{2})(?:\/(\d{2}))?/', '$1-$2-$3', $fp);
+
+        // Try "YYYY-MM-DD in Location\n..." — take only first line of location
+        if (preg_match('/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s+in\s+(.+)$/is', $fp, $m)) {
+            $date     = trim($m[1]);
+            $location = trim(explode("\n", trim($m[2]))[0]);
+        } elseif (preg_match('/^(\d{4}(?:-\d{2}(?:-\d{2})?)?),\s*(.+)$/s', $fp, $m)) {
+            $date     = trim($m[1]);
+            $location = trim(explode("\n", trim($m[2]))[0]);
+        } elseif (preg_match('/^(\d{4}(?:-\d{2}(?:-\d{2})?)?)/', $fp, $m)) {
+            $date = trim($m[1]);
+        }
+
+        // Strip wiki markup from location
+        if ($location !== null) {
+            $location = $this->stripWikiMarkup($location);
+            $location = $location !== '' ? $location : null;
+        }
+
+        return [$date, $location];
     }
 
     private function markDetailSynced(int $pageId): void
@@ -444,6 +689,66 @@ class ImslpService
         return '';
     }
 
+    /**
+     * Extracts genre labels from MediaWiki categories — both composer-specific subcategories
+     * (e.g. "Category:Telemann, Georg Philipp/Cantatas" → "Cantatas") and global genre
+     * categories (e.g. "Category:Cantatas" → "Cantatas").  Administrative, style, key,
+     * instrumentation, and contributor categories are excluded.
+     */
+    private function genresFromCategories(array $categories, string $composer): array
+    {
+        $genres = [];
+
+        // Contributor role suffixes to skip for composer-specific subcategories
+        static $roles = ['Arranger', 'Editor', 'Performer', 'Copyist', 'Translator', 'Librettist'];
+
+        // Composer-specific subcategories: "Category:Composer, Name/Genre"
+        $prefix = 'Category:' . $composer . '/';
+        foreach ($categories as $cat) {
+            $title = $cat['title'] ?? '';
+            if (str_starts_with($title, $prefix)) {
+                $genre = substr($title, strlen($prefix));
+                if ($genre !== '' && !in_array($genre, $roles, true)) $genres[] = $genre;
+            }
+        }
+
+        // Global genre categories: "Category:Cantatas", "Category:Symphonies", etc.
+        // Exclude noise by matching against known non-genre patterns.
+        static $styles = ['Ancient', 'Baroque', 'Classical', 'Medieval', 'Modern', 'Renaissance', 'Romantic', 'Contemporary', 'Traditional'];
+        static $adminExact = ['Recordings', 'Urtext', 'Manuscripts', 'Scores', 'Parts'];
+
+        foreach ($categories as $cat) {
+            $title = $cat['title'] ?? '';
+            if (!str_starts_with($title, 'Category:')) continue;
+            $name = substr($title, 9);
+
+            if (str_contains($name, '/')) continue;                     // sub-categories already handled
+            if (in_array($name, $styles, true)) continue;               // style period names
+            if (in_array($name, $adminExact, true)) continue;           // exact admin names
+            if (str_ends_with($name, ' style')) continue;               // "Baroque style"
+            if (str_ends_with($name, ' language')) continue;            // "English language" (stored in language field)
+
+            // Prefixes that identify non-genre categories
+            if (preg_match('/^(Pages |Scores |Works |For |Manuscripts|Composers\'|Performers\'|Arrangers\'|Editors\')/i', $name)) continue;
+
+            // Key categories: "F major", "C minor", "B-flat major"
+            if (preg_match('/^[A-G][#b\-]*([\s-]+(major|minor))?$/i', $name)) continue;
+
+            // Noise keywords anywhere in the name
+            if (preg_match('/(century|RISM|WIMA|holograph|arrangement|purchase|Self-published|Unknown)/i', $name)) continue;
+
+            // Contributor role categories (global, e.g. "Category:Arranger")
+            if (in_array($name, $roles, true)) continue;
+
+            // Composer name format "Lastname, Firstname"
+            if (preg_match('/^[A-Z][a-z]+,\s+[A-Z]/', $name)) continue;
+
+            $genres[] = $name;
+        }
+
+        return array_values(array_unique($genres));
+    }
+
     // -------------------------------------------------------------------------
     // Wikitext parser
     // -------------------------------------------------------------------------
@@ -451,15 +756,21 @@ class ImslpService
     public function parseWikitext(string $wikitext): array
     {
         $result = [
-            'key'             => '',
-            'instrumentation' => '',
-            'pieceStyle'      => '',
-            'yearComposed'    => '',
-            'yearPublished'   => '',
-            'tags'            => '',
-            'pageType'        => '',
-            'movements'       => '',
-            'editions'        => [],
+            'key'              => '',
+            'instrumentation'  => '',
+            'pieceStyle'       => '',
+            'yearComposed'     => '',
+            'yearPublished'    => '',
+            'tags'             => '',
+            'pageType'         => '',
+            'movements'        => '',
+            'language'         => '',
+            'alternativeTitle' => '',
+            'averageDuration'  => '',
+            'librettist'       => '',
+            'dedication'       => '',
+            'firstPerformance' => '',
+            'editions'         => [],
         ];
 
         // Extract WORK INFO section (between *****WORK INFO***** and next *****)
@@ -474,6 +785,12 @@ class ImslpService
                 'Tags'                         => 'tags',
                 'Page Type'                    => 'pageType',
                 'Number of Movements/Sections' => 'movements',
+                'Language'                     => 'language',
+                'Alternative Title'            => 'alternativeTitle',
+                'Average Duration'             => 'averageDuration',
+                'Librettist'                   => 'librettist',
+                'Dedication'                   => 'dedication',
+                'First Performance'            => 'firstPerformance',
             ];
             foreach ($fieldMap as $label => $key) {
                 if (isset($fields[$label])) {
@@ -520,6 +837,11 @@ class ImslpService
                 'arranger'      => $this->stripWikiMarkup($fields['Arranger'] ?? ''),
                 'editor'        => $this->stripWikiMarkup($fields['Editor'] ?? ''),
                 'dateSubmitted' => $fields['Date Submitted'] ?? '',
+                'imageType'     => $this->stripWikiMarkup($fields['Image Type'] ?? ''),
+                'uploader'      => $this->stripWikiMarkup($fields['Uploader'] ?? ''),
+                'scanner'       => $this->stripWikiMarkup($fields['Scanner'] ?? ''),
+                'plateNumber'   => $this->stripWikiMarkup($fields['Plate Number'] ?? ''),
+                'miscNotes'     => $this->stripWikiMarkup($fields['Misc. Notes'] ?? ''),
                 'files'         => [],
             ];
 

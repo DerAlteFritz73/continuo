@@ -41,6 +41,10 @@ services:
       PMA_HOST: db
       PMA_USER: root
       PMA_PASSWORD: root
+      PMA_ABSOLUTE_URI: https://continuo.kreilos.fr/pma/
+      PMA_CONTROLHOST: db
+      PMA_CONTROLUSER: root
+      PMA_CONTROLPASS: root
     ports:
       - "127.0.0.1:8084:80"
     depends_on:

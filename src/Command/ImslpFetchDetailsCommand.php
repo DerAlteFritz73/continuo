@@ -38,26 +38,40 @@ class ImslpFetchDetailsCommand extends Command
              ->addOption('stop-file', null, InputOption::VALUE_REQUIRED,
                 'Path to a stop-file; process exits gracefully when the file appears', '')
              ->addOption('refetch-no-tags', null, InputOption::VALUE_NONE,
-                'Re-fetch works that were synced but have no tags (to pick up category data)');
+                'Re-fetch works that were synced but have no tags (to pick up category data)')
+             ->addOption('fill-genres', null, InputOption::VALUE_NONE,
+                'Re-fetch works that were synced but have no genre_cats (to populate IMSLP genre categories)')
+             ->addOption('fill-all', null, InputOption::VALUE_NONE,
+                'Re-fetch works where duration_seconds or first_perf_date are still NULL (to pick up new parsed fields)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $limit        = (int) $input->getOption('limit');
-        $delay        = (int) $input->getOption('delay');
-        $stopFile     = (string) $input->getOption('stop-file');
+        $limit         = (int) $input->getOption('limit');
+        $delay         = (int) $input->getOption('delay');
+        $stopFile      = (string) $input->getOption('stop-file');
         $refetchNoTags = (bool) $input->getOption('refetch-no-tags');
+        $fillGenres    = (bool) $input->getOption('fill-genres');
+        $fillAll       = (bool) $input->getOption('fill-all');
 
         $total   = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
-        $pending = $refetchNoTags
-            ? $this->workRepo->countWithoutTags()
-            : $this->workRepo->countWithoutDetail();
+        $pending = match (true) {
+            $fillAll       => $this->workRepo->countWithoutAllFields(),
+            $fillGenres    => $this->workRepo->countWithoutGenreCats(),
+            $refetchNoTags => $this->workRepo->countWithoutTags(),
+            default        => $this->workRepo->countWithoutDetail(),
+        };
         $toFetch = ($limit > 0) ? min($limit, $pending) : $pending;
-        $fetched = $refetchNoTags
+        $fetched = $refetchNoTags || $fillGenres || $fillAll
             ? $total - $this->workRepo->countWithoutDetail()
             : $total - $pending;
 
-        $mode = $refetchNoTags ? 'no-tags re-fetch' : 'detail fetch';
+        $mode = match (true) {
+            $fillAll       => 'fill-all re-fetch',
+            $fillGenres    => 'fill-genres re-fetch',
+            $refetchNoTags => 'no-tags re-fetch',
+            default        => 'detail fetch',
+        };
         $output->writeln(sprintf('[%s] %s mode: %d/%d works have detail data; %d pending. Fetching %s now (batch=%d, delay=%dms).',
             $this->ts(),
             $mode,
@@ -80,9 +94,12 @@ class ImslpFetchDetailsCommand extends Command
 
         while ($done < $toFetch) {
             $batchSize = min(self::BATCH, $toFetch - $done);
-            $works     = $refetchNoTags
-                ? $this->workRepo->findWithoutTags($batchSize)
-                : $this->workRepo->findWithoutDetail($batchSize);
+            $works     = match (true) {
+                $fillAll       => $this->workRepo->findWithoutAllFields($batchSize),
+                $fillGenres    => $this->workRepo->findWithoutGenreCats($batchSize),
+                $refetchNoTags => $this->workRepo->findWithoutTags($batchSize),
+                default        => $this->workRepo->findWithoutDetail($batchSize),
+            };
             if (empty($works)) break;
 
             foreach ($works as $work) {
@@ -119,13 +136,17 @@ class ImslpFetchDetailsCommand extends Command
             $this->em->clear();
         }
 
-        $remaining = $refetchNoTags
-            ? $this->workRepo->countWithoutTags()
-            : $this->workRepo->countWithoutDetail();
+        $remaining = match (true) {
+            $fillAll       => $this->workRepo->countWithoutAllFields(),
+            $fillGenres    => $this->workRepo->countWithoutGenreCats(),
+            $refetchNoTags => $this->workRepo->countWithoutTags(),
+            default        => $this->workRepo->countWithoutDetail(),
+        };
         $output->writeln(sprintf('[%s] Done. Fetched %d works (%d errors). %d still pending.',
             $this->ts(), $done, $errors, $remaining));
 
         $this->cache->delete('imslp.distinct_genres');
+        $this->cache->delete('imslp.distinct_languages');
 
         return Command::SUCCESS;
     }

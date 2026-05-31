@@ -44,6 +44,7 @@ class ImslpController extends AbstractController
             style:           trim($request->query->getString('style')),
             genre:           trim($request->query->getString('genre')),
             key:             trim($request->query->getString('key')),
+            language:        trim($request->query->getString('language')),
             yearFrom:        ($v = trim($request->query->getString('year_from'))) !== '' ? (int) $v : null,
             yearTo:          ($v = trim($request->query->getString('year_to')))   !== '' ? (int) $v : null,
         );
@@ -118,9 +119,10 @@ class ImslpController extends AbstractController
             'composerDates'   => $composerDates,
             'composerMatches' => $composerMatches,
             'composerStyle'   => $composerStyle,
-            'styles'   => self::STYLES,
-            'genres'   => $this->cachedDistinctGenres(),
-            'mode'     => $mode,
+            'styles'    => self::STYLES,
+            'genres'    => $this->cachedDistinctGenres(),
+            'languages' => $this->cachedDistinctLanguages(),
+            'mode'      => $mode,
         ]);
     }
 
@@ -196,7 +198,7 @@ class ImslpController extends AbstractController
         @unlink($stopFile);
 
         $cmd = sprintf(
-            'nohup php %s app:imslp:fetch-details --delay=500 --stop-file=%s >> %s 2>&1 & echo $!',
+            'nohup env APP_DEBUG=0 php %s app:imslp:fetch-details --delay=500 --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
             escapeshellarg($stopFile),
             escapeshellarg($logFile)
@@ -231,7 +233,7 @@ class ImslpController extends AbstractController
         @unlink($stopFile);
 
         $cmd = sprintf(
-            'nohup php %s app:imslp:sync --type=composers --stop-file=%s >> %s 2>&1 & echo $!',
+            'nohup env APP_DEBUG=0 php %s app:imslp:sync --type=composers --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
             escapeshellarg($stopFile),
             escapeshellarg($logFile)
@@ -272,7 +274,7 @@ class ImslpController extends AbstractController
         @unlink($stopFile);
 
         $cmd = sprintf(
-            'nohup php %s app:imslp:sync --type=works --resume --stop-file=%s >> %s 2>&1 & echo $!',
+            'nohup env APP_DEBUG=0 php %s app:imslp:sync --type=works --resume --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
             escapeshellarg($stopFile),
             escapeshellarg($logFile)
@@ -319,7 +321,7 @@ class ImslpController extends AbstractController
         @unlink($stopFile);
 
         $cmd = sprintf(
-            'nohup php %s app:imslp:sync-composer-dates --delay=300 --stop-file=%s >> %s 2>&1 & echo $!',
+            'nohup env APP_DEBUG=0 php %s app:imslp:sync-composer-dates --delay=300 --stop-file=%s >> %s 2>&1 & echo $!',
             escapeshellarg($projectDir . '/bin/console'),
             escapeshellarg($stopFile),
             escapeshellarg($logFile)
@@ -350,6 +352,14 @@ class ImslpController extends AbstractController
         return $this->cache->get('imslp.distinct_genres', function (ItemInterface $item): array {
             $item->expiresAfter(3600);
             return $this->workRepo->findDistinctGenres();
+        });
+    }
+
+    private function cachedDistinctLanguages(): array
+    {
+        return $this->cache->get('imslp.distinct_languages', function (ItemInterface $item): array {
+            $item->expiresAfter(3600);
+            return $this->workRepo->findDistinctLanguages();
         });
     }
 

@@ -61,6 +61,39 @@ class ImslpWork
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $movements = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $genreCats = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $language = null;
+
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $alternativeTitle = null;
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $averageDuration = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $librettist = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $dedication = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $firstPerformance = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $composerId = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $durationSeconds = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $firstPerfDate = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $firstPerfLocation = null;
+
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $filesJson = null;
 
@@ -118,6 +151,39 @@ class ImslpWork
 
     public function getMovements(): ?string { return $this->movements; }
     public function setMovements(?string $v): void { $this->movements = $v; }
+
+    public function getGenreCats(): ?string { return $this->genreCats; }
+    public function setGenreCats(?string $v): void { $this->genreCats = $v; }
+
+    public function getLanguage(): ?string { return $this->language; }
+    public function setLanguage(?string $v): void { $this->language = $v; }
+
+    public function getAlternativeTitle(): ?string { return $this->alternativeTitle; }
+    public function setAlternativeTitle(?string $v): void { $this->alternativeTitle = $v; }
+
+    public function getAverageDuration(): ?string { return $this->averageDuration; }
+    public function setAverageDuration(?string $v): void { $this->averageDuration = $v; }
+
+    public function getLibrettist(): ?string { return $this->librettist; }
+    public function setLibrettist(?string $v): void { $this->librettist = $v; }
+
+    public function getDedication(): ?string { return $this->dedication; }
+    public function setDedication(?string $v): void { $this->dedication = $v; }
+
+    public function getFirstPerformance(): ?string { return $this->firstPerformance; }
+    public function setFirstPerformance(?string $v): void { $this->firstPerformance = $v; }
+
+    public function getComposerId(): ?int { return $this->composerId; }
+    public function setComposerId(?int $v): void { $this->composerId = $v; }
+
+    public function getDurationSeconds(): ?int { return $this->durationSeconds; }
+    public function setDurationSeconds(?int $v): void { $this->durationSeconds = $v; }
+
+    public function getFirstPerfDate(): ?string { return $this->firstPerfDate; }
+    public function setFirstPerfDate(?string $v): void { $this->firstPerfDate = $v; }
+
+    public function getFirstPerfLocation(): ?string { return $this->firstPerfLocation; }
+    public function setFirstPerfLocation(?string $v): void { $this->firstPerfLocation = $v; }
 
     public function getFilesJson(): ?array { return $this->filesJson; }
     public function setFilesJson(?array $v): void { $this->filesJson = $v; }

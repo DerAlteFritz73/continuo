@@ -169,15 +169,90 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    /** Top $limit genres by frequency (first semicolon-delimited token of tags). */
+    /** Works that have been detail-fetched but have no genre_cats yet. */
+    public function findWithoutGenreCats(int $limit): array
+    {
+        return $this->createQueryBuilder('w')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.genreCats IS NULL')
+            ->orderBy('w.id')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countWithoutGenreCats(): int
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.genreCats IS NULL')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Works detail-synced before the schema expansion on 2026-05-31 — need one re-fetch to pick up all new fields. */
+    public function findWithoutAllFields(int $limit): array
+    {
+        return $this->createQueryBuilder('w')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.detailSyncedAt < :cutoff')
+            ->setParameter('cutoff', '2026-05-31 00:00:00')
+            ->orderBy('w.id')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countWithoutAllFields(): int
+    {
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.detailSyncedAt < :cutoff')
+            ->setParameter('cutoff', '2026-05-31 00:00:00')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /** Distinct non-empty language values ordered by frequency. */
+    public function findDistinctLanguages(): array
+    {
+        // Language field can hold comma-separated values like "German, Latin".
+        // Unnest via cross-join numbers table (most works have ≤ 3 languages).
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(language, \',\', n), \',\', -1)) AS lang,
+                    COUNT(*) AS cnt
+             FROM imslp_work
+             CROSS JOIN (SELECT 1 AS n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) nums
+             WHERE language IS NOT NULL AND language != \'\'
+               AND CHAR_LENGTH(language) - CHAR_LENGTH(REPLACE(language, \',\', \'\')) >= n - 1
+             GROUP BY lang
+             HAVING lang != \'\'
+             ORDER BY cnt DESC'
+        );
+
+        return array_column($rows, 'lang');
+    }
+
+    /** Top $limit genres by occurrence count across all genre_cats values. */
     public function findDistinctGenres(int $limit = 60): array
     {
+        // Cross-join against a small numbers table to unnest the semicolon-delimited genre_cats.
+        // Supports up to 15 genres per work (more than any real IMSLP page has).
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT TRIM(SUBSTRING_INDEX(tags, \';\', 1)) AS genre, COUNT(*) AS cnt
+            'SELECT TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(genre_cats, \';\', n), \';\', -1)) AS genre,
+                    COUNT(*) AS cnt
              FROM imslp_work
-             WHERE tags IS NOT NULL AND tags != \'\'
-               AND TRIM(SUBSTRING_INDEX(tags, \';\', 1)) REGEXP \'^[a-z]\'
+             CROSS JOIN (
+               SELECT 1 AS n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5
+               UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION SELECT 10
+               UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15
+             ) nums
+             WHERE genre_cats IS NOT NULL AND genre_cats != \'\'
+               AND CHAR_LENGTH(genre_cats) - CHAR_LENGTH(REPLACE(genre_cats, \';\', \'\')) >= n - 1
              GROUP BY genre
+             HAVING genre != \'\'
              ORDER BY cnt DESC
              LIMIT ' . (int) $limit
         );
@@ -336,20 +411,16 @@ class ImslpWorkRepository extends ServiceEntityRepository
     {
         // instrumentation search — two paths:
         //
-        // Path A (exact section): abbreviation tokens (optional digit + ≤4 letters, e.g. "2fl",
-        //   "bc") match a semicolon-delimited tag section containing EXACTLY those tokens.
+        // Path A (exact section): abbreviation tokens (e.g. "2fl", "bc") match a
+        //   semicolon-delimited tag section containing EXACTLY those tokens.
         //   Uses REGEXP on tags (FULLTEXT can't handle 2-char tokens like "bc").
-        //   For tagged works this is the sole match criterion.
         //
-        // Path C (expanded abbreviations, untagged only): if the work has NO tags, abbreviation
-        //   tokens are expanded to long-form equivalents ("fl"→"flute", "bc"→"continuo") and
-        //   searched via FULLTEXT on the instrumentation text field. Works where both fields are
-        //   NULL are included as truly unknown. Path C is NEVER applied to tagged works — a work
-        //   tagged "fl bc" must not match a "2fl bc" search just because its instrumentation text
-        //   also says "flute, continuo".
+        // Path C (expanded, untagged only): if the work has NO tags, abbreviation tokens
+        //   are expanded ("fl"→"flute", "bc"→"continuo") and matched via FULLTEXT on the
+        //   instrumentation text field. A work with no tags AND no instrumentation text is
+        //   excluded — having been fetched but yielding no data is not a match.
         //
-        // Path B (FULLTEXT words): tokens ≥5 alpha chars (e.g. "dessus", "cembalo") matched
-        //   against the instrumentation text field regardless of tags.
+        // Path B (FULLTEXT words): tokens ≥5 alpha chars matched against instrumentation text.
         if ($f->instrumentation !== '') {
             $normalised = preg_replace('/\b(\d+)\s+([a-z]{1,4})\b/i', '$1$2', trim($f->instrumentation));
             $tokens     = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $normalised))));
@@ -368,25 +439,22 @@ class ImslpWorkRepository extends ServiceEntityRepository
                         $ftExpanded = implode(' ', array_map(fn($t) => '+' . $t . '*', $expanded));
                         $qb->setParameter('instrExpanded', $ftExpanded);
                         // Path A: tagged works must match the exact section in tags.
-                        // Path C: untagged works fall back to long-form instrumentation text.
-                        //   Restricted to detail-fetched works (detailSyncedAt IS NOT NULL) so
-                        //   that works we have never examined don't silently pass the filter.
+                        // Path C: untagged works must match the instrumentation text — no text = no match.
                         $orParts[] = '(REGEXP(w.tags, :instrExact) = 1'
-                            . ' OR (w.detailSyncedAt IS NOT NULL AND (w.tags IS NULL OR w.tags = \'\') AND (MATCH_AGAINST(w.instrumentation, :instrExpanded) > 0 OR w.instrumentation IS NULL)))';
+                            . ' OR ((w.tags IS NULL OR w.tags = \'\') AND MATCH_AGAINST(w.instrumentation, :instrExpanded) > 0))';
                     } else {
-                        // No known expansion — tagged must match; detail-fetched untagged are unknown.
-                        $orParts[] = '(REGEXP(w.tags, :instrExact) = 1 OR (w.detailSyncedAt IS NOT NULL AND (w.tags IS NULL OR w.tags = \'\')))';
+                        // No known expansion — only exact tag match counts.
+                        $orParts[] = 'REGEXP(w.tags, :instrExact) = 1';
                     }
                 }
 
-                // Path B — FULLTEXT on instrumentation for word tokens (≥5 alpha chars).
-                // Restricted to detail-fetched works for the null pass-through.
+                // Path B — word-style tokens must match instrumentation text; null = no match.
                 if (!empty($wordTokens)) {
                     $ftWords = implode(' ', array_map(
                         fn($t) => '+' . preg_replace('/[+\-><()"~*@]/', '', $t) . '*',
                         $wordTokens
                     ));
-                    $orParts[] = '(MATCH_AGAINST(w.instrumentation, :instrWords) > 0 OR (w.detailSyncedAt IS NOT NULL AND w.instrumentation IS NULL))';
+                    $orParts[] = 'MATCH_AGAINST(w.instrumentation, :instrWords) > 0';
                     $qb->setParameter('instrWords', $ftWords);
                 }
 
@@ -396,22 +464,28 @@ class ImslpWorkRepository extends ServiceEntityRepository
             }
         }
 
-        // style — works with NULL style are included (unknown ≠ wrong style)
+        // style — only works with a known matching style; null = excluded
         if ($f->style !== '') {
-            $qb->andWhere('(w.pieceStyle IS NULL OR w.pieceStyle = :style)')
+            $qb->andWhere('w.pieceStyle = :style')
                ->setParameter('style', $f->style);
         }
 
-        // genre — works with NULL tags are included
+        // genre — matched against genre_cats (IMSLP composer/genre categories); null = excluded
         if ($f->genre !== '') {
             $genreFtq = '+' . preg_replace('/[+\-><()"~*@]/', '', trim($f->genre)) . '*';
-            $qb->andWhere('(w.tags IS NULL OR MATCH_AGAINST(w.tags, :genrePattern) > 0)')
+            $qb->andWhere('MATCH_AGAINST(w.genreCats, :genrePattern) > 0')
                ->setParameter('genrePattern', $genreFtq);
         }
 
-        // key — works with NULL key are included (97 % of works lack key data)
+        // language — LIKE match so "German, Latin" matches a search for "German"
+        if ($f->language !== '') {
+            $qb->andWhere('w.language LIKE :language')
+               ->setParameter('language', '%' . addcslashes($f->language, '%_\\') . '%');
+        }
+
+        // key — only works with a known matching key; null = excluded
         if ($f->key !== '') {
-            $qb->andWhere('(w.workKey IS NULL OR w.workKey LIKE :key)')
+            $qb->andWhere('w.workKey LIKE :key')
                ->setParameter('key', '%' . addcslashes($f->key, '%_\\') . '%');
         }
 

@@ -29,7 +29,7 @@ FROM php:8.2-fpm-alpine AS production
 # iconv, dom, simplexml, xml, libxml — they are core and compiled in)
 RUN apk add --no-cache nginx \
     && docker-php-ext-install pdo_mysql \
-    && printf 'upload_max_filesize = 10M\npost_max_size = 15M\n' \
+    && printf 'upload_max_filesize = 10M\npost_max_size = 15M\nmemory_limit = 512M\n' \
        > /usr/local/etc/php/conf.d/uploads.ini
 
 WORKDIR /var/www/continuo

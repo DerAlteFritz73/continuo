@@ -30,6 +30,12 @@ class ImslpComposer
     #[ORM\Column(type: Types::SMALLINT, nullable: true)]
     private ?int $diedYear = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $nationality = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $timePeriod = null;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private \DateTimeInterface $syncedAt;
 
@@ -49,6 +55,10 @@ class ImslpComposer
     public function setBornYear(?int $v): void { $this->bornYear = $v; }
     public function getDiedYear(): ?int { return $this->diedYear; }
     public function setDiedYear(?int $v): void { $this->diedYear = $v; }
+    public function getNationality(): ?string { return $this->nationality; }
+    public function setNationality(?string $v): void { $this->nationality = $v; }
+    public function getTimePeriod(): ?string { return $this->timePeriod; }
+    public function setTimePeriod(?string $v): void { $this->timePeriod = $v; }
     public function getSyncedAt(): \DateTimeInterface { return $this->syncedAt; }
     public function setSyncedAt(\DateTimeInterface $v): void { $this->syncedAt = $v; }
 }

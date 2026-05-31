@@ -9,6 +9,7 @@ readonly class WorkFilters
         public string $style           = '',
         public string $genre           = '',
         public string $key             = '',
+        public string $language        = '',
         public ?int   $yearFrom        = null,
         public ?int   $yearTo          = null,
     ) {}
@@ -19,6 +20,7 @@ readonly class WorkFilters
             && $this->style           === ''
             && $this->genre           === ''
             && $this->key             === ''
+            && $this->language        === ''
             && $this->yearFrom        === null
             && $this->yearTo          === null;
     }
