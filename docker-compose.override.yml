@@ -45,6 +45,7 @@ services:
       PMA_CONTROLHOST: db
       PMA_CONTROLUSER: root
       PMA_CONTROLPASS: root
+      PMA_PMADB: phpmyadmin
     ports:
       - "127.0.0.1:8084:80"
     depends_on:
