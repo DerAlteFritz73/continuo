@@ -343,7 +343,18 @@ body {
 {% block body %}
 <div class="wrapper">
 
-    <a href="{{ path('app_imslp') }}" class="back-link">← Back to IMSLP Browser</a>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;">
+        <a href="{{ path('app_imslp') }}" class="back-link" style="margin-bottom:0;">← Back to IMSLP Browser</a>
+        <a href="http://localhost:8084" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid #3a3a3a;color:#8a8070;padding:.3rem .85rem;border-radius:5px;font-size:.78rem;text-decoration:none;letter-spacing:.03em;transition:border-color .15s,color .15s;"
+           onmouseover="this.style.borderColor='#c8a96e';this.style.color='#c8a96e';"
+           onmouseout="this.style.borderColor='#3a3a3a';this.style.color='#8a8070';">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h11A1.5 1.5 0 0 1 15 3.5v9A1.5 1.5 0 0 1 13.5 14h-11A1.5 1.5 0 0 1 1 12.5v-9zm2 1v7h10v-7H3zm0-1h10V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5V3.5z"/>
+            </svg>
+            phpMyAdmin
+        </a>
+    </div>
 
     <header class="site-header">
         <h1>Import Status</h1>

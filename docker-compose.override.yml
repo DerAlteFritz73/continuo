@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+      target: production   # still build the full image locally
+    environment:
+      APP_ENV: dev
+      APP_SECRET: continuo_dev_secret
+      DATABASE_URL: "mysql://continuo:continuo@db:3306/continuo?serverVersion=10.11.0-MariaDB&charset=utf8mb4"
+    volumes:
+      - .:/var/www/continuo                      # live source mount
+      - /var/www/continuo/vendor                 # keep vendor from image
+      - /var/www/continuo/public/build           # keep built assets from image
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: continuo
+      MARIADB_USER: continuo
+      MARIADB_PASSWORD: continuo
+    # port 3306 not exposed to host (host MariaDB already uses it)
+    expose:
+      - "3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: root
+    ports:
+      - "127.0.0.1:8084:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
