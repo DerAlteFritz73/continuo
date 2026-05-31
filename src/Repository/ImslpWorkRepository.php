@@ -19,30 +19,30 @@ class ImslpWorkRepository extends ServiceEntityRepository
     // -------------------------------------------------------------------------
 
     /**
-     * Returns composers whose name matches $q, with their work count.
+     * Returns composers whose name matches $q and who have at least one work
+     * matching $f, with the count of those matching works.
      * @return array<array{name: string, work_count: int}>
      */
-    public function findComposersLike(string $q, int $limit = 20): array
+    public function findComposersLike(string $q, WorkFilters $f, int $limit = 20): array
     {
-        $ftq = $this->toFulltextQuery($q);
-        $sql = 'SELECT composer AS name, COUNT(*) AS work_count
-                FROM imslp_work
-                WHERE %s
-                GROUP BY composer
-                ORDER BY work_count DESC
-                LIMIT ' . (int) $limit;
+        $qb = $this->createQueryBuilder('w')
+            ->select('w.composer AS name, COUNT(w.id) AS work_count')
+            ->groupBy('w.composer')
+            ->orderBy('work_count', 'DESC')
+            ->setMaxResults($limit);
 
+        $ftq = $this->toFulltextQuery($q);
         if ($ftq !== '') {
-            return $this->getEntityManager()->getConnection()->fetchAllAssociative(
-                sprintf($sql, 'MATCH(composer) AGAINST (? IN BOOLEAN MODE)'),
-                [$ftq]
-            );
+            $qb->andWhere('MATCH_AGAINST(w.composer, :compFtq) > 0')
+               ->setParameter('compFtq', $ftq);
+        } else {
+            $qb->andWhere('w.composer LIKE :compLike')
+               ->setParameter('compLike', '%' . addcslashes($q, '%_\\') . '%');
         }
 
-        return $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            sprintf($sql, 'composer LIKE ?'),
-            ['%' . addcslashes($q, '%_\\') . '%']
-        );
+        $this->applyFilters($qb, $f);
+
+        return $qb->getQuery()->getArrayResult();
     }
 
     // -------------------------------------------------------------------------

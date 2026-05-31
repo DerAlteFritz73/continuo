@@ -71,7 +71,7 @@ class ImslpController extends AbstractController
 
         } elseif ($q !== '') {
             $mode            = 'search';
-            $composerMatches = $this->workRepo->findComposersLike($q);
+            $composerMatches = $this->workRepo->findComposersLike($q, $filters);
 
             // If q is an exact (case-insensitive) match for a single composer, switch to
             // composer mode so any active filters apply to the work list rather than
