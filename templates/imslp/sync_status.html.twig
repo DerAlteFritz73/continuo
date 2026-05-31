@@ -563,16 +563,26 @@ body {
             {% endif %}
 
             <div class="job-footer">
-                {% if worksWithoutDetail > 0 %}
-                <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post" style="flex:1;">
-                    <button type="submit" class="btn-card" id="start-btn"{% if running %} disabled{% endif %} style="width:100%;justify-content:center;">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
-                        {% if running %}{{ 'imslp.sync_btn_fetching'|trans }}{% else %}{{ 'imslp.sync_btn_fetch_details'|trans }}{% endif %}
-                    </button>
-                </form>
-                {% else %}
-                <span style="font-size:.78rem;color:#6ec87a;">{{ 'imslp.sync_btn_complete'|trans }}</span>
-                {% endif %}
+                <div style="display:flex;flex-direction:column;gap:.3rem;flex:1;">
+                    {% if worksWithoutDetail > 0 %}
+                    <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post" style="width:100%;">
+                        <button type="submit" class="btn-card" id="start-btn"{% if running %} disabled{% endif %} style="width:100%;justify-content:center;">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+                            {% if running %}{{ 'imslp.sync_btn_fetching'|trans }}{% else %}{{ 'imslp.sync_btn_fetch_details'|trans }}{% endif %}
+                        </button>
+                    </form>
+                    {% else %}
+                    <span style="font-size:.78rem;color:#6ec87a;">{{ 'imslp.sync_btn_complete'|trans }}</span>
+                    {% endif %}
+                    <form id="fill-all-form" action="{{ path('app_imslp_fetch_start') }}" method="post" style="width:100%;">
+                        <input type="hidden" name="mode" value="fill-all">
+                        <button type="submit" class="btn-card" id="fill-all-btn"{% if running %} disabled{% endif %}
+                                style="background:linear-gradient(135deg,#507050 0%,#709060 100%);width:100%;justify-content:center;">
+                            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
+                            {% if running %}{{ 'imslp.sync_btn_fetching'|trans }}{% else %}{{ 'imslp.sync_btn_fill_missing'|trans }}{% endif %}
+                        </button>
+                    </form>
+                </div>
                 <div class="job-footer-right">
                     <button class="btn-log" data-log="fetch" data-label="{{ 'imslp.sync_card_details'|trans }}">{{ 'imslp.sync_log_details'|trans }}</button>
                 </div>
@@ -623,6 +633,7 @@ body {
         stopping:     {{ 'imslp.sync_btn_stopping'|trans|json_encode|raw }},
         starting:     {{ 'imslp.sync_btn_starting'|trans|json_encode|raw }},
         fetchDetails: {{ 'imslp.sync_btn_fetch_details'|trans|json_encode|raw }},
+        fillMissing:  {{ 'imslp.sync_btn_fill_missing'|trans|json_encode|raw }},
         importWorks:  {{ 'imslp.sync_btn_import_works'|trans|json_encode|raw }},
         syncDates:    {{ 'imslp.sync_btn_sync_dates'|trans|json_encode|raw }},
         syncList:     {{ 'imslp.sync_btn_sync_list'|trans|json_encode|raw }},
@@ -706,6 +717,7 @@ body {
     }
 
     wireForm('start-form',     'start-btn',     SYNC_TRANS.fetchDetails,  SYNC_TRANS.fetching);
+    wireForm('fill-all-form',  'fill-all-btn',  SYNC_TRANS.fillMissing,   SYNC_TRANS.fetching);
     wireForm('sync-form',      'sync-btn',      SYNC_TRANS.importWorks,   SYNC_TRANS.syncing);
     wireForm('dates-form',     'dates-btn',     SYNC_TRANS.syncDates,     SYNC_TRANS.fetching);
     wireForm('composers-form', 'composers-btn', SYNC_TRANS.syncList,      SYNC_TRANS.syncing);
