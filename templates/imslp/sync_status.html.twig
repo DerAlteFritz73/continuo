@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}IMSLP Import Status{% endblock %}
+{% block title %}{{ 'imslp.sync_title'|trans }}{% endblock %}
 
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -344,7 +344,7 @@ body {
 <div class="wrapper">
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.8rem;">
-        <a href="{{ path('app_imslp') }}" class="back-link" style="margin-bottom:0;">← Back to IMSLP Browser</a>
+        <a href="{{ path('app_imslp') }}" class="back-link" style="margin-bottom:0;">{{ 'imslp.sync_back_to_browser'|trans }}</a>
         <a href="http://localhost:8084" target="_blank" rel="noopener"
            style="display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid #3a3a3a;color:#8a8070;padding:.3rem .85rem;border-radius:5px;font-size:.78rem;text-decoration:none;letter-spacing:.03em;transition:border-color .15s,color .15s;"
            onmouseover="this.style.borderColor='#c8a96e';this.style.color='#c8a96e';"
@@ -352,17 +352,17 @@ body {
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h11A1.5 1.5 0 0 1 15 3.5v9A1.5 1.5 0 0 1 13.5 14h-11A1.5 1.5 0 0 1 1 12.5v-9zm2 1v7h10v-7H3zm0-1h10V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5V3.5z"/>
             </svg>
-            phpMyAdmin
+            {{ 'imslp.sync_phpmyadmin'|trans }}
         </a>
     </div>
 
     <header class="site-header">
-        <h1>Import Status</h1>
-        <p class="subtitle">IMSLP sync &amp; detail fetch progress</p>
+        <h1>{{ 'imslp.sync_title'|trans }}</h1>
+        <p class="subtitle">{{ 'imslp.sync_subtitle'|trans }}</p>
     </header>
 
     {% if running or syncRunning or datesRunning or composersRunning %}
-    <p style="font-size:.82rem;color:#6a6058;margin-bottom:1.5rem;text-align:center;">Auto-refreshing every 10 s</p>
+    <p style="font-size:.82rem;color:#6a6058;margin-bottom:1.5rem;text-align:center;">{{ 'imslp.sync_auto_refresh'|trans }}</p>
     {% endif %}
 
     <!-- System gauges -->
@@ -398,19 +398,19 @@ body {
         <!-- Composers card -->
         <div class="job-card">
             <div class="job-card-head">
-                <h2>Composers</h2>
+                <h2>{{ 'imslp.sync_card_composers'|trans }}</h2>
                 <div style="display:flex;align-items:center;gap:.4rem;">
                     <span class="ps-badge {% if composersRunning or datesRunning %}running{% else %}idle{% endif %}">
-                        {% if composersRunning or datesRunning %}● Running{% else %}Idle{% endif %}
+                        {% if composersRunning or datesRunning %}{{ 'imslp.sync_badge_running'|trans }}{% else %}{{ 'imslp.sync_badge_idle'|trans }}{% endif %}
                     </span>
                     {% if composersRunning %}
                     <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_composers_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>{{ 'imslp.sync_btn_stop'|trans }}
                     </button>
                     {% endif %}
                     {% if datesRunning %}
                     <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_dates_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>{{ 'imslp.sync_btn_stop'|trans }}
                     </button>
                     {% endif %}
                 </div>
@@ -418,12 +418,12 @@ body {
 
             <div class="job-overview">
                 <span class="job-count">{{ composers|number_format(0, '.', ' ') }}</span>
-                <span class="job-count-label">in catalogue</span>
+                <span class="job-count-label">{{ 'imslp.sync_in_catalogue'|trans }}</span>
             </div>
             {% if lastComposerSync %}
             <p class="job-last-sync">
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="#8a8070"><path d="M8 1.5A6.5 6.5 0 1 0 14.5 8 6.507 6.507 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8.75-4.75v4.31l2.72 2.72-1.06 1.06-3-3A.75.75 0 0 1 7.25 7.5V3.25h1.5z"/></svg>
-                List: {{ lastComposerSync }}{% if lastDatesSync %} &middot; Dates: {{ lastDatesSync }}{% endif %}
+                {{ 'imslp.sync_last_sync_list'|trans }} {{ lastComposerSync }}{% if lastDatesSync %} &middot; {{ 'imslp.sync_last_sync_dates'|trans }} {{ lastDatesSync }}{% endif %}
             </p>
             {% endif %}
 
@@ -431,7 +431,7 @@ body {
 
             {% set composersWithoutDates = composers - composersWithDates %}
             <div class="progress-label-row">
-                <span>{{ composersWithDates|number_format }} with dates</span>
+                <span>{{ composersWithDates|number_format }} {{ 'imslp.sync_composers_with_dates'|trans }}</span>
                 <span class="pct">{{ datesPercent }}%</span>
             </div>
             <div class="progress-bar-track">
@@ -439,9 +439,9 @@ body {
                      style="width: {{ datesPercent }}%"></div>
             </div>
             {% if composersWithoutDates > 0 %}
-                <p class="remaining">{{ composersWithoutDates|number_format }} without dates</p>
+                <p class="remaining">{{ composersWithoutDates|number_format }} {{ 'imslp.sync_composers_without_dates'|trans }}</p>
             {% else %}
-                <p class="remaining" style="color:#6ec87a;">✓ All dates fetched</p>
+                <p class="remaining" style="color:#6ec87a;">{{ 'imslp.sync_all_dates_fetched'|trans }}</p>
             {% endif %}
 
             <div class="job-footer">
@@ -449,21 +449,21 @@ body {
                     <form id="composers-form" action="{{ path('app_imslp_sync_composers_start') }}" method="post" style="width:100%;">
                         <button type="submit" class="btn-card" id="composers-btn"{% if composersRunning %} disabled{% endif %} style="width:100%;justify-content:center;">
                             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
-                            {% if composersRunning %}Syncing…{% else %}Sync list{% endif %}
+                            {% if composersRunning %}{{ 'imslp.sync_btn_syncing'|trans }}{% else %}{{ 'imslp.sync_btn_sync_list'|trans }}{% endif %}
                         </button>
                     </form>
                     <form id="dates-form" action="{{ path('app_imslp_sync_dates_start') }}" method="post" style="width:100%;">
                         <button type="submit" class="btn-card" id="dates-btn"{% if datesRunning %} disabled{% endif %}
                                 style="background:linear-gradient(135deg,#8a7050 0%,#b09060 100%);width:100%;justify-content:center;">
                             <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
-                            {% if datesRunning %}Fetching…{% else %}Sync dates{% endif %}
+                            {% if datesRunning %}{{ 'imslp.sync_btn_fetching'|trans }}{% else %}{{ 'imslp.sync_btn_sync_dates'|trans }}{% endif %}
                         </button>
                     </form>
                 </div>
                 <div class="job-footer-right">
                     <div style="display:flex;flex-direction:column;gap:.3rem;">
-                        <button class="btn-log" data-log="composers" data-label="Composer sync">List log</button>
-                        <button class="btn-log" data-log="dates" data-label="Composer dates">Dates log</button>
+                        <button class="btn-log" data-log="composers" data-label="{{ 'imslp.sync_card_composers'|trans }}">{{ 'imslp.sync_log_list'|trans }}</button>
+                        <button class="btn-log" data-log="dates" data-label="{{ 'imslp.sync_btn_sync_dates'|trans }}">{{ 'imslp.sync_log_dates'|trans }}</button>
                     </div>
                 </div>
             </div>
@@ -472,14 +472,14 @@ body {
         <!-- Works card -->
         <div class="job-card">
             <div class="job-card-head">
-                <h2>Works</h2>
+                <h2>{{ 'imslp.sync_card_works'|trans }}</h2>
                 <div style="display:flex;align-items:center;gap:.4rem;">
                     <span class="ps-badge {% if syncRunning %}running{% else %}idle{% endif %}">
-                        {% if syncRunning %}● Running{% else %}Idle{% endif %}
+                        {% if syncRunning %}{{ 'imslp.sync_badge_running'|trans }}{% else %}{{ 'imslp.sync_badge_idle'|trans }}{% endif %}
                     </span>
                     {% if syncRunning %}
                     <button class="btn-stop" data-stop-url="{{ path('app_imslp_sync_works_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>{{ 'imslp.sync_btn_stop'|trans }}
                     </button>
                     {% endif %}
                 </div>
@@ -487,22 +487,22 @@ body {
 
             <div class="job-overview">
                 <span class="job-count">{{ works|number_format(0, '.', ' ') }}</span>
-                <span class="job-count-label">in catalogue</span>
+                <span class="job-count-label">{{ 'imslp.sync_in_catalogue'|trans }}</span>
             </div>
             {% if lastWorkSync %}
             <p class="job-last-sync">
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="#8a8070"><path d="M8 1.5A6.5 6.5 0 1 0 14.5 8 6.507 6.507 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8.75-4.75v4.31l2.72 2.72-1.06 1.06-3-3A.75.75 0 0 1 7.25 7.5V3.25h1.5z"/></svg>
-                Last sync: {{ lastWorkSync }}
+                {{ 'imslp.sync_last_sync'|trans }} {{ lastWorkSync }}
             </p>
             {% endif %}
 
             <hr class="job-divider">
 
             {% if syncRunning %}
-            <p class="job-desc">Fetching new works from IMSLP API…</p>
+            <p class="job-desc">{{ 'imslp.sync_fetching_works'|trans }}</p>
             {% else %}
             <p class="job-desc">
-                {% if works > 0 %}Ready — resumes from last offset{% else %}Not yet run{% endif %}
+                {% if works > 0 %}{{ 'imslp.sync_ready_resumes'|trans }}{% else %}{{ 'imslp.sync_not_yet_run'|trans }}{% endif %}
             </p>
             {% endif %}
 
@@ -510,11 +510,11 @@ body {
                 <form id="sync-form" action="{{ path('app_imslp_sync_works_start') }}" method="post" style="flex:1;">
                     <button type="submit" class="btn-card" id="sync-btn"{% if syncRunning %} disabled{% endif %} style="width:100%;justify-content:center;">
                         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
-                        {% if syncRunning %}Syncing…{% else %}Import works{% endif %}
+                        {% if syncRunning %}{{ 'imslp.sync_btn_syncing'|trans }}{% else %}{{ 'imslp.sync_btn_import_works'|trans }}{% endif %}
                     </button>
                 </form>
                 <div class="job-footer-right">
-                    <button class="btn-log" data-log="sync" data-label="Works sync">Log</button>
+                    <button class="btn-log" data-log="sync" data-label="{{ 'imslp.sync_card_works'|trans }}">{{ 'imslp.sync_log_works'|trans }}</button>
                 </div>
             </div>
         </div>
@@ -522,14 +522,14 @@ body {
         <!-- Details card -->
         <div class="job-card">
             <div class="job-card-head">
-                <h2>Details</h2>
+                <h2>{{ 'imslp.sync_card_details'|trans }}</h2>
                 <div style="display:flex;align-items:center;gap:.4rem;">
                     <span class="ps-badge {% if running %}running{% else %}idle{% endif %}">
-                        {% if running %}● Running{% else %}Idle{% endif %}
+                        {% if running %}{{ 'imslp.sync_badge_running'|trans }}{% else %}{{ 'imslp.sync_badge_idle'|trans }}{% endif %}
                     </span>
                     {% if running %}
                     <button class="btn-stop" data-stop-url="{{ path('app_imslp_fetch_stop') }}">
-                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>Stop
+                        <svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10"/></svg>{{ 'imslp.sync_btn_stop'|trans }}
                     </button>
                     {% endif %}
                 </div>
@@ -537,19 +537,19 @@ body {
 
             <div class="job-overview">
                 <span class="job-count">{{ worksWithDetail|number_format(0, '.', ' ') }}</span>
-                <span class="job-count-label">with details</span>
+                <span class="job-count-label">{{ 'imslp.sync_with_details'|trans }}</span>
             </div>
             {% if lastDetailSync %}
             <p class="job-last-sync">
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="#8a8070"><path d="M8 1.5A6.5 6.5 0 1 0 14.5 8 6.507 6.507 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8.75-4.75v4.31l2.72 2.72-1.06 1.06-3-3A.75.75 0 0 1 7.25 7.5V3.25h1.5z"/></svg>
-                Last sync: {{ lastDetailSync }}
+                {{ 'imslp.sync_last_sync'|trans }} {{ lastDetailSync }}
             </p>
             {% endif %}
 
             <hr class="job-divider">
 
             <div class="progress-label-row">
-                <span>{{ worksWithDetail|number_format }} of {{ works|number_format }}</span>
+                <span>{{ worksWithDetail|number_format }} {{ 'imslp.sync_of'|trans }} {{ works|number_format }}</span>
                 <span class="pct">{{ detailPercent }}%</span>
             </div>
             <div class="progress-bar-track">
@@ -557,9 +557,9 @@ body {
                      style="width: {{ detailPercent }}%"></div>
             </div>
             {% if worksWithoutDetail > 0 %}
-                <p class="remaining">{{ worksWithoutDetail|number_format }} remaining</p>
+                <p class="remaining">{{ worksWithoutDetail|number_format }} {{ 'imslp.sync_works_remaining'|trans }}</p>
             {% else %}
-                <p class="remaining" style="color:#6ec87a;">✓ All works fetched</p>
+                <p class="remaining" style="color:#6ec87a;">{{ 'imslp.sync_all_works_fetched'|trans }}</p>
             {% endif %}
 
             <div class="job-footer">
@@ -567,14 +567,14 @@ body {
                 <form id="start-form" action="{{ path('app_imslp_fetch_start') }}" method="post" style="flex:1;">
                     <button type="submit" class="btn-card" id="start-btn"{% if running %} disabled{% endif %} style="width:100%;justify-content:center;">
                         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5l10 5.5-10 5.5V2.5z"/></svg>
-                        {% if running %}Fetching…{% else %}Fetch details{% endif %}
+                        {% if running %}{{ 'imslp.sync_btn_fetching'|trans }}{% else %}{{ 'imslp.sync_btn_fetch_details'|trans }}{% endif %}
                     </button>
                 </form>
                 {% else %}
-                <span style="font-size:.78rem;color:#6ec87a;">✓ Complete</span>
+                <span style="font-size:.78rem;color:#6ec87a;">{{ 'imslp.sync_btn_complete'|trans }}</span>
                 {% endif %}
                 <div class="job-footer-right">
-                    <button class="btn-log" data-log="fetch" data-label="Detail fetch">Log</button>
+                    <button class="btn-log" data-log="fetch" data-label="{{ 'imslp.sync_card_details'|trans }}">{{ 'imslp.sync_log_details'|trans }}</button>
                 </div>
             </div>
         </div>
@@ -584,10 +584,10 @@ body {
     <!-- Shared log panel (same column as jobs-grid) -->
     <div class="log-panel" id="log-panel">
         <div class="log-panel-header">
-            <span class="log-panel-title" id="log-panel-title">Log</span>
+            <span class="log-panel-title" id="log-panel-title">{{ 'imslp.sync_log_title'|trans }}</span>
             <button class="btn-log-close" id="log-panel-close" title="Close">✕</button>
         </div>
-        <div class="log-box" id="log-panel-box">(select a log above)</div>
+        <div class="log-box" id="log-panel-box"></div>
     </div>
 
     </div>{# end .cards-stack #}
@@ -615,16 +615,31 @@ body {
     let activeLog  = null;
     let pollTimer  = null;
 
+    const SYNC_TRANS = {
+        logTitle:     {{ 'imslp.sync_log_title'|trans|json_encode|raw }},
+        logLoading:   {{ 'imslp.sync_log_loading'|trans|json_encode|raw }},
+        logNoOutput:  {{ 'imslp.sync_log_no_output'|trans|json_encode|raw }},
+        logUnavail:   {{ 'imslp.sync_log_unavailable'|trans|json_encode|raw }},
+        stopping:     {{ 'imslp.sync_btn_stopping'|trans|json_encode|raw }},
+        starting:     {{ 'imslp.sync_btn_starting'|trans|json_encode|raw }},
+        fetchDetails: {{ 'imslp.sync_btn_fetch_details'|trans|json_encode|raw }},
+        importWorks:  {{ 'imslp.sync_btn_import_works'|trans|json_encode|raw }},
+        syncDates:    {{ 'imslp.sync_btn_sync_dates'|trans|json_encode|raw }},
+        syncList:     {{ 'imslp.sync_btn_sync_list'|trans|json_encode|raw }},
+        syncing:      {{ 'imslp.sync_btn_syncing'|trans|json_encode|raw }},
+        fetching:     {{ 'imslp.sync_btn_fetching'|trans|json_encode|raw }},
+    };
+
     function loadLog(key) {
         const url = LOG_URLS[key];
         if (!url) return;
         fetch(url)
             .then(r => r.ok ? r.text() : Promise.reject())
             .then(txt => {
-                panelBox.textContent = txt || '(no output yet)';
+                panelBox.textContent = txt || SYNC_TRANS.logNoOutput;
                 panelBox.scrollTop = panelBox.scrollHeight;
             })
-            .catch(() => { panelBox.textContent = '(log not available)'; });
+            .catch(() => { panelBox.textContent = SYNC_TRANS.logUnavail; });
     }
 
     function showLog(key, label) {
@@ -635,8 +650,8 @@ body {
         });
 
         activeLog = key;
-        panelTitle.textContent = 'Log — ' + label;
-        panelBox.textContent = '(loading…)';
+        panelTitle.textContent = SYNC_TRANS.logTitle + ' — ' + label;
+        panelBox.textContent = SYNC_TRANS.logLoading;
         panel.classList.add('visible');
         panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
@@ -659,11 +674,11 @@ body {
 
     document.getElementById('log-panel-close').addEventListener('click', closePanel);
 
-    // Auto-open log for the running job (if any)
-    if (datesRunning)          showLog('dates',     'Composer dates');
-    else if (syncRunning)      showLog('sync',      'Works sync');
-    else if (fetchRunning)     showLog('fetch',     'Detail fetch');
-    else if (composersRunning) showLog('composers', 'Composer sync');
+    // ── Auto-open log for the running job (if any)
+    if (datesRunning)          showLog('dates',     {{ 'imslp.sync_btn_sync_dates'|trans|json_encode|raw }});
+    else if (syncRunning)      showLog('sync',      {{ 'imslp.sync_card_works'|trans|json_encode|raw }});
+    else if (fetchRunning)     showLog('fetch',     {{ 'imslp.sync_card_details'|trans|json_encode|raw }});
+    else if (composersRunning) showLog('composers', {{ 'imslp.sync_card_composers'|trans|json_encode|raw }});
 
     // ── Wire action buttons ───────────────────────────────────────────────────
     function wireForm(formId, btnId, startLabel, runningLabel) {
@@ -673,7 +688,7 @@ body {
             e.preventDefault();
             const btn = document.getElementById(btnId);
             btn.disabled = true;
-            btn.textContent = 'Starting…';
+            btn.textContent = SYNC_TRANS.starting;
             fetch(form.action, { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
@@ -690,16 +705,16 @@ body {
         });
     }
 
-    wireForm('start-form',     'start-btn',     'Fetch details',  'Fetching…');
-    wireForm('sync-form',      'sync-btn',       'Import works',   'Syncing…');
-    wireForm('dates-form',     'dates-btn',      'Sync dates',     'Fetching…');
-    wireForm('composers-form', 'composers-btn',  'Sync composers', 'Syncing…');
+    wireForm('start-form',     'start-btn',     SYNC_TRANS.fetchDetails,  SYNC_TRANS.fetching);
+    wireForm('sync-form',      'sync-btn',      SYNC_TRANS.importWorks,   SYNC_TRANS.syncing);
+    wireForm('dates-form',     'dates-btn',     SYNC_TRANS.syncDates,     SYNC_TRANS.fetching);
+    wireForm('composers-form', 'composers-btn', SYNC_TRANS.syncList,      SYNC_TRANS.syncing);
 
     // ── Wire stop buttons ─────────────────────────────────────────────────────
     document.querySelectorAll('.btn-stop').forEach(btn => {
         btn.addEventListener('click', function () {
             btn.disabled = true;
-            btn.textContent = 'Stopping…';
+            btn.textContent = SYNC_TRANS.stopping;
             fetch(btn.dataset.stopUrl, { method: 'POST' })
                 .then(r => r.json())
                 .then(() => setTimeout(() => location.reload(), 800))

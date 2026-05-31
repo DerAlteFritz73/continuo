@@ -1,31 +1,39 @@
 {# Reusable work list + pagination partial.
-   Variables: works, page, pages, urlParams (dict), showComposer (bool, default false) #}
+   Variables: works, composerDates (map name→{born,died}), page, pages, urlParams (dict), showComposer (bool) #}
 {% set showComposer = showComposer ?? false %}
+{% set composerDates = composerDates ?? {} %}
 
 <div class="work-list">
     {% for work in works %}
+    {% set dates = composerDates[work.composer] ?? null %}
     <div class="work-item">
         <div>
-            <div class="work-title">
-                <a class="work-link" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ work.title }}
-                    {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
-                </a>
-            </div>
-            <div class="work-meta">
+            {# Line 1: composer #}
+            <div class="work-composer">
                 {% if showComposer %}
                 <a class="clink"
                    href="{{ path('app_imslp', urlParams|merge({composer: work.composer, page: null})) }}">{{ work.composer }}</a>
                 {% else %}
                 <span>{{ work.composer }}</span>
                 {% endif %}
-                {% if work.workKey %} · {{ work.workKey }}{% endif %}
-                {% if work.yearComposed %} · {{ work.yearComposed }}{% endif %}
+                {% if dates and (dates.born or dates.died) %}
+                <span class="composer-dates">({{ dates.born ?: '?' }}–{{ dates.died ?: '' }})</span>
+                {% endif %}
             </div>
-            {% if work.instrumentation %}
-            <div class="work-instr">{{ work.instrumentation }}</div>
-            {% endif %}
-            {% if work.tags %}
-            <div class="work-tags">{{ work.tags }}</div>
+
+            {# Line 2: title + year #}
+            <div class="work-title">
+                <a class="work-link" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ work.title }}</a>
+                {% if work.yearComposed %}<span class="work-year">{{ work.yearComposed }}</span>{% endif %}
+                {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
+            </div>
+
+            {# Line 3: key, instrumentation, tags #}
+            {% if work.workKey or work.instrumentation %}
+            <div class="work-details">
+                {% if work.workKey %}<span class="work-key">{{ work.workKey }}</span>{% endif %}
+                {% if work.instrumentation %}<span class="work-instr-text">{{ work.instrumentation }}</span>{% endif %}
+            </div>
             {% endif %}
         </div>
         {% if work.pieceStyle %}
@@ -42,7 +50,6 @@
     <a href="{{ path('app_imslp', urlParams|merge({page: page - 1})) }}">&laquo;</a>
     {% endif %}
 
-    {# Build the list of visible page numbers first, then render #}
     {% set vp = [] %}
     {% for p in 1..pages %}
         {% if p == 1 or p == pages or (p >= page - w and p <= page + w) %}

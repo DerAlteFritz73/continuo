@@ -3,7 +3,7 @@
 {% block title %}
     {%- if mode == 'composer' -%}{{ composer }} — IMSLP
     {%- elseif q -%}Search "{{ q }}" — IMSLP
-    {%- else -%}IMSLP Browser{%- endif -%}
+    {%- else -%}{{ 'imslp.browser_title'|trans }}{%- endif -%}
 {% endblock %}
 
 {% block head %}
@@ -73,7 +73,7 @@ body {
     flex-direction: column;
     gap: .35rem;
     flex: 1;
-    min-width: 150px;
+    min-width: 120px;
 }
 .search-field label {
     font-size: .75rem;
@@ -97,8 +97,8 @@ body {
 .search-field select:focus { border-color: #c8a96e; }
 .search-field input.ai-filled { border-color: #c8a96e88; background: #1e1a14; }
 .search-field select option { background: #252525; }
-.search-field.narrow { min-width: 90px; flex: 0 0 100px; }
-.search-field.medium { min-width: 120px; flex: 0 1 160px; }
+.search-field.narrow { min-width: 60px; flex: 0 1 90px; }
+.search-field.medium { min-width: 80px; flex: 0 1 140px; }
 .btn-search {
     background: #c8a96e;
     color: #1a1a1a;
@@ -128,6 +128,7 @@ body {
     display: flex;
     gap: .6rem;
     align-items: flex-end;
+    flex-wrap: wrap;
 }
 .ai-input {
     flex: 1;
@@ -218,8 +219,8 @@ body {
     text-decoration: none;
     color: inherit;
     transition: border-color .2s, background .2s;
-    min-width: 180px;
-    max-width: 280px;
+    min-width: 140px;
+    flex: 0 1 260px;
 }
 .composer-card:hover {
     border-color: #c8a96e88;
@@ -275,6 +276,8 @@ body {
     margin-bottom: 1rem;
     color: #8a8070;
     font-size: .85rem;
+    flex-wrap: wrap;
+    gap: .3rem;
 }
 .results-header strong { color: #c8a96e; font-size: 1rem; }
 .work-list { display: flex; flex-direction: column; gap: .5rem; }
@@ -416,10 +419,38 @@ body {
 }
 
 /* ── Responsive ── */
+@media (max-width: 768px) {
+    .composer-card { flex: 0 1 200px; }
+}
+
 @media (max-width: 600px) {
-    .search-row { flex-direction: column; }
+    .wrapper { padding: 1.5rem 1rem 2rem; }
     .site-header h1 { font-size: 1.8rem; }
-    .composer-card { max-width: 100%; }
+    .site-header { margin-bottom: 1.5rem; }
+
+    .search-card { padding: 1rem; }
+    .search-row { gap: .5rem; }
+    .search-field { min-width: 0; flex: 1 1 100%; }
+    .search-field.narrow, .search-field.medium { flex: 1 1 100%; min-width: 0; }
+    .btn-search { align-self: stretch; width: 100%; }
+    .ai-row { flex-direction: column; }
+    .btn-ai { align-self: stretch; width: 100%; justify-content: center; }
+
+    .composer-card { flex: 1 1 100%; min-width: 0; }
+    .composer-browse-header h2 { font-size: 1.5rem; }
+
+    .work-item { grid-template-columns: 1fr; }
+    .badge-style { justify-self: start; }
+}
+
+@media (max-width: 420px) {
+    .wrapper { padding: 1rem 0.75rem 2rem; }
+    .site-header h1 { font-size: 1.4rem; }
+    .site-header .subtitle { font-size: .75rem; letter-spacing: .08em; }
+    .search-card { padding: 0.85rem; }
+    .filter-bar { padding: .75rem; }
+    .empty-state { padding: 2rem 1rem; }
+    .abbrev-table { font-size: .72rem; }
 }
 </style>
 {% endblock %}
@@ -427,11 +458,11 @@ body {
 {% block body %}
 <div class="wrapper">
 
-    <a class="back-link" href="{{ path('app_home') }}">← Basso Continuo Realizer</a>
+    <a class="back-link" href="{{ path('app_home') }}">{{ 'imslp.back_to_realizer'|trans }}</a>
 
     <header class="site-header">
-        <p class="subtitle">Petrucci Music Library</p>
-        <h1>IMSLP Browser</h1>
+        <p class="subtitle">{{ 'imslp.petrucci_subtitle'|trans }}</p>
+        <h1>{{ 'imslp.browser_title'|trans }}</h1>
     </header>
 
     {# ── Search form ── #}
@@ -441,12 +472,12 @@ body {
         <div class="ai-section">
             <div class="ai-row">
                 <input type="text" id="ai-query" class="ai-input"
-                       placeholder="Describe what you're looking for… e.g. Baroque trio sonatas for two violins and basso continuo">
+                       placeholder="{{ 'imslp.ai_placeholder'|trans }}">
                 <button type="button" id="ai-btn" class="btn-ai">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/>
                     </svg>
-                    Ask AI
+                    {{ 'imslp.ai_btn'|trans }}
                 </button>
             </div>
             <div class="ai-chips" id="ai-chips"></div>
@@ -459,51 +490,51 @@ body {
             {# Row 1: title/composer + instrumentation + style + search button #}
             <div class="search-row" style="margin-bottom:.6rem">
                 <div class="search-field">
-                    <label for="q">Composer / Title</label>
+                    <label for="q">{{ 'imslp.search_composer_title_label'|trans }}</label>
                     <input type="text" id="q" name="q"
                            value="{{ mode == 'composer' ? composer : q }}"
-                           placeholder="e.g. Telemann, Sonata…" autofocus>
+                           placeholder="{{ 'imslp.search_composer_title_placeholder'|trans }}" autofocus>
                 </div>
                 <div class="search-field">
-                    <label for="instrumentation">Instrumentation</label>
+                    <label for="instrumentation">{{ 'imslp.search_instrumentation_label'|trans }}</label>
                     <input type="text" id="f-instrumentation" name="instrumentation"
-                           value="{{ filters.instrumentation }}" placeholder="e.g. fl vn viol bc">
+                           value="{{ filters.instrumentation }}" placeholder="{{ 'imslp.search_instrumentation_placeholder'|trans }}">
                 </div>
                 <div class="search-field medium">
-                    <label for="f-style">Period</label>
+                    <label for="f-style">{{ 'imslp.search_period_label'|trans }}</label>
                     <select id="f-style" name="style">
-                        <option value="">— any —</option>
+                        <option value="">{{ 'imslp.search_period_any'|trans }}</option>
                         {% set activeStyle = filters.style ?: composerStyle|default('') %}
                         {% for s in styles %}
                         <option value="{{ s }}" {% if s == activeStyle %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit" class="btn-search">Search</button>
+                <button type="submit" class="btn-search">{{ 'imslp.search_btn'|trans }}</button>
             </div>
             {# Row 2: advanced filters #}
             <div class="search-row">
                 <div class="search-field">
-                    <label for="f-genre">Genre</label>
+                    <label for="f-genre">{{ 'imslp.search_genre_label'|trans }}</label>
                     <input type="text" id="f-genre" name="genre"
-                           value="{{ filters.genre }}" placeholder="sonatas, concertos…"
+                           value="{{ filters.genre }}" placeholder="{{ 'imslp.search_genre_placeholder'|trans }}"
                            list="genre-list" autocomplete="off">
                     <datalist id="genre-list">
                         {% for g in genres %}<option value="{{ g }}">{% endfor %}
                     </datalist>
                 </div>
                 <div class="search-field medium">
-                    <label for="f-key">Key</label>
+                    <label for="f-key">{{ 'imslp.search_key_label'|trans }}</label>
                     <input type="text" id="f-key" name="key"
-                           value="{{ filters.key }}" placeholder="D minor…">
+                           value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
                 <div class="search-field narrow">
-                    <label for="f-year-from">Year from</label>
+                    <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
                     <input type="number" id="f-year-from" name="year_from"
                            value="{{ filters.yearFrom ?: '' }}" placeholder="1600" min="800" max="2100">
                 </div>
                 <div class="search-field narrow">
-                    <label for="f-year-to">to</label>
+                    <label for="f-year-to">{{ 'imslp.search_year_to_label'|trans }}</label>
                     <input type="number" id="f-year-to" name="year_to"
                            value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
                 </div>
@@ -511,7 +542,7 @@ body {
         </form>
 
         <div class="db-status" id="db-status">
-            Loading… · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">Import status ↗</a>
+            {{ 'imslp.db_loading'|trans }} · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">{{ 'imslp.db_import_status_link'|trans }}</a>
         </div>
     </div>
 
@@ -531,14 +562,14 @@ body {
     {% if mode == 'composer' %}
 
         {% if q %}
-        <a class="back-link" href="{{ path('app_imslp', {q: q}) }}">← Back to results for "{{ q }}"</a>
+        <a class="back-link" href="{{ path('app_imslp', {q: q}) }}">{{ 'imslp.back_to_results'|trans({'%q%': q}) }}</a>
         {% endif %}
 
         <div class="composer-browse-header">
             <h2>{{ composer }}</h2>
             <span class="work-count">
-                {{ total|number_format }} work{{ total != 1 ? 's' : '' }}
-                {% if not filters.isEmpty() %} matching filter{% endif %}
+                {{ total|number_format }} {{ total != 1 ? 'imslp.work_count_plural'|trans : 'imslp.work_count_singular'|trans }}
+                {% if not filters.isEmpty() %} {{ 'imslp.matching_filter'|trans }}{% endif %}
             </span>
         </div>
 
@@ -550,8 +581,8 @@ body {
         {% else %}
             <div class="empty-state">
                 <div class="icon">♩</div>
-                <h2>No works match this filter</h2>
-                <p>Try removing the instrumentation or style filter.</p>
+                <h2>{{ 'imslp.empty_no_filter_match_title'|trans }}</h2>
+                <p>{{ 'imslp.empty_no_filter_match_hint'|trans }}</p>
             </div>
         {% endif %}
 
@@ -563,13 +594,13 @@ body {
         {# Composer cards #}
         {% if composerMatches is not empty %}
         <div>
-            <p class="section-label">Composers <strong>({{ composerMatches|length }})</strong></p>
+            <p class="section-label">{{ 'imslp.section_composers'|trans }} <strong>({{ composerMatches|length }})</strong></p>
             <div class="composer-cards">
                 {% for c in composerMatches %}
                 <a class="composer-card"
                    href="{{ path('app_imslp', {composer: c.name, q: q ?: null}|merge(fp)) }}">
                     <span class="cname">{{ c.name }}</span>
-                    <span class="ccount">{{ c.work_count|number_format }} works</span>
+                    <span class="ccount">{{ c.work_count|number_format }} {{ 'imslp.work_count_plural'|trans }}</span>
                 </a>
                 {% endfor %}
             </div>
@@ -580,9 +611,9 @@ body {
         {% if total > 0 or composerMatches is empty %}
         <div>
             <p class="section-label">
-                Works with <em>"{{ q }}"</em> in title
+                {{ 'imslp.section_works_with_title'|trans({'%q%': q}) }}
                 {% if total > 0 %}<strong>({{ total|number_format }})</strong>{% endif %}
-                {% if not filters.isEmpty() %} · filtered{% endif %}
+                {% if not filters.isEmpty() %} · {{ 'imslp.section_filtered'|trans }}{% endif %}
             </p>
 
             {% if works is not empty %}
@@ -592,7 +623,7 @@ body {
                     showComposer: true
                 } %}
             {% else %}
-                <p style="color:#6a6058;font-size:.9rem;padding:.5rem 0">No title matches found.</p>
+                <p style="color:#6a6058;font-size:.9rem;padding:.5rem 0">{{ 'imslp.no_title_matches'|trans }}</p>
             {% endif %}
         </div>
         {% endif %}
@@ -600,8 +631,8 @@ body {
         {% if composerMatches is empty and works is empty %}
         <div class="empty-state">
             <div class="icon">♩</div>
-            <h2>No results for "{{ q }}"</h2>
-            <p>Try a different spelling or a broader search term.</p>
+            <h2>{{ 'imslp.empty_no_results_title'|trans({'%q%': q}) }}</h2>
+            <p>{{ 'imslp.empty_no_results_hint'|trans }}</p>
         </div>
         {% endif %}
 
@@ -613,13 +644,13 @@ body {
         <div class="results-header">
             <div>
                 {% if total > 0 %}
-                    <strong>{{ total|number_format }}</strong> work{{ total != 1 ? 's' : '' }}
-                    {% if pages > 1 %} — page {{ page }} / {{ pages }}{% endif %}
+                    <strong>{{ total|number_format }}</strong> {{ total != 1 ? 'imslp.work_count_plural'|trans : 'imslp.work_count_singular'|trans }}
+                    {% if pages > 1 %} {{ 'imslp.filter_page_of'|trans({'%page%': page, '%pages%': pages}) }}{% endif %}
                 {% else %}
-                    No works found
+                    {{ 'imslp.filter_no_works'|trans }}
                 {% endif %}
             </div>
-            <div><em style="font-size:.8rem">Instrumentation filter applies to detail-synced works only.</em></div>
+            <div><em style="font-size:.8rem">{{ 'imslp.filter_instrumentation_note'|trans }}</em></div>
         </div>
 
         {% if works is not empty %}
@@ -631,8 +662,8 @@ body {
         {% else %}
             <div class="empty-state">
                 <div class="icon">♩</div>
-                <h2>No works found</h2>
-                <p>Try different abbreviations. Instrumentation filter only applies to detail-synced works.</p>
+                <h2>{{ 'imslp.empty_no_filter_works_title'|trans }}</h2>
+                <p>{{ 'imslp.empty_no_filter_works_hint'|trans }}</p>
             </div>
         {% endif %}
 
@@ -642,26 +673,26 @@ body {
     {% else %}
     <div class="empty-state">
         <div class="icon">𝄞</div>
-        <h2>Search the IMSLP catalogue</h2>
-        <p>Enter a composer name or work title above.<br>Use the instrumentation box with IMSLP abbreviations:</p>
+        <h2>{{ 'imslp.empty_default_title'|trans }}</h2>
+        <p>{{ 'imslp.empty_default_hint'|trans }}<br>{{ 'imslp.empty_abbrev_hint'|trans }}</p>
         <table class="abbrev-table">
-            <thead><tr><th colspan="6" class="abbrev-section">Instruments</th></tr></thead>
+            <thead><tr><th colspan="6" class="abbrev-section">{{ 'imslp.abbrev_instruments'|trans }}</th></tr></thead>
             <tbody>
-                <tr><td>fl</td><td>flute</td>      <td>ob</td><td>oboe</td>             <td>cl</td><td>clarinet</td></tr>
-                <tr><td>bn</td><td>bassoon</td>     <td>hn</td><td>horn</td>             <td>tr</td><td>trumpet</td></tr>
-                <tr><td>vn</td><td>violin</td>      <td>va</td><td>viola</td>            <td>vc</td><td>cello</td></tr>
-                <tr><td>viol</td><td>viola da gamba</td><td>db</td><td>double bass</td>  <td>str</td><td>strings</td></tr>
-                <tr><td>hpd</td><td>harpsichord</td><td>org</td><td>organ</td>           <td>pf</td><td>piano</td></tr>
-                <tr><td>lute</td><td>lute</td>      <td>bc</td><td>basso continuo</td>   <td></td><td></td></tr>
+                <tr><td>fl</td><td>{{ 'imslp.abbrev_fl'|trans }}</td>   <td>ob</td><td>{{ 'imslp.abbrev_ob'|trans }}</td>   <td>cl</td><td>{{ 'imslp.abbrev_cl'|trans }}</td></tr>
+                <tr><td>bn</td><td>{{ 'imslp.abbrev_bn'|trans }}</td>   <td>hn</td><td>{{ 'imslp.abbrev_hn'|trans }}</td>   <td>tr</td><td>{{ 'imslp.abbrev_tr'|trans }}</td></tr>
+                <tr><td>vn</td><td>{{ 'imslp.abbrev_vn'|trans }}</td>   <td>va</td><td>{{ 'imslp.abbrev_va'|trans }}</td>   <td>vc</td><td>{{ 'imslp.abbrev_vc'|trans }}</td></tr>
+                <tr><td>viol</td><td>{{ 'imslp.abbrev_viol'|trans }}</td><td>db</td><td>{{ 'imslp.abbrev_db'|trans }}</td>  <td>str</td><td>{{ 'imslp.abbrev_str'|trans }}</td></tr>
+                <tr><td>hpd</td><td>{{ 'imslp.abbrev_hpd'|trans }}</td> <td>org</td><td>{{ 'imslp.abbrev_org'|trans }}</td> <td>pf</td><td>{{ 'imslp.abbrev_pf'|trans }}</td></tr>
+                <tr><td>lute</td><td>{{ 'imslp.abbrev_lute'|trans }}</td><td>bc</td><td>{{ 'imslp.abbrev_bc'|trans }}</td>  <td></td><td></td></tr>
             </tbody>
-            <thead><tr><th colspan="6" class="abbrev-section">Voices</th></tr></thead>
+            <thead><tr><th colspan="6" class="abbrev-section">{{ 'imslp.abbrev_voices'|trans }}</th></tr></thead>
             <tbody>
-                <tr><td>sop</td><td>soprano</td>    <td>mez</td><td>mezzo-soprano</td>   <td>alt</td><td>alto</td></tr>
-                <tr><td>ten</td><td>tenor</td>       <td>bass</td><td>bass voice</td>    <td>v</td><td>voice (any)</td></tr>
-                <tr><td>ch</td><td>choir</td>        <td>mch</td><td>male choir</td>     <td>vv</td><td>voices (e.g. 2vv)</td></tr>
+                <tr><td>sop</td><td>{{ 'imslp.abbrev_sop'|trans }}</td> <td>mez</td><td>{{ 'imslp.abbrev_mez'|trans }}</td> <td>alt</td><td>{{ 'imslp.abbrev_alt'|trans }}</td></tr>
+                <tr><td>ten</td><td>{{ 'imslp.abbrev_ten'|trans }}</td>  <td>bass</td><td>{{ 'imslp.abbrev_bass'|trans }}</td><td>v</td><td>{{ 'imslp.abbrev_v'|trans }}</td></tr>
+                <tr><td>ch</td><td>{{ 'imslp.abbrev_ch'|trans }}</td>   <td>mch</td><td>{{ 'imslp.abbrev_mch'|trans }}</td> <td>vv</td><td>{{ 'imslp.abbrev_vv'|trans }}</td></tr>
             </tbody>
         </table>
-        <p style="margin-top:.8rem;font-size:.8rem;">e.g. <code>fl vn viol bc</code> &nbsp;·&nbsp; <code>fl vn va bc</code> &nbsp;·&nbsp; <code>sop alt ten bass bc</code></p>
+        <p style="margin-top:.8rem;font-size:.8rem;">{{ 'imslp.empty_example_hint'|trans }} <code>fl vn viol bc</code> &nbsp;·&nbsp; <code>fl vn va bc</code> &nbsp;·&nbsp; <code>sop alt ten bass bc</code></p>
     </div>
     {% endif %}
 
@@ -672,10 +703,10 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
     .then(r => r.json())
     .then(d => {
         document.getElementById('db-status').innerHTML =
-            '<strong>' + d.works.toLocaleString() + '</strong> works · ' +
-            '<strong>' + d.worksWithDetail.toLocaleString() + '</strong> with detail · ' +
-            '<strong>' + d.composers.toLocaleString() + '</strong> composers' +
-            ' · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">Import status ↗</a>';
+            '<strong>' + d.works.toLocaleString() + '</strong> {{ 'imslp.db_works'|trans }} · ' +
+            '<strong>' + d.worksWithDetail.toLocaleString() + '</strong> {{ 'imslp.db_with_detail'|trans }} · ' +
+            '<strong>' + d.composers.toLocaleString() + '</strong> {{ 'imslp.db_composers'|trans }}' +
+            ' · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">{{ 'imslp.db_import_status_link'|trans }}</a>';
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
 
@@ -694,14 +725,14 @@ document.getElementById('search-form').addEventListener('submit', function () {
     const form   = document.getElementById('search-form');
 
     const FIELD_LABELS = {
-        instrumentation: 'Instrumentation',
-        style:           'Period',
-        genre:           'Genre',
-        key:             'Key',
-        year_from:       'From',
-        year_to:         'To',
-        composer:        'Composer',
-        title:           'Title',
+        instrumentation: {{ 'imslp.ai_field_instrumentation'|trans|json_encode|raw }},
+        style:           {{ 'imslp.ai_field_period'|trans|json_encode|raw }},
+        genre:           {{ 'imslp.ai_field_genre'|trans|json_encode|raw }},
+        key:             {{ 'imslp.ai_field_key'|trans|json_encode|raw }},
+        year_from:       {{ 'imslp.ai_field_year_from'|trans|json_encode|raw }},
+        year_to:         {{ 'imslp.ai_field_year_to'|trans|json_encode|raw }},
+        composer:        {{ 'imslp.ai_field_composer'|trans|json_encode|raw }},
+        title:           {{ 'imslp.ai_field_title'|trans|json_encode|raw }},
     };
 
     function setChips(filters) {
@@ -750,12 +781,19 @@ document.getElementById('search-form').addEventListener('submit', function () {
         }
     }
 
+    const AI_TRANS = {
+        thinking:   {{ 'imslp.ai_thinking'|trans|json_encode|raw }},
+        noFilters:  {{ 'imslp.ai_no_filters'|trans|json_encode|raw }},
+        failed:     {{ 'imslp.ai_request_failed'|trans|json_encode|raw }},
+        btnLabel:   {{ 'imslp.ai_btn'|trans|json_encode|raw }},
+    };
+
     btn.addEventListener('click', async () => {
         const query = input.value.trim();
         if (!query) return;
 
         btn.disabled = true;
-        btn.textContent = 'Thinking…';
+        btn.textContent = AI_TRANS.thinking;
         chips.innerHTML = '';
 
         try {
@@ -777,18 +815,18 @@ document.getElementById('search-form').addEventListener('submit', function () {
                 else {
                     const err = document.createElement('div');
                     err.className = 'ai-error';
-                    err.textContent = 'No filters could be extracted. Try rephrasing.';
+                    err.textContent = AI_TRANS.noFilters;
                     chips.appendChild(err);
                 }
             }
         } catch (e) {
             const err = document.createElement('div');
             err.className = 'ai-error';
-            err.textContent = 'Request failed. Check your connection.';
+            err.textContent = AI_TRANS.failed;
             chips.appendChild(err);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/></svg> Ask AI';
+            btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/></svg> ' + AI_TRANS.btnLabel;
         }
     });
 

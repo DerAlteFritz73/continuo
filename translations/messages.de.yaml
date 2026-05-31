@@ -1,0 +1,507 @@
+# ── App-wide UI ─────────────────────────────────────────────────────────────
+app:
+    subtitle: "Barocke Musikwerkzeuge"
+    title: "Generalbass-Begleitung"
+    desc: >
+        Laden Sie eine MusicXML-Datei mit einer Basslinie hoch, um eine historisch
+        informierte Continuo-Realisation zu erzeugen, basierend auf Gasparini (1729),
+        Delair (1724) und dem Entscheidungsbaum von Wead & Knopke (ICMC 2007).
+
+# ── Params panel ─────────────────────────────────────────────────────────────
+params:
+    btn: "Parameter"
+    voices_label: "Stimmenzahl"
+    voices_4: "4 Stimmen — vollständige Realisation (Sopran + Alt + Tenor + Bass)"
+    voices_3: "3 Stimmen — wenn möglich (Alt + Sopran + Bass)"
+
+# ── Upload card ──────────────────────────────────────────────────────────────
+upload:
+    card_title: "Partitur hochladen"
+    drop_label: "MusicXML-Datei hier ablegen"
+    drop_hint: "oder klicken zum Durchsuchen — .xml / .musicxml, max. 10 MB"
+    realize_btn: "Continuo realisieren"
+    clear_btn: "Leeren"
+    sample_hint: "Beispieldatei laden"
+    progress: "Basslinie wird analysiert und Harmonie realisiert…"
+
+# ── Errors ───────────────────────────────────────────────────────────────────
+error:
+    no_file: "Bitte laden Sie eine MusicXML-Datei hoch."
+    invalid_type: "Ungültiger Dateityp. Bitte laden Sie eine .xml- oder .musicxml-Datei hoch."
+    too_large: "Datei zu groß (max. 10 MB)."
+    processing: "Fehler bei der Verarbeitung der Datei: %message%"
+
+# ── Result panel ─────────────────────────────────────────────────────────────
+result:
+    card_title: "Realisation abgeschlossen"
+    success_msg: "Continuo-Realisation erfolgreich erstellt."
+    top_chords: "Häufigste Harmonien"
+    output_preview: "Ausgabevorschau"
+    download_btn: "MusicXML herunterladen"
+    new_btn: "Weitere Realisation"
+    summary:
+        title: "Titel"
+        key: "Tonart"
+        measures: "Takte"
+        notes: "Realisierte Noten"
+
+# ── Score viewer ─────────────────────────────────────────────────────────────
+viewer:
+    card_title: "Notenansicht"
+    tab_orig: "Originalbass"
+    tab_real: "Continuo-Realisation"
+    waiting: "Warte auf Realisation…"
+    click_hint: "▶ Klicken Sie auf eine Note oder einen Akkord, um Harmonie & Entscheidungsbaum zu inspizieren"
+    rendering: "Partitur wird gerendert…"
+    show_computed: "Berechnete Ziffern anzeigen"
+
+# ── Chord inspector ──────────────────────────────────────────────────────────
+inspector:
+    title: "Akkord-Inspektor"
+    close: "Schließen"
+    section_info: "Allgemeine Informationen"
+    section_chord: "Realisierter Akkord"
+    section_tree: "Entscheidungsbaum"
+    lbl_bass_pitch: "Basston"
+    lbl_note_type: "Notentyp"
+    lbl_scale_degree: "Stufe"
+    lbl_key: "Tonart"
+    lbl_figured_bass: "Bezifferter Bass"
+    lbl_chord_symbol: "Akkordsymbol"
+    lbl_figures_source: "Herkunft der Ziffern"
+    voice_soprano: "Sopran"
+    voice_alto: "Alt"
+    voice_tenor: "Tenor"
+    voice_bass: "Bass"
+    figures_computed: "Vom Entscheidungsbaum berechnet"
+    figures_from_file: "Aus der Partitur (vornotiert)"
+    badge_from_file: "✓ Ziffern in der Partitur angegeben — kein Entscheidungsbaum nötig"
+    badge_computed: "⊕ Unbezifferter Bass — Entscheidungsbaum angewendet"
+    from_file_note: "Die Generalbasszifferung wurde direkt aus der hochgeladenen Datei entnommen. Es wurde kein algorithmisches Regelwerk angewendet."
+    ctx_scale_degree: "Stufe"
+    ctx_motion_in: "Eingehende Bewegung"
+    ctx_motion_out: "Ausgehende Bewegung"
+    ctx_key: "Tonart"
+
+# ── Scale degrees ────────────────────────────────────────────────────────────
+scale_degree:
+    1: "I — Tonika"
+    2: "II — Supraton"
+    3: "III — Mediante"
+    4: "IV — Subdominante"
+    5: "V — Dominante"
+    6: "VI — Submediant"
+    7: "VII — Leitton"
+
+# ── Motion types ─────────────────────────────────────────────────────────────
+motion:
+    step_up: "aufsteigender Schritt"
+    step_down: "absteigender Schritt"
+    leap_up: "aufsteigender Sprung"
+    leap_down: "absteigender Sprung"
+    same: "wiederholte Note"
+    start: "Phrasenbeginn"
+
+# ── Decision-tree rule tests, names, sources, reasons ────────────────────────
+rule:
+    test:
+        degree_7: "Stufe = 7 (Leitton)?"
+        major_mode: "Tongeschlecht = Dur?"
+        next_step_up_resolves: "Nächste Bewegung = aufsteigender Schritt (Auflösung zur Tonika)?"
+        motion_passing_step: "Schrittweise Bewegung ein- und ausgehend (Durchgangston)?"
+        degree_4_step_up: "Stufe = 4 mit aufsteigendem Schritt ein- und ausgehend (Durchgangskontext)?"
+        degree_4_next_step_up: "Stufe = 4 mit folgender Aufwärtsbewegung (IV → V)?"
+        degree_2: "Stufe = 2 (Supraton)?"
+        motion_step_down: "Bewegung = absteigender Schritt?"
+        degree_3: "Stufe = 3 (Mediante)?"
+        degree_6: "Stufe = 6 (Submediant)?"
+        motion_step_up: "Bewegung = aufsteigender Schritt?"
+        degree_5: "Stufe = 5 (Dominante)?"
+        next_step_down_tonic: "Nächste Bewegung = absteigender Schritt (zur Tonika)?"
+        next_step_down: "Nächste Bewegung = absteigender Schritt (zur Tonika)?"
+        degree_1: "Stufe = 1 (Tonika)?"
+        degree_4: "Stufe = 4 (Subdominante)?"
+        leap_fourth: "Quartsprung (Kadenzbewegung)?"
+        next_step_to_i_or_iii: "Nächste Bewegung = Schritt zu Stufe I oder III (Petite-Accord-Kontext)?"
+        degree_4_next_step_down: "Stufe = 4 mit folgender Abwärtsbewegung (IV → III)?"
+        default: "Standardregel (keine spezifische Übereinstimmung)?"
+
+    leading_tone:
+        name: "Leittonregel (V⁶₅)"
+        source: "Dandrieu [1719]; Christensen 2002, 17"
+        reason: >
+            In Dur löst der Leitton (7. Stufe) zur Tonika hin mit dem Akkord der verminderten
+            Quinte auf (♭5 mit implizierter Sexte und Terz = V⁶₅). Nach Christensen §4:
+            „Dieser Akkord besteht aus der verminderten Quinte, der Sexte und der Terz. Er wird
+            üblicherweise auf der siebten Stufe gespielt – dem Leitton –, sofern er zur Tonika
+            aufsteigt (VII–I)." In anderen Kontexten wird ein einfacher Sextakkord (V⁶) verwendet.
+
+    leading_tone_no_resolve:
+        reason: >
+            Die 7. Stufe in Moll ist der natürliche Subton (♭VII), kein Leitton.
+            Sie bildet einen Durdreiklang in Grundstellung, was die Standardharmonisierung
+            für den natürlichen siebten Grad im Molltongeschlecht ist.
+
+    ascending_passing:
+        name: "Aufsteigender Durchgangssextakkord"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            Wird die 4. Stufe auf- und abgehend durch Schritt berührt (III → IV → V),
+            wirkt sie als aufsteigender Durchgangston und erhält die Sextzahl (erste Umkehrung).
+            Nach St. Lambert: „Wann immer der Bass in Schritten geht, genügt es, die Noten auf
+            den Hauptzeiten zu harmonisieren und die Zwischennoten als Durchgangstöne zu behandeln."
+
+    petit_accord_supertonic:
+        name: "Kleine Sexte auf der 2. Stufe (6/4/3)"
+        source: "Dandrieu [1719]; Christensen 2002, 14–15"
+        reason: >
+            Die 2. Stufe, schrittweise zur Tonika (I) oder Mediante (III) führend, erhält die
+            kleine Sexte (6/4/3) — zweite Umkehrung des Dominantseptakkords. Nach Christensen:
+            „Der ⁶₄₃-Akkord wird stets gespielt, wenn die Sexte auf der zweiten Stufe erscheint
+            und zu I oder III führt."
+
+    subdominant_65:
+        name: "Subdominante Sexte-Quinte-Regel (IV → V)"
+        source: "Dandrieu [1719]; Christensen 2002, 21"
+        reason: >
+            Die 4. Stufe, von einem aufsteigenden Schritt zur Dominante gefolgt, erhält den
+            Sexte-Quinte-Akkord (6/5). Nach Dandrieu: „Dieser Akkord wird üblicherweise auf
+            der vierten Stufe gespielt, wenn sie von der Dominante gefolgt wird."
+
+    supertonic_first_inv:
+        name: "Erste Umkehrung der 2. Stufe"
+        source: "Christensen 2002, 13"
+        reason: >
+            Die 2. Stufe in anderen Kontexten erhält die Sextzahl (erste Umkehrung), gemäß
+            der allgemeinen französischen Regel für den Supraton.
+
+    mediant_first_inv:
+        name: "Mediante als Durchgangssextakkord"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            Die 3. Stufe erhält die Sextzahl (erste Umkehrung), wenn sie als aufsteigender
+            Durchgangston schrittweise berührt wird. Nach St. Lambert: „Wann immer der Bass
+            in Schritten geht, genügt es, die Noten auf den Hauptzeiten zu harmonisieren."
+
+    mediant_root:
+        reason: >
+            Die 3. Stufe erscheint hier durch Sprung oder als struktureller Ton, nicht als
+            aufsteigender Durchgangston. In diesem Kontext unterstützt sie die Grundstellung:
+            In Moll repräsentiert der Mediante-Bass oft den Dominant- oder Mediantdreiklang.
+
+    ascending_submediant:
+        name: "Aufsteigender Submediant"
+        source: "Christensen 2002, 10"
+        reason: >
+            Die 6. Stufe, aufsteigend durch Schritt, erhält die Grundstellung (5), womit der
+            Submediantdreiklang (vi) gebildet wird. Dies sichert harmonische Stabilität vor dem
+            weiteren Aufstieg des Basses.
+
+    descending_submediant:
+        name: "Absteigender Submediant"
+        source: "Dandrieu [1719]; Christensen 2002, 13"
+        reason: >
+            Die 6. Stufe, absteigend durch Schritt, erhält die Sextzahl (IV⁶ in Dur). Nach
+            Dandrieu: „Er wird üblicherweise auf der dritten Stufe gespielt." Die erste Umkehrung
+            vermeidet harmonische Konflikte und erhält eine glatte Stimmführung.
+
+    submediant_root_major:
+        name: "Submediant in Grundstellung (vi)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Die 6. Stufe mit Sprung oder wiederholtem Ton erhält in Dur die Grundstellung,
+            womit der Submediantdreiklang (vi) gebildet wird.
+
+    submediant_first_inv_minor:
+        name: "Submediant in erster Umkehrung (Moll)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Die 6. Stufe mit Sprung oder wiederholtem Ton erhält in Moll die Sextzahl (erste
+            Umkehrung), da der Mollsubmediant natürlicherweise in erster Umkehrung steht.
+
+    dominant_seventh:
+        name: "Dominantseptakkord (V⁷)"
+        source: "Rameau [1722], II.5; Christensen 2002, 28"
+        reason: >
+            Wird die 5. Stufe von einem absteigenden Schritt gefolgt, erhält sie die Septimzahl
+            (V⁷). Nach Rameau: „La dominante qui précède la tonique par degrés descendants reçoit
+            la septième." Der Dominantseptakkord verstärkt die harmonische Anziehung zur Tonika.
+
+    dominant_root:
+        name: "Dominante in Grundstellung (V)"
+        source: "Christensen 2002, 28"
+        reason: >
+            Die 5. Stufe ohne folgenden absteigenden Schritt erhält die Grundstellung,
+            womit der Dominantdreiklang (V) gebildet wird. Der vollständige Septakkord ist
+            ohne starke Auflösungsbewegung nicht erforderlich.
+
+    tonic_root:
+        name: "Tonika in Grundstellung (I)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Die 1. Stufe (Tonika) erhält stets die Grundstellung, womit der Tonikadreiklang (I)
+            gebildet wird. Der Tonikaton im Bass repräsentiert den Heimatakkord in seiner
+            stabilsten Form.
+
+    cadential_64:
+        name: "Kadenzquartsextakkord (6/4)"
+        source: "Heinichen [1728]; Christensen 2002, 72"
+        reason: >
+            Ein Quartsprung zur 4. Stufe deutet auf einen Kadenz-6/4-Akkord (zweite Umkehrung) hin.
+            Nach Heinichen: „Die Akkorde 6/4 und 5/4 erscheinen am häufigsten in Kadenzen; sie
+            sollten gespielt werden, auch wenn sie nicht ausdrücklich in den Bassziffern angegeben sind."
+
+    subdominant_root:
+        name: "Subdominante in Grundstellung (IV)"
+        source: "Christensen 2002, 10"
+        reason: >
+            Die 4. Stufe erhält in den meisten Kontexten die Grundstellung, womit der
+            Subdominantdreiklang (IV) gebildet wird. Ohne spezifisches Bewegungsmuster ist
+            die Grundstellung die natürliche Harmonisierung.
+
+    tritone_chord_iv:
+        name: "Tritonusakkord auf IV (V⁴₂)"
+        source: "Christensen 2002, 24"
+        reason: >
+            Die 4. Stufe, von einem absteigenden Schritt zur Mediante (III) gefolgt, erhält
+            den Tritonusakkord (♯4), der sich zu ♯4/6/2 erweitert — dritte Umkehrung des
+            Dominantseptakkords (V⁴₂). Nach Christensen §8: „Er wird üblicherweise auf der
+            vierten Stufe gespielt, wenn sie von der Mediante (III) gefolgt wird."
+
+    default_rule:
+        name: "Standardregel (Grundstellung)"
+        source: "Wead & Knopke, ICMC 2007"
+        reason: >
+            Keine spezifische Regel stimmte mit diesem Basston überein. Die Standard­
+            harmonisierung ist die Grundstellung (5), die neutralste und stabilste Harmonisierung
+            gemäß dem Rückfall des Wead–Knopke-Entscheidungsbaums.
+
+# ── How It Works accordion ───────────────────────────────────────────────────
+how_it_works:
+    heading: "Funktionsweise"
+    algo_heading: "Algorithmus-Übersicht"
+    algo_intro: >
+        Der Realisierer implementiert den Entscheidungsbaum nach Wead & Knopke (ICMC 2007)
+        und stützt sich auf zwei barocke Haupttraktate:
+    algo_gasparini: "L'Armonico Pratico al Cimbalo (3. Aufl., 1729, Venedig)"
+    algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin (1724, Paris)"
+    pipeline_heading: "Verarbeitungspipeline"
+    step1: "Analyse — MusicXML wird eingelesen; die tiefste Stimme wird als Basslinie ausgewählt."
+    step2: >
+        Bezifferter-Bass-Erkennung — Sind <figured-bass>-Elemente vorhanden, werden sie
+        direkt verwendet. Andernfalls läuft der Entscheidungsbaum für unbezifferten Bass.
+    step3: "Entscheidungsbaum — Berechnet Stufe (1–7) und melodische Bewegung (Schritt/Sprung, auf/ab), wählt dann Ziffern nach Gasparini/Delair:"
+    step3_a: "Stufe 7 (Leitton) → 6 (V⁶)"
+    step3_b: "Stufen 2, 3 → 6 (erste Umkehrung)"
+    step3_c: "Stufe 5 zur Tonika schrittweise → 7 (V⁷)"
+    step3_d: "Aufsteigender Schritt auf Stufe 4 → 6 (Durchgang)"
+    step3_e: "Alle anderen → 5 (Grundstellung)"
+    step4: "Erweiterung der Ziffern — Abgekürzte Ziffern werden erweitert: 6→6, 7→7 5, 6 5→6 5, 4 3→4 3, 2→4 2."
+    step5: "Stimmrealisation — Drei Oberstimmen (Sopran, Alt, Tenor) werden so gewählt, dass die gesamte Stimmführungsbewegung minimiert wird (Gesetz des kürzesten Weges), unter Einhaltung von:"
+    step5_a: "Keine parallelen Quinten oder Oktaven"
+    step5_b: "Kein Stimmkreuzen oder Verdoppeln des Leittons"
+    step5_c: "Stimmlagen: Sopran c′–g″, Alt g–c″, Tenor c–e′"
+    step6: "Export — Ausgabe als zweistimmiges MusicXML: Stimme 1 = Originalbass, Stimme 2 = Realisation (Oberstimmen 1–3 + Bass)."
+    fb_heading: "Bezifferter-Bass-Notation: Referenz"
+    fb_sec_triads: "Dreiklänge"
+    fb_sec_sevenths: "Septakkorde"
+    fb_sec_ninths: "Nonakkorde"
+    fb_sec_suspensions: "Vorhalte"
+    fb_sec_chromatic: "Chromatisch / Alteriert"
+    fb_sec_special: "Besonderes"
+    fb_none: "Grundstellung (Dreiklang)"
+    fb_6: "Sextakkord (erste Umkehrung)"
+    fb_64: "Quartsextakkord (zweite Umkehrung) — kadenziell oder Durchgang"
+    fb_7: "Septakkord, Grundstellung"
+    fb_65: "Septakkord, erste Umkehrung (V⁶₅-Variante)"
+    fb_b5: "Verminderter-Quinten-Akkord = V⁶₅ (erste Umkehrung des Dominantseptakkords)"
+    fb_43: "Septakkord, zweite Umkehrung / 4–3-Vorhalt"
+    fb_2: "Septakkord, dritte Umkehrung"
+    fb_sharp4: "Tritonusakkord = V⁴₂ (dritte Umkehrung des Dominantseptakkords)"
+    fb_9: "Nonakkord / 9–8-Vorhalt"
+    fb_97: "None mit Septime"
+    fb_76: "7–6-Vorhalt"
+    fb_54: "5–4-(–3-)Vorhalt"
+    fb_sharp5: "Übermäßiger-Quinten-Akkord — 3, ♯5, 7, 9 (Christensen §14)"
+    fb_b7: "Verminderter-Septimen-Akkord — 3, 5, ♭7 (Christensen §15)"
+    fb_8: "Explizite Oktave über dem Bass"
+    fb_acc: "Vorzeichen-Präfix — ♯ erhöht, ♭ erniedrigt, ♮ hebt die Zifferalteration auf"
+
+# ── Bibliography accordion ────────────────────────────────────────────────────
+bibliography:
+    heading: "Bibliographie"
+
+# ── IMSLP Browser ─────────────────────────────────────────────────────────────
+imslp:
+    browser_title: "IMSLP-Browser"
+    petrucci_subtitle: "Petrucci-Musikbibliothek"
+    back_to_realizer: "← Generalbass-Begleitung"
+    back_to_search: "← Zurück zur Suche"
+    back_to_results: '← Zurück zu Ergebnissen für „%q"'
+
+    # Search form
+    search_composer_title_label: "Komponist / Titel"
+    search_composer_title_placeholder: "z. B. Telemann, Sonate…"
+    search_instrumentation_label: "Besetzung"
+    search_instrumentation_placeholder: "z. B. fl vn viol bc"
+    search_period_label: "Epoche"
+    search_period_any: "— alle —"
+    search_genre_label: "Gattung"
+    search_genre_placeholder: "Sonaten, Konzerte…"
+    search_key_label: "Tonart"
+    search_key_placeholder: "d-Moll…"
+    search_year_from_label: "Jahr von"
+    search_year_to_label: "bis"
+    search_btn: "Suchen"
+
+    # AI search
+    ai_placeholder: "Beschreiben Sie, was Sie suchen… z. B. Barocke Triosonaten für zwei Violinen und Basso continuo"
+    ai_btn: "KI fragen"
+    ai_thinking: "Nachdenken…"
+    ai_no_filters: "Es konnten keine Filter extrahiert werden. Versuchen Sie es anders zu formulieren."
+    ai_request_failed: "Anfrage fehlgeschlagen. Überprüfen Sie Ihre Verbindung."
+
+    # AI field labels
+    ai_field_instrumentation: "Besetzung"
+    ai_field_period: "Epoche"
+    ai_field_genre: "Gattung"
+    ai_field_key: "Tonart"
+    ai_field_year_from: "Von"
+    ai_field_year_to: "Bis"
+    ai_field_composer: "Komponist"
+    ai_field_title: "Titel"
+
+    # DB status / import link
+    db_loading: "Laden…"
+    db_import_status_link: "Importstatus ↗"
+    db_works: "Werke"
+    db_with_detail: "mit Details"
+    db_composers: "Komponisten"
+
+    # Composer browse mode
+    work_count_singular: "Werk"
+    work_count_plural: "Werke"
+    matching_filter: "mit Filter"
+
+    # Section labels
+    section_composers: "Komponisten"
+    section_works_with_title: 'Werke mit „%q" im Titel'
+    section_filtered: "gefiltert"
+    no_title_matches: "Keine Titelübereinstimmungen gefunden."
+
+    # Filter mode
+    filter_works_found: "%count% Werk"
+    filter_works_found_plural: "%count% Werke"
+    filter_page_of: "— Seite %page% / %pages%"
+    filter_no_works: "Keine Werke gefunden"
+    filter_instrumentation_note: "Der Besetzungsfilter gilt nur für Werke mit synchronisierten Details."
+
+    # Empty states
+    empty_no_filter_match_title: "Keine Werke entsprechen diesem Filter"
+    empty_no_filter_match_hint: "Versuchen Sie, den Besetzungs- oder Epochenfilter zu entfernen."
+    empty_no_results_title: 'Keine Ergebnisse für „%q"'
+    empty_no_results_hint: "Versuchen Sie eine andere Schreibweise oder einen allgemeineren Suchbegriff."
+    empty_no_filter_works_title: "Keine Werke gefunden"
+    empty_no_filter_works_hint: "Versuchen Sie andere Abkürzungen. Der Besetzungsfilter gilt nur für synchronisierte Werke."
+    empty_default_title: "Im IMSLP-Katalog suchen"
+    empty_default_hint: "Geben Sie oben einen Komponentennamen oder Werktitel ein."
+    empty_abbrev_hint: "Verwenden Sie das Besetzungsfeld mit IMSLP-Abkürzungen:"
+    empty_example_hint: "z. B."
+
+    # Abbreviation table
+    abbrev_instruments: "Instrumente"
+    abbrev_voices: "Stimmen"
+    abbrev_fl: "Flöte"
+    abbrev_ob: "Oboe"
+    abbrev_cl: "Klarinette"
+    abbrev_bn: "Fagott"
+    abbrev_hn: "Horn"
+    abbrev_tr: "Trompete"
+    abbrev_vn: "Violine"
+    abbrev_va: "Viola"
+    abbrev_vc: "Violoncello"
+    abbrev_viol: "Viola da gamba"
+    abbrev_db: "Kontrabass"
+    abbrev_str: "Streicher"
+    abbrev_hpd: "Cembalo"
+    abbrev_org: "Orgel"
+    abbrev_pf: "Klavier"
+    abbrev_lute: "Laute"
+    abbrev_bc: "Basso continuo"
+    abbrev_sop: "Sopran"
+    abbrev_mez: "Mezzosopran"
+    abbrev_alt: "Alt"
+    abbrev_ten: "Tenor"
+    abbrev_bass: "Bassstimme"
+    abbrev_v: "Stimme (beliebig)"
+    abbrev_ch: "Chor"
+    abbrev_mch: "Männerchor"
+    abbrev_vv: "Stimmen (z. B. 2vv)"
+
+    # Work detail page
+    work_back_to_search: "← Zurück zur Suche"
+    work_imslp_link: "IMSLP ↗"
+    work_youtube_link: "YouTube"
+    work_spotify_link: "Spotify"
+    work_no_detail_notice: "Detaildaten (Besetzung, Dateien) wurden für dieses Werk noch nicht abgerufen. Führen Sie den Befehl fetch-details aus oder besuchen Sie die IMSLP-Seite direkt."
+    work_meta_key: "Tonart"
+    work_meta_instrumentation: "Besetzung"
+    work_meta_style: "Stil"
+    work_meta_year_composed: "Kompositionsjahr"
+    work_meta_year_published: "Erscheinungsjahr"
+    work_meta_type: "Typ"
+    work_meta_movements: "Sätze / Abschnitte"
+    work_meta_tags: "Tags"
+    work_files_title: "Notendateien"
+    work_files_editions: "%editions% Ausgabe"
+    work_files_editions_plural: "%editions% Ausgaben"
+    work_files_count: "%count% Datei"
+    work_files_count_plural: "%count% Dateien"
+    work_edition_anonymous: "Anonyme Ausgabe"
+    work_edition_submitted: "Eingereicht %date%"
+    work_files_download_hint: "PDF-Dateien direkt von der"
+    work_files_imslp_page: "IMSLP-Werkseite"
+
+    # Sync status page
+    sync_title: "Importstatus"
+    sync_subtitle: "Fortschritt der IMSLP-Synchronisation und Detailabruf"
+    sync_back_to_browser: "← Zurück zum IMSLP-Browser"
+    sync_phpmyadmin: "phpMyAdmin"
+    sync_auto_refresh: "Automatische Aktualisierung alle 10 s"
+    sync_card_composers: "Komponisten"
+    sync_card_works: "Werke"
+    sync_card_details: "Details"
+    sync_badge_running: "● Läuft"
+    sync_badge_idle: "Inaktiv"
+    sync_btn_stop: "Stopp"
+    sync_btn_stopping: "Wird gestoppt…"
+    sync_btn_sync_list: "Liste sync."
+    sync_btn_syncing: "Synchronisiere…"
+    sync_btn_sync_dates: "Daten sync."
+    sync_btn_fetching: "Abrufen…"
+    sync_btn_import_works: "Werke importieren"
+    sync_btn_fetch_details: "Details abrufen"
+    sync_btn_starting: "Starte…"
+    sync_btn_complete: "✓ Abgeschlossen"
+    sync_log_list: "Listen-Log"
+    sync_log_dates: "Daten-Log"
+    sync_log_works: "Log"
+    sync_log_details: "Log"
+    sync_in_catalogue: "im Katalog"
+    sync_with_details: "mit Details"
+    sync_last_sync_list: "Liste:"
+    sync_last_sync_dates: "Daten:"
+    sync_composers_with_dates: "mit Daten"
+    sync_composers_without_dates: "ohne Daten"
+    sync_all_dates_fetched: "✓ Alle Daten abgerufen"
+    sync_all_works_fetched: "✓ Alle Werke abgerufen"
+    sync_fetching_works: "Neue Werke von der IMSLP-API werden abgerufen…"
+    sync_ready_resumes: "Bereit — wird vom letzten Offset fortgesetzt"
+    sync_not_yet_run: "Noch nicht ausgeführt"
+    sync_works_remaining: "verbleibend"
+    sync_of: "von"
+    sync_log_title: "Log"
+    sync_log_loading: "(lade…)"
+    sync_log_no_output: "(noch keine Ausgabe)"
+    sync_log_unavailable: "(Log nicht verfügbar)"
+    sync_last_sync: "Letzte Sync:"

@@ -1,0 +1,504 @@
+# ── App-wide UI ─────────────────────────────────────────────────────────────
+app:
+    subtitle: "Barokní hudební technologie"
+    title: "Realizátor bassa continua"
+    desc: >
+        Nahrajte soubor MusicXML obsahující basovou linku a generujte historicky
+        informovanou realizaci continua podle pravidel Gaspariniho (1729),
+        Delaira (1724) a rozhodovacího stromu Wead & Knopke (ICMC 2007).
+
+# ── Params panel ─────────────────────────────────────────────────────────────
+params:
+    btn: "Parametry"
+    voices_label: "Počet hlasů"
+    voices_4: "4 hlasy — plná realizace (soprán + alt + tenor + bas)"
+    voices_3: "3 hlasy — pokud možno (alt + soprán + bas)"
+
+# ── Upload card ──────────────────────────────────────────────────────────────
+upload:
+    card_title: "Nahrát partituru"
+    drop_label: "Přetáhněte soubor MusicXML sem"
+    drop_hint: "nebo klikněte pro procházení — soubory .xml / .musicxml, max 10 MB"
+    realize_btn: "Realizovat continuo"
+    clear_btn: "Vymazat"
+    sample_hint: "načíst ukázkový soubor"
+    progress: "Analyzuji basovou linku a realizuji harmonii…"
+
+# ── Errors ───────────────────────────────────────────────────────────────────
+error:
+    no_file: "Prosím nahrajte soubor MusicXML."
+    invalid_type: "Neplatný typ souboru. Nahrajte prosím soubor .xml nebo .musicxml."
+    too_large: "Soubor je příliš velký (max 10 MB)."
+    processing: "Chyba při zpracování souboru: %message%"
+
+# ── Result panel ─────────────────────────────────────────────────────────────
+result:
+    card_title: "Realizace dokončena"
+    success_msg: "Realizace bassa continua byla úspěšně vygenerována."
+    top_chords: "Nejčastější harmonie"
+    output_preview: "Náhled výstupu"
+    download_btn: "Stáhnout MusicXML"
+    new_btn: "Nová realizace"
+    summary:
+        title: "Název"
+        key: "Tónina"
+        measures: "Takty"
+        notes: "Realizované noty"
+
+# ── Score viewer ─────────────────────────────────────────────────────────────
+viewer:
+    card_title: "Prohlížeč partitury"
+    tab_orig: "Originální bas"
+    tab_real: "Realizace continua"
+    waiting: "Čekám na realizaci…"
+    click_hint: "▶ Klikněte na notu nebo akord pro zobrazení harmonie a rozhodovacího stromu"
+    rendering: "Renderuji partituru…"
+    show_computed: "Zobrazit vypočtené cifry"
+
+# ── Chord inspector ──────────────────────────────────────────────────────────
+inspector:
+    title: "Inspektor akordů"
+    close: "Zavřít"
+    section_info: "Obecné informace"
+    section_chord: "Realizovaný akord"
+    section_tree: "Rozhodovací strom"
+    lbl_bass_pitch: "Basová nota"
+    lbl_note_type: "Typ noty"
+    lbl_scale_degree: "Stupeň stupnice"
+    lbl_key: "Tónina"
+    lbl_figured_bass: "Cifrovaný bas"
+    lbl_chord_symbol: "Symbol akordu"
+    lbl_figures_source: "Původ číslic"
+    voice_soprano: "Soprán"
+    voice_alto: "Alt"
+    voice_tenor: "Tenor"
+    voice_bass: "Bas"
+    figures_computed: "Vypočteno rozhodovacím stromem"
+    figures_from_file: "Ze souboru (přednotováno)"
+    badge_from_file: "✓ Číslice uvedeny v partituře — rozhodovací strom nebyl potřeba"
+    badge_computed: "⊕ Nečíslovaný bas — použit rozhodovací strom"
+    from_file_note: "Notace cifrovaného basu byla přečtena přímo z nahraného souboru. Nebyl použit žádný algoritmický pravidlový systém."
+    ctx_scale_degree: "Stupeň stupnice"
+    ctx_motion_in: "Příchozí pohyb"
+    ctx_motion_out: "Odchozí pohyb"
+    ctx_key: "Tónina"
+
+# ── Scale degrees ────────────────────────────────────────────────────────────
+scale_degree:
+    1: "I — Tónika"
+    2: "II — Supertónika"
+    3: "III — Mediante"
+    4: "IV — Subdominanta"
+    5: "V — Dominanta"
+    6: "VI — Submediant"
+    7: "VII — Citlivý tón"
+
+# ── Motion types ─────────────────────────────────────────────────────────────
+motion:
+    step_up: "vzestupný krok"
+    step_down: "sestupný krok"
+    leap_up: "vzestupný skok"
+    leap_down: "sestupný skok"
+    same: "opakovaná nota"
+    start: "začátek fráze"
+
+# ── Decision-tree rule tests, names, sources, reasons ────────────────────────
+rule:
+    test:
+        degree_7: "Stupeň = 7 (citlivý tón)?"
+        major_mode: "Modus = dur?"
+        next_step_up_resolves: "Příští pohyb = vzestupný krok (rozvedení k tónice)?"
+        motion_passing_step: "Postupný pohyb dovnitř i ven (průchodný tón)?"
+        degree_4_step_up: "Stupeň = 4 se vzestupným krokem dovnitř i ven (průchodný kontext)?"
+        degree_4_next_step_up: "Stupeň = 4 s následujícím vzestupným pohybem (IV → V)?"
+        degree_2: "Stupeň = 2 (supertónika)?"
+        motion_step_down: "Pohyb = sestupný krok?"
+        degree_3: "Stupeň = 3 (mediante)?"
+        degree_6: "Stupeň = 6 (submediant)?"
+        motion_step_up: "Pohyb = vzestupný krok?"
+        degree_5: "Stupeň = 5 (dominanta)?"
+        next_step_down_tonic: "Příští pohyb = sestupný krok (k tónice)?"
+        next_step_down: "Příští pohyb = sestupný krok (k tónice)?"
+        degree_1: "Stupeň = 1 (tónika)?"
+        degree_4: "Stupeň = 4 (subdominanta)?"
+        leap_fourth: "Skok kvarty (kadenciální pohyb)?"
+        next_step_to_i_or_iii: "Příští pohyb = krok ke stupni I nebo III (kontext petit accord)?"
+        degree_4_next_step_down: "Stupeň = 4 s následujícím sestupným pohybem (IV → III)?"
+        default: "Výchozí pravidlo (žádná specifická shoda)?"
+
+    leading_tone:
+        name: "Pravidlo citlivého tónu (V⁶₅)"
+        source: "Dandrieu [1719]; Christensen 2002, 17"
+        reason: >
+            V dur citlivý tón (7. stupeň) rozváděný k tónice bere akord zmenšené kvinty
+            (♭5 s implikovanou sextou a tercií = V⁶₅). Podle Christensena §4:
+            „Tento akord se skládá ze zmenšené kvinty, sexty a tercie. Obvykle se hraje
+            na sedmém stupni – citlivém tónu –, za předpokladu, že postupuje k tónice (VII–I)."
+            V jiných kontextech se použije jednoduchý sextakord (V⁶).
+
+    leading_tone_no_resolve:
+        reason: >
+            7. stupeň v moll je přirozený subtón (♭VII), nikoliv citlivý tón.
+            Tvoří durový trojzvuk v základní poloze, což je standardní harmonizace
+            přirozeného sedmého stupně v mollové tónině.
+
+    ascending_passing:
+        name: "Vzestupný průchodný sextakord"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            Když je 4. stupeň obklopován vzestupnými kroky (III → IV → V), působí jako
+            vzestupný průchodný tón a bere sextovou číslici (první obrácení). Podle
+            St. Lamberta: „Kdykoli bas postupuje po krocích, stačí harmonizovat noty
+            na hlavních dobách taktu a noty mezi nimi považovat za průchodné."
+
+    petit_accord_supertonic:
+        name: "Malá sexta na 2. stupni (6/4/3)"
+        source: "Dandrieu [1719]; Christensen 2002, 14–15"
+        reason: >
+            2. stupeň postupující krokem k tónice (I) nebo k mediantě (III) bere malou
+            sextu (6/4/3) — druhé obrácení dominantního septakordu. Podle Christensena:
+            „Akord ⁶₄₃ se vždy hraje, když sexta nastane na druhém stupni a vede k I nebo III."
+
+    subdominant_65:
+        name: "Subdominantní pravidlo sexta-kvinta (IV → V)"
+        source: "Dandrieu [1719]; Christensen 2002, 21"
+        reason: >
+            4. stupeň následovaný vzestupným krokem k dominantě bere akord sexta-kvinta (6/5).
+            Podle Dandrieua: „Tento akord se obvykle hraje na čtvrtém stupni, subdominantě,
+            je-li následována dominantou."
+
+    supertonic_first_inv:
+        name: "První obrácení supertóniky"
+        source: "Christensen 2002, 13"
+        reason: >
+            2. stupeň v jiných kontextech bere sextovou číslici (první obrácení) podle
+            obecného francouzského pravidla pro supertóniku.
+
+    mediant_first_inv:
+        name: "Mediante jako průchodný sextakord"
+        source: "Lambert [1707]; Christensen 2002, 42"
+        reason: >
+            3. stupeň bere sextovou číslici (první obrácení), když působí jako vzestupný
+            průchodný tón procházející krokem. Podle St. Lamberta: „Kdykoli bas postupuje
+            po krocích, stačí harmonizovat noty na hlavních dobách taktu."
+
+    mediant_root:
+        reason: >
+            3. stupeň se zde objevuje skokem nebo jako strukturální nota. V tomto kontextu
+            podporuje základní polohu (5): v moll basová mediante často představuje dominantní
+            nebo mediantní trojzvuk v základní poloze.
+
+    ascending_submediant:
+        name: "Vzestupný submediant"
+        source: "Christensen 2002, 10"
+        reason: >
+            6. stupeň stoupající krokem bere základní polohu (5), čímž tvoří submediantní
+            trojzvuk (vi). To poskytuje harmonickou stabilitu před dalším vzestupem basu.
+
+    descending_submediant:
+        name: "Sestupný submediant"
+        source: "Dandrieu [1719]; Christensen 2002, 13"
+        reason: >
+            6. stupeň klesající krokem bere sextovou číslici (IV⁶ v dur). Podle Dandrieua:
+            „Obvykle se hraje na třetím stupni stupnice." První obrácení zabraňuje
+            harmonickému konfliktu a udržuje plynulé vedení hlasů.
+
+    submediant_root_major:
+        name: "Submediant v základní poloze (vi)"
+        source: "Christensen 2002, 10"
+        reason: >
+            6. stupeň se skokem nebo opakovanou notou bere v dur základní polohu,
+            čímž tvoří submediantní trojzvuk (vi).
+
+    submediant_first_inv_minor:
+        name: "Submediant v prvním obrácení (moll)"
+        source: "Christensen 2002, 10"
+        reason: >
+            6. stupeň se skokem nebo opakovanou notou bere v moll sextovou číslici
+            (první obrácení), protože mollový submediantní akord přirozeně stojí
+            v prvním obrácení.
+
+    dominant_seventh:
+        name: "Dominantní septakord (V⁷)"
+        source: "Rameau [1722], II.5; Christensen 2002, 28"
+        reason: >
+            Když 5. stupeň následuje sestupný krok, bere septimovou číslici (V⁷).
+            Podle Rameaua: „La dominante qui précède la tonique par degrés descendants
+            reçoit la septième." Dominantní septakord zesiluje harmonickou přitažlivost k tónice.
+
+    dominant_root:
+        name: "Dominanta v základní poloze (V)"
+        source: "Christensen 2002, 28"
+        reason: >
+            5. stupeň bez následujícího sestupného kroku bere základní polohu, čímž tvoří
+            dominantní trojzvuk (V). Úplný septakord není nutný bez silného rozváděcího pohybu.
+
+    tonic_root:
+        name: "Tónika v základní poloze (I)"
+        source: "Christensen 2002, 10"
+        reason: >
+            1. stupeň (tónika) vždy bere základní polohu, čímž tvoří tonický trojzvuk (I).
+            Tónická nota v basu představuje domácí akord v nejstabilnější formě.
+
+    cadential_64:
+        name: "Kadenciální kvartasextakord (6/4)"
+        source: "Heinichen [1728]; Christensen 2002, 72"
+        reason: >
+            Skok kvarty na 4. stupeň naznačuje kadenciální akord 6/4 (druhé obrácení).
+            Podle Heinichena: „Akordy 6/4 a 5/4 se nejčastěji vyskytují v kadencích; mají
+            se hrát v kadencích i bez výslovného uvedení v číslicích basu."
+
+    subdominant_root:
+        name: "Subdominanta v základní poloze (IV)"
+        source: "Christensen 2002, 10"
+        reason: >
+            4. stupeň bere ve většině kontextů základní polohu, čímž tvoří subdominantní
+            trojzvuk (IV). Bez specifického pohybového vzoru je základní poloha přirozená
+            harmonizace.
+
+    tritone_chord_iv:
+        name: "Tritonový akord na IV (V⁴₂)"
+        source: "Christensen 2002, 24"
+        reason: >
+            4. stupeň (subdominanta) následovaný sestupným krokem k mediantě (III) bere
+            tritonový akord (♯4), který se rozšiřuje na ♯4/6/2 — třetí obrácení dominantního
+            septakordu (V⁴₂). Podle Christensena §8: „Obvykle se hraje na čtvrtém stupni,
+            je-li následován mediantou (III)."
+
+    default_rule:
+        name: "Výchozí pravidlo (základní poloha)"
+        source: "Wead & Knopke, ICMC 2007"
+        reason: >
+            Žádné specifické pravidlo se neshodovalo s touto basovou notou. Výchozí
+            harmonizace je základní poloha (5) — nejneutrálnější a nejstabilnější
+            harmonizace podle záložního pravidla rozhodovacího stromu Wead & Knopke.
+
+# ── How It Works accordion ───────────────────────────────────────────────────
+how_it_works:
+    heading: "Jak to funguje"
+    algo_heading: "Přehled algoritmu"
+    algo_intro: >
+        Realizátor implementuje rozhodovací strom popsaný Wead & Knopke (ICMC 2007)
+        a vychází ze dvou hlavních barokních traktátů:
+    algo_gasparini: "L'Armonico Pratico al Cimbalo (3. vyd., 1729, Benátky)"
+    algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin (1724, Paříž)"
+    pipeline_heading: "Zpracovací pipeline"
+    step1: "Analýza — MusicXML je načteno; nejnižší hlasová část je vybrána jako basová linka."
+    step2: >
+        Detekce cifrovaného basu — Jsou-li přítomny elementy <figured-bass>, jsou použity
+        přímo. V opačném případě běží rozhodovací strom pro nečíslovaný bas.
+    step3: "Rozhodovací strom — Vypočítá stupeň (1–7) a melodický pohyb (krok/skok, nahoru/dolů), pak vybere číslice podle Gaspariniho/Delaira:"
+    step3_a: "Stupeň 7 (citlivý tón) → 6 (V⁶)"
+    step3_b: "Stupně 2, 3 → 6 (první obrácení)"
+    step3_c: "Stupeň 5 k tónice krokem → 7 (V⁷)"
+    step3_d: "Vzestupný krok na stupni 4 → 6 (průchodný)"
+    step3_e: "Vše ostatní → 5 (základní poloha)"
+    step4: "Rozšíření číslic — Zkrácené číslice jsou rozšířeny: 6→6, 7→7 5, 6 5→6 5, 4 3→4 3, 2→4 2."
+    step5: "Realizace hlasů — Tři horní hlasy (soprán, alt, tenor) jsou zvoleny tak, aby minimalizovaly celkový pohyb hlasů (zákon nejkratší cesty) při dodržení:"
+    step5_a: "Žádné paralelní kvinty ani oktávy"
+    step5_b: "Žádné křížení hlasů ani zdvojení citlivého tónu"
+    step5_c: "Rozsahy hlasů: soprán c′–g″, alt g–c″, tenor c–e′"
+    step6: "Export — Výstup je dvoudílný MusicXML: díl 1 = originální bas, díl 2 = realizace (horní hlasy 1–3 + bas)."
+    fb_heading: "Přehled notace cifrovaného basu"
+    fb_sec_triads: "Trojzvuky"
+    fb_sec_sevenths: "Septakordy"
+    fb_sec_ninths: "Nonakordy"
+    fb_sec_suspensions: "Průtahy"
+    fb_sec_chromatic: "Chromatické / Alterované"
+    fb_sec_special: "Zvláštní"
+    fb_none: "základní trojzvuk"
+    fb_6: "sextakord (první obrácení)"
+    fb_64: "kvartasextakord (druhé obrácení) — kadenciální nebo průchodný"
+    fb_7: "septakord, základní poloha"
+    fb_65: "septakord, první obrácení (varianta V⁶₅)"
+    fb_b5: "akord zmenšené kvinty = V⁶₅ (první obrácení dominantního septakordu)"
+    fb_43: "septakord, druhé obrácení / průtah 4–3"
+    fb_2: "septakord, třetí obrácení"
+    fb_sharp4: "tritonový akord = V⁴₂ (třetí obrácení dominantního septakordu)"
+    fb_9: "nonakord / průtah 9–8"
+    fb_97: "nóna se septimou"
+    fb_76: "průtah 7–6"
+    fb_54: "průtah 5–4 (–3)"
+    fb_sharp5: "zvětšený kvintový akord — 3, ♯5, 7, 9 (Christensen §14)"
+    fb_b7: "zmenšený septimový akord — 3, 5, ♭7 (Christensen §15)"
+    fb_8: "explicitní oktáva nad basem"
+    fb_acc: "předznamenání číslice — ♯ zvyšuje, ♭ snižuje, ♮ ruší alteraci"
+
+# ── Bibliography accordion ────────────────────────────────────────────────────
+bibliography:
+    heading: "Bibliografie"
+
+# ── IMSLP Browser ─────────────────────────────────────────────────────────────
+imslp:
+    browser_title: "Prohlížeč IMSLP"
+    petrucci_subtitle: "Hudební knihovna Petrucci"
+    back_to_realizer: "← Realizátor bassa continua"
+    back_to_search: "← Zpět na vyhledávání"
+    back_to_results: '← Zpět na výsledky pro „%q"'
+
+    # Search form
+    search_composer_title_label: "Skladatel / Název"
+    search_composer_title_placeholder: "např. Telemann, Sonáta…"
+    search_instrumentation_label: "Obsazení"
+    search_instrumentation_placeholder: "např. fl vn viol bc"
+    search_period_label: "Období"
+    search_period_any: "— všechna —"
+    search_genre_label: "Žánr"
+    search_genre_placeholder: "sonáty, koncerty…"
+    search_key_label: "Tónina"
+    search_key_placeholder: "d moll…"
+    search_year_from_label: "Rok od"
+    search_year_to_label: "do"
+    search_btn: "Hledat"
+
+    # AI search
+    ai_placeholder: "Popište, co hledáte… např. barokní triové sonáty pro dvě housle a basso continuo"
+    ai_btn: "Zeptat se AI"
+    ai_thinking: "Přemýšlím…"
+    ai_no_filters: "Nepodařilo se extrahovat žádné filtry. Zkuste to přeformulovat."
+    ai_request_failed: "Požadavek selhal. Zkontrolujte připojení."
+
+    # AI field labels
+    ai_field_instrumentation: "Obsazení"
+    ai_field_period: "Období"
+    ai_field_genre: "Žánr"
+    ai_field_key: "Tónina"
+    ai_field_year_from: "Od"
+    ai_field_year_to: "Do"
+    ai_field_composer: "Skladatel"
+    ai_field_title: "Název"
+
+    # DB status / import link
+    db_loading: "Načítám…"
+    db_import_status_link: "Stav importu ↗"
+    db_works: "děl"
+    db_with_detail: "s detaily"
+    db_composers: "skladatelů"
+
+    # Composer browse mode
+    work_count_singular: "dílo"
+    work_count_plural: "děl"
+    matching_filter: "odpovídající filtru"
+
+    # Section labels
+    section_composers: "Skladatelé"
+    section_works_with_title: 'Díla s „%q" v názvu'
+    section_filtered: "filtrováno"
+    no_title_matches: "Žádné shody v názvech."
+
+    # Filter mode
+    filter_works_found: "%count% dílo"
+    filter_works_found_plural: "%count% děl"
+    filter_page_of: "— strana %page% / %pages%"
+    filter_no_works: "Žádná díla nenalezena"
+    filter_instrumentation_note: "Filtr obsazení platí pouze pro díla se synchronizovanými detaily."
+
+    # Empty states
+    empty_no_filter_match_title: "Žádná díla neodpovídají tomuto filtru"
+    empty_no_filter_match_hint: "Zkuste odebrat filtr obsazení nebo období."
+    empty_no_results_title: 'Žádné výsledky pro „%q"'
+    empty_no_results_hint: "Zkuste jiný pravopis nebo obecnější hledaný výraz."
+    empty_no_filter_works_title: "Žádná díla nenalezena"
+    empty_no_filter_works_hint: "Zkuste jiné zkratky. Filtr obsazení platí pouze pro synchronizovaná díla."
+    empty_default_title: "Prohledat katalog IMSLP"
+    empty_default_hint: "Zadejte jméno skladatele nebo název díla výše."
+    empty_abbrev_hint: "Použijte pole obsazení s zkratkami IMSLP:"
+    empty_example_hint: "např."
+
+    # Abbreviation table
+    abbrev_instruments: "Nástroje"
+    abbrev_voices: "Hlasy"
+    abbrev_fl: "flétna"
+    abbrev_ob: "hoboj"
+    abbrev_cl: "klarinet"
+    abbrev_bn: "fagot"
+    abbrev_hn: "lesní roh"
+    abbrev_tr: "trubka"
+    abbrev_vn: "housle"
+    abbrev_va: "viola"
+    abbrev_vc: "violoncello"
+    abbrev_viol: "viola da gamba"
+    abbrev_db: "kontrabas"
+    abbrev_str: "smyčce"
+    abbrev_hpd: "cembalo"
+    abbrev_org: "varhany"
+    abbrev_pf: "klavír"
+    abbrev_lute: "loutna"
+    abbrev_bc: "basso continuo"
+    abbrev_sop: "soprán"
+    abbrev_mez: "mezzosoprán"
+    abbrev_alt: "alt"
+    abbrev_ten: "tenor"
+    abbrev_bass: "basový hlas"
+    abbrev_v: "hlas (libovolný)"
+    abbrev_ch: "sbor"
+    abbrev_mch: "mužský sbor"
+    abbrev_vv: "hlasy (např. 2vv)"
+
+    # Work detail page
+    work_back_to_search: "← Zpět na vyhledávání"
+    work_imslp_link: "IMSLP ↗"
+    work_youtube_link: "YouTube"
+    work_spotify_link: "Spotify"
+    work_no_detail_notice: "Podrobná data (obsazení, soubory) pro toto dílo dosud nebyla načtena. Spusťte příkaz fetch-details pro jejich doplnění, nebo navštivte stránku IMSLP přímo."
+    work_meta_key: "Tónina"
+    work_meta_instrumentation: "Obsazení"
+    work_meta_style: "Styl"
+    work_meta_year_composed: "Rok složení"
+    work_meta_year_published: "Rok vydání"
+    work_meta_type: "Typ"
+    work_meta_movements: "Části / Oddíly"
+    work_meta_tags: "Štítky"
+    work_files_title: "Soubory not"
+    work_files_editions: "%editions% vydání"
+    work_files_editions_plural: "%editions% vydání"
+    work_files_count: "%count% soubor"
+    work_files_count_plural: "%count% souborů"
+    work_edition_anonymous: "Anonymní vydání"
+    work_edition_submitted: "Odesláno %date%"
+    work_files_download_hint: "Stahujte soubory PDF přímo ze"
+    work_files_imslp_page: "stránky díla na IMSLP"
+
+    # Sync status page
+    sync_title: "Stav importu"
+    sync_subtitle: "Průběh synchronizace IMSLP a načítání detailů"
+    sync_back_to_browser: "← Zpět do prohlížeče IMSLP"
+    sync_phpmyadmin: "phpMyAdmin"
+    sync_auto_refresh: "Automatická obnova každých 10 s"
+    sync_card_composers: "Skladatelé"
+    sync_card_works: "Díla"
+    sync_card_details: "Detaily"
+    sync_badge_running: "● Běží"
+    sync_badge_idle: "Nečinný"
+    sync_btn_stop: "Zastavit"
+    sync_btn_stopping: "Zastavuji…"
+    sync_btn_sync_list: "Sync seznam"
+    sync_btn_syncing: "Synchronizuji…"
+    sync_btn_sync_dates: "Sync data"
+    sync_btn_fetching: "Načítám…"
+    sync_btn_import_works: "Importovat díla"
+    sync_btn_fetch_details: "Načíst detaily"
+    sync_btn_starting: "Spouštím…"
+    sync_btn_complete: "✓ Hotovo"
+    sync_log_list: "Log seznam"
+    sync_log_dates: "Log data"
+    sync_log_works: "Log"
+    sync_log_details: "Log"
+    sync_in_catalogue: "v katalogu"
+    sync_with_details: "s detaily"
+    sync_last_sync_list: "Seznam:"
+    sync_last_sync_dates: "Data:"
+    sync_composers_with_dates: "s daty"
+    sync_composers_without_dates: "bez dat"
+    sync_all_dates_fetched: "✓ Všechna data načtena"
+    sync_all_works_fetched: "✓ Všechna díla načtena"
+    sync_fetching_works: "Načítám nová díla z API IMSLP…"
+    sync_ready_resumes: "Připraveno — pokračuje od posledního offsetu"
+    sync_not_yet_run: "Dosud nespuštěno"
+    sync_works_remaining: "zbývající"
+    sync_of: "z"
+    sync_log_title: "Log"
+    sync_log_loading: "(načítám…)"
+    sync_log_no_output: "(zatím žádný výstup)"
+    sync_log_unavailable: "(log není dostupný)"
+    sync_last_sync: "Poslední sync:"

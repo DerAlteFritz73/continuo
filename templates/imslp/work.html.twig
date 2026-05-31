@@ -127,6 +127,7 @@ body {
     gap: .6rem;
     padding: .45rem 1.1rem;
     border-bottom: 1px solid #1e1e1e;
+    flex-wrap: wrap;
 }
 .file-row:last-child { border-bottom: none; }
 .file-desc {
@@ -223,13 +224,35 @@ body {
     color: #9a8878;
     margin-bottom: 1.5rem;
 }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .wrapper { padding: 1.5rem 1rem 2rem; }
+    .work-header h1 { font-size: 1.5rem; }
+    .work-header .composer-line { font-size: 1rem; }
+    .meta-grid { padding: 1rem; }
+    .file-name { text-align: left; }
+    .edition-header { padding: .65rem .9rem; }
+    .file-row { padding: .4rem .9rem; }
+}
+
+@media (max-width: 420px) {
+    .wrapper { padding: 1rem 0.75rem 2rem; }
+    .work-header h1 { font-size: 1.25rem; }
+    .back-link { font-size: .8rem; }
+    .imslp-link, .yt-link, .sp-link {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+    .meta-grid { padding: .85rem; border-radius: 8px; }
+}
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="wrapper">
 
-    <a class="back-link" href="javascript:history.back()">← Back to search</a>
+    <a class="back-link" href="javascript:history.back()">{{ 'imslp.work_back_to_search'|trans }}</a>
 
     <div class="work-header">
         <h1>{{ work.title }}</h1>
@@ -239,27 +262,25 @@ body {
         {% endif %}
     </div>
 
-    {% set searchQ = (work.title ~ (work.catalogNumber ? ' ' ~ work.catalogNumber : '') ~ ' ' ~ work.composer)|url_encode %}
+    {% set searchQ = (work.composer ~ ' ' ~ work.title)|url_encode %}
     <div class="ext-links">
         <a class="imslp-link" href="{{ work.permlink }}" target="_blank" rel="noopener">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 1.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM7 5v5h2V5H7zm0 6v1.5h2V11H7z"/></svg>
-            IMSLP ↗
+            {{ 'imslp.work_imslp_link'|trans }}
         </a>
         <a class="yt-link" href="https://www.youtube.com/results?search_query={{ searchQ }}" target="_blank" rel="noopener">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.01 2.01 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.01 2.01 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31 31 0 0 1 0 7.68v-.122C.002 7.343.01 6.6.064 5.78l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.01 2.01 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A100 100 0 0 1 7.858 2zM6.4 5.209v4.818l4.157-2.408z"/></svg>
-            YouTube
+            {{ 'imslp.work_youtube_link'|trans }}
         </a>
         <a class="sp-link" href="https://open.spotify.com/search/{{ searchQ }}" target="_blank" rel="noopener">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0m3.669 11.538a.5.5 0 0 1-.686.165c-1.879-1.147-4.243-1.407-7.028-.77a.499.499 0 0 1-.222-.973c3.048-.696 5.662-.397 7.77.892a.5.5 0 0 1 .166.686m.979-2.178a.624.624 0 0 1-.858.205c-2.15-1.321-5.428-1.704-7.972-.932a.625.625 0 0 1-.362-1.194c2.905-.881 6.517-.454 8.986 1.063a.624.624 0 0 1 .206.858m.084-2.268C10.154 5.56 5.9 5.419 3.438 6.166a.748.748 0 1 1-.434-1.432c2.825-.857 7.523-.692 10.492 1.07a.747.747 0 1 1-.764 1.288z"/></svg>
-            Spotify
+            {{ 'imslp.work_spotify_link'|trans }}
         </a>
     </div>
 
     {% if not work.hasDetail() %}
     <div class="notice">
-        Detail data (instrumentation, files) has not been fetched yet for this work.
-        Run <code>php bin/console app:imslp:fetch-details</code> to populate it,
-        or visit the IMSLP page directly.
+        {{ 'imslp.work_no_detail_notice'|trans }}
     </div>
     {% endif %}
 
@@ -267,26 +288,26 @@ body {
     {% if work.hasDetail() %}
     <dl class="meta-grid">
         {% if work.workKey %}
-        <div class="meta-item"><dt>Key</dt><dd>{{ work.workKey }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_key'|trans }}</dt><dd>{{ work.workKey }}</dd></div>
         {% endif %}
         {% if work.instrumentation %}
-        <div class="meta-item"><dt>Instrumentation</dt><dd>{{ work.instrumentation }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_instrumentation'|trans }}</dt><dd>{{ work.instrumentation }}</dd></div>
         {% endif %}
         {% if work.pieceStyle %}
-        <div class="meta-item"><dt>Style</dt><dd>{{ work.pieceStyle }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_style'|trans }}</dt><dd>{{ work.pieceStyle }}</dd></div>
         {% endif %}
         {% if work.yearComposed %}
-        <div class="meta-item"><dt>Year composed</dt><dd>{{ work.yearComposed }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_year_composed'|trans }}</dt><dd>{{ work.yearComposed }}</dd></div>
         {% endif %}
         {% if work.yearPublished %}
-        <div class="meta-item"><dt>Year published</dt><dd>{{ work.yearPublished }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_year_published'|trans }}</dt><dd>{{ work.yearPublished }}</dd></div>
         {% endif %}
         {% if work.pageType %}
-        <div class="meta-item"><dt>Type</dt><dd>{{ work.pageType }}</dd></div>
+        <div class="meta-item"><dt>{{ 'imslp.work_meta_type'|trans }}</dt><dd>{{ work.pageType }}</dd></div>
         {% endif %}
         {% if work.movements %}
         <div class="meta-item" style="grid-column:1/-1">
-            <dt>Movements / Sections</dt>
+            <dt>{{ 'imslp.work_meta_movements'|trans }}</dt>
             <dd>
                 <ul class="movements-list">
                 {% for line in work.movements|split('\n') %}
@@ -314,7 +335,7 @@ body {
         </div>
         {% endif %}
         {% if work.tags %}
-        <div class="meta-item" style="grid-column:1/-1"><dt>Tags</dt><dd>{{ work.tags }}</dd></div>
+        <div class="meta-item" style="grid-column:1/-1"><dt>{{ 'imslp.work_meta_tags'|trans }}</dt><dd>{{ work.tags }}</dd></div>
         {% endif %}
     </dl>
     {% endif %}
@@ -329,7 +350,8 @@ body {
         {# Count total files across all editions #}
         {% set totalFiles = 0 %}
         {% for ed in work.filesJson %}{% set totalFiles = totalFiles + ed.files|length %}{% endfor %}
-        <h2 class="section-title">Score files — {{ work.filesJson|length }} edition{{ work.filesJson|length != 1 ? 's' : '' }}, {{ totalFiles }} file{{ totalFiles != 1 ? 's' : '' }}</h2>
+        {% set edCount = work.filesJson|length %}
+        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} — {{ edCount != 1 ? 'imslp.work_files_editions_plural'|trans({'%editions%': edCount}) : 'imslp.work_files_editions'|trans({'%editions%': edCount}) }}, {{ totalFiles != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': totalFiles}) : 'imslp.work_files_count'|trans({'%count%': totalFiles}) }}</h2>
 
         {% for ed in work.filesJson %}
         <div class="edition-card">
@@ -342,12 +364,12 @@ body {
                     {% elseif ed.publisher is defined and ed.publisher %}
                         {{ ed.publisher }}
                     {% else %}
-                        <span style="color:#6a6058;font-style:italic">Anonymous edition</span>
+                        <span style="color:#6a6058;font-style:italic">{{ 'imslp.work_edition_anonymous'|trans }}</span>
                     {% endif %}
                 </div>
                 <div class="edition-meta">
                     {% if ed.dateSubmitted is defined and ed.dateSubmitted %}
-                    <span>Submitted {{ ed.dateSubmitted }}</span>
+                    <span>{{ 'imslp.work_edition_submitted'|trans({'%date%': ed.dateSubmitted}) }}</span>
                     {% endif %}
                     {% if ed.copyright is defined and ed.copyright %}
                     <span class="copyright">{{ ed.copyright }}</span>
@@ -369,7 +391,7 @@ body {
 
     {% else %}
         {# Legacy flat format — render as before #}
-        <h2 class="section-title">Score files ({{ work.filesJson|length }})</h2>
+        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} ({{ work.filesJson|length }})</h2>
         {% for file in work.filesJson %}
         <div class="edition-card">
             <div class="edition-header">
@@ -390,8 +412,8 @@ body {
     {% endif %}
 
     <p style="font-size:.8rem;color:#6a6058;margin-bottom:2rem;margin-top:.5rem;">
-        Download PDF files directly from the
-        <a href="{{ work.permlink }}" target="_blank" rel="noopener" style="color:#c8a96e">IMSLP work page</a>.
+        {{ 'imslp.work_files_download_hint'|trans }}
+        <a href="{{ work.permlink }}" target="_blank" rel="noopener" style="color:#c8a96e">{{ 'imslp.work_files_imslp_page'|trans }}</a>.
     </p>
     {% endif %}
 
