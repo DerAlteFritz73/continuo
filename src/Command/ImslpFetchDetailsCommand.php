@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(
     name: 'app:imslp:fetch-details',
@@ -23,6 +24,7 @@ class ImslpFetchDetailsCommand extends Command
         private readonly ImslpService           $imslp,
         private readonly ImslpWorkRepository    $workRepo,
         private readonly EntityManagerInterface $em,
+        private readonly CacheInterface         $cache,
     ) {
         parent::__construct();
     }
@@ -34,31 +36,41 @@ class ImslpFetchDetailsCommand extends Command
              ->addOption('delay', null, InputOption::VALUE_REQUIRED,
                 'Milliseconds to sleep between requests', 300)
              ->addOption('stop-file', null, InputOption::VALUE_REQUIRED,
-                'Path to a stop-file; process exits gracefully when the file appears', '');
+                'Path to a stop-file; process exits gracefully when the file appears', '')
+             ->addOption('refetch-no-tags', null, InputOption::VALUE_NONE,
+                'Re-fetch works that were synced but have no tags (to pick up category data)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $limit    = (int) $input->getOption('limit');
-        $delay    = (int) $input->getOption('delay');
-        $stopFile = (string) $input->getOption('stop-file');
+        $limit        = (int) $input->getOption('limit');
+        $delay        = (int) $input->getOption('delay');
+        $stopFile     = (string) $input->getOption('stop-file');
+        $refetchNoTags = (bool) $input->getOption('refetch-no-tags');
 
         $total   = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
-        $pending = $this->workRepo->countWithoutDetail();
+        $pending = $refetchNoTags
+            ? $this->workRepo->countWithoutTags()
+            : $this->workRepo->countWithoutDetail();
         $toFetch = ($limit > 0) ? min($limit, $pending) : $pending;
-        $offset  = $total - $pending; // works already fetched before this run
+        $fetched = $refetchNoTags
+            ? $total - $this->workRepo->countWithoutDetail()
+            : $total - $pending;
 
-        $output->writeln(sprintf('[%s] %d/%d works have detail data. Fetching %s now (batch=%d, delay=%dms).',
+        $mode = $refetchNoTags ? 'no-tags re-fetch' : 'detail fetch';
+        $output->writeln(sprintf('[%s] %s mode: %d/%d works have detail data; %d pending. Fetching %s now (batch=%d, delay=%dms).',
             $this->ts(),
-            $offset,
+            $mode,
+            $fetched,
             $total,
+            $pending,
             $toFetch === $pending ? 'all remaining' : $toFetch,
             self::BATCH,
             $delay
         ));
 
         if ($toFetch === 0) {
-            $output->writeln(sprintf('[%s] Nothing to fetch — all works already have detail data.', $this->ts()));
+            $output->writeln(sprintf('[%s] Nothing to fetch.', $this->ts()));
             return Command::SUCCESS;
         }
 
@@ -68,7 +80,9 @@ class ImslpFetchDetailsCommand extends Command
 
         while ($done < $toFetch) {
             $batchSize = min(self::BATCH, $toFetch - $done);
-            $works     = $this->workRepo->findWithoutDetail($batchSize);
+            $works     = $refetchNoTags
+                ? $this->workRepo->findWithoutTags($batchSize)
+                : $this->workRepo->findWithoutDetail($batchSize);
             if (empty($works)) break;
 
             foreach ($works as $work) {
@@ -92,22 +106,26 @@ class ImslpFetchDetailsCommand extends Command
                     $done++;
                     $eta = $this->eta($done, $toFetch, $startTime);
                     $output->writeln(sprintf('[%s] [%d/%d] SKIP %s (%s)%s',
-                        $this->ts(), $offset + $done, $total, $label, $e->getMessage(), $eta));
+                        $this->ts(), $fetched + $done, $total, $label, $e->getMessage(), $eta));
                     if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
                     continue;
                 }
                 $done++;
                 $eta = $this->eta($done, $toFetch, $startTime);
-                $output->writeln(sprintf('[%s] [%d/%d] %s%s', $this->ts(), $offset + $done, $total, $label, $eta));
+                $output->writeln(sprintf('[%s] [%d/%d] %s%s', $this->ts(), $fetched + $done, $total, $label, $eta));
                 if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
             }
 
             $this->em->clear();
         }
 
-        $remaining = $this->workRepo->countWithoutDetail();
+        $remaining = $refetchNoTags
+            ? $this->workRepo->countWithoutTags()
+            : $this->workRepo->countWithoutDetail();
         $output->writeln(sprintf('[%s] Done. Fetched %d works (%d errors). %d still pending.',
             $this->ts(), $done, $errors, $remaining));
+
+        $this->cache->delete('imslp.distinct_genres');
 
         return Command::SUCCESS;
     }

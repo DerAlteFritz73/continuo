@@ -239,9 +239,10 @@ class ImslpService
         $url = self::MW_API . '?' . http_build_query([
             'action'  => 'query',
             'pageids' => $work->getPageId(),
-            'prop'    => 'revisions',
+            'prop'    => 'revisions|categories',
             'rvprop'  => 'content',
             'rvslots' => 'main',
+            'cllimit' => '500',
             'format'  => 'json',
         ]);
 
@@ -274,6 +275,17 @@ class ImslpService
         }
 
         $parsed = $this->parseWikitext($wikitext);
+
+        // If the wikitext |Tags= field is empty, derive abbreviated tags from MediaWiki
+        // "For ..." categories (e.g. "Category:For 2 flutes, basso continuo" → "2fl bc").
+        // Some IMSLP works omit the Tags template field but are correctly categorised.
+        if ($parsed['tags'] === '') {
+            $categories = $page['categories'] ?? [];
+            $catTags    = $this->tagsFromCategories($categories);
+            if ($catTags !== '') {
+                $parsed['tags'] = $catTags;
+            }
+        }
 
         // Use DBAL directly to avoid ORM EntityManager closure on DB errors,
         // and to apply VARCHAR column limits explicitly.
@@ -315,6 +327,121 @@ class ImslpService
             'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
             [(new \DateTime())->format('Y-m-d H:i:s'), $pageId]
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Category → abbreviated tag conversion
+    // -------------------------------------------------------------------------
+
+    private const INSTR_TO_ABBR = [
+        'flute'          => 'fl',
+        'piccolo'        => 'pic',
+        'oboe'           => 'ob',
+        'cor anglais'    => 'ca',
+        'clarinet'       => 'cl',
+        'bassoon'        => 'bn',
+        'contrabassoon'  => 'cbn',
+        'horn'           => 'hn',
+        'trumpet'        => 'tp',
+        'trombone'       => 'tb',
+        'tuba'           => 'tba',
+        'violin'         => 'vn',
+        'viola'          => 'va',
+        'cello'          => 'vc',
+        'violoncello'    => 'vc',
+        'double bass'    => 'cb',
+        'contrabass'     => 'cb',
+        'basso continuo' => 'bc',
+        'continuo'       => 'bc',
+        'harpsichord'    => 'hpd',
+        'cembalo'        => 'hpd',
+        'organ'          => 'org',
+        'piano'          => 'pf',
+        'keyboard'       => 'kbd',
+        'lute'           => 'lute',
+        'theorbo'        => 'the',
+        'guitar'         => 'gt',
+        'recorder'       => 'rec',
+        'viola da gamba' => 'vdg',
+        'gamba'          => 'vdg',
+        'viol'           => 'vdg',
+        'strings'        => 'str',
+        'orchestra'      => 'orch',
+        'voice'          => 'v',
+        'soprano'        => 'sop',
+        'mezzo-soprano'  => 'mez',
+        'alto'           => 'alt',
+        'tenor'          => 'ten',
+        'baritone'       => 'bar',
+        'bass'           => 'bas',
+        'chorus'         => 'chor',
+        'choir'          => 'chor',
+    ];
+
+    /**
+     * Converts a list of MediaWiki category objects to a semicolon-delimited tag string.
+     * Only "For X, Y, Z" categories are processed; "For N players" is skipped.
+     */
+    private function tagsFromCategories(array $categories): string
+    {
+        $tagSections = [];
+        foreach ($categories as $cat) {
+            $title   = $cat['title'] ?? '';
+            $catText = preg_replace('/^Category:/i', '', $title);
+            if (!preg_match('/^For (.+)$/i', $catText, $m)) {
+                continue;
+            }
+            if (preg_match('/^For \d+ players?$/i', $catText)) {
+                continue;
+            }
+            $tag = $this->categoryTextToTag($m[1]);
+            if ($tag !== '') {
+                $tagSections[] = $tag;
+            }
+        }
+        return implode(' ; ', array_unique($tagSections));
+    }
+
+    /** "2 flutes, basso continuo" → "2fl bc" */
+    private function categoryTextToTag(string $text): string
+    {
+        $parts = array_map('trim', explode(',', strtolower($text)));
+        $abbrs = [];
+        foreach ($parts as $part) {
+            $abbr = $this->instrNameToAbbr($part);
+            if ($abbr !== '') {
+                $abbrs[] = $abbr;
+            }
+        }
+        return implode(' ', $abbrs);
+    }
+
+    private function instrNameToAbbr(string $name): string
+    {
+        $name = trim($name);
+        if (isset(self::INSTR_TO_ABBR[$name])) {
+            return self::INSTR_TO_ABBR[$name];
+        }
+        // Handle "N instrument(s)" — strip count and depluralize if needed
+        if (preg_match('/^(\d+)\s+(.+)$/', $name, $m)) {
+            $n    = $m[1];
+            $word = $m[2];
+            $abbr = self::INSTR_TO_ABBR[$word] ?? null;
+            if (!$abbr && str_ends_with($word, 's') && strlen($word) > 3) {
+                $abbr = self::INSTR_TO_ABBR[substr($word, 0, -1)] ?? null;
+            }
+            if ($abbr) {
+                return $n . $abbr;
+            }
+        }
+        // Try depluralize for single name
+        if (str_ends_with($name, 's') && strlen($name) > 3) {
+            $abbr = self::INSTR_TO_ABBR[substr($name, 0, -1)] ?? null;
+            if ($abbr) {
+                return $abbr;
+            }
+        }
+        return '';
     }
 
     // -------------------------------------------------------------------------
