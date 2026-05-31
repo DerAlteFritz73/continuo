@@ -1,0 +1,140 @@
+/* ── Score Viewer ───────────────────────────────────────── */
+.score-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    gap: 0;
+}
+.score-tab {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+}
+.score-tab:hover { color: var(--text); }
+.score-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.score-pane { display: none; }
+.score-pane.active { display: block; }
+
+/* ── Page navigation ────────────────────────────────────── */
+.page-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.page-nav-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.25rem 0.85rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, color 0.15s;
+    line-height: 1.4;
+}
+.page-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.page-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Params panel ───────────────────────────────────────── */
+.btn-params {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.82rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+}
+.btn-params:hover, .btn-params[aria-expanded="true"] {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.params-panel {
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.params-fieldset { border: none; padding: 0; margin: 0; }
+.params-legend {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: 0.5rem;
+}
+.params-radio {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 0.35rem;
+    user-select: none;
+}
+.params-radio input { cursor: pointer; accent-color: var(--accent); }
+
+/* ── Realize toolbar (show-computed toggle) ─────────────── */
+.real-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.3rem 0 0.5rem;
+}
+.cb-label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+}
+.cb-label input { cursor: pointer; accent-color: #7070b0; }
+.cb-swatch {
+    display: inline-block;
+    width: 1.8em;
+    height: 0.7em;
+    border-radius: 2px;
+    background: #7070b0;
+    opacity: 0.85;
+}
+
+/* ── Score wrap & placeholder ───────────────────────────── */
+.score-wrap {
+    background: #fff;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.score-wrap svg { max-width: 100%; height: auto; display: block; }
+.score-placeholder {
+    color: #888;
+    font-size: 0.88rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem;
+}
+.score-error { color: #c0392b; }
+
+/* Clickable chord / note hints in score */
+.chord-clickable, .note-clickable { cursor: pointer; }

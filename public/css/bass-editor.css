@@ -1,0 +1,118 @@
+/* ── Input card tabs (Compose / Import) ─────────────────── */
+#input-card { padding: 0; }
+.input-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    gap: 0;
+}
+.input-tab {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+}
+.input-tab:hover { color: var(--text); }
+.input-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.input-pane { display: none; }
+.input-pane.active { display: block; }
+.import-body { padding: 1.75rem 2rem 2rem; }
+
+/* ── Bass Line Editor ─────────────────────────────────────── */
+.ed-toolbar {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; background: rgba(0,0,0,0.08);
+}
+.ed-ctrl-group { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+.ed-ctrl-group label { white-space: nowrap; }
+.ed-ctrl-select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.8rem; cursor: pointer;
+}
+.ed-realize-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 5px;
+    padding: 0.35rem 0.9rem; font-size: 0.82rem; cursor: pointer; font-weight: 600; margin-left: auto;
+}
+.ed-realize-btn:hover { opacity: 0.85; }
+.ed-realize-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Duration bar */
+.ed-dur-bar {
+    display: flex; align-items: center; gap: 0.22rem;
+    padding: 0.38rem 0.8rem; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.ed-dur-lbl { font-size: 0.75rem; color: var(--muted); margin-right: 0.15rem; }
+.ed-dur-btn, .ed-dot-btn {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); padding: 0.16rem 0.45rem; font-size: 0.77rem; cursor: pointer;
+    transition: background 0.12s; white-space: nowrap;
+}
+.ed-dur-btn:hover, .ed-dot-btn:hover { background: rgba(255,255,255,0.06); }
+.ed-dur-btn.ed-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ed-dot-btn.ed-active { background: rgba(100,160,255,0.2); border-color: var(--accent); color: var(--accent); }
+.ed-acc-display { font-size: 0.95rem; min-width: 1.2rem; color: var(--accent); font-weight: bold; font-family: monospace; padding: 0 0.2rem; }
+.ed-acc-btn.ed-active { background: rgba(200,169,110,0.22); border-color: var(--accent); color: var(--accent); }
+
+/* Figure bar */
+.ed-fig-bar {
+    display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+    padding: 0.38rem 0.8rem; border-top: 1px solid var(--border);
+    font-size: 0.79rem; color: var(--muted); background: rgba(0,0,0,0.07);
+    min-height: 5rem;
+}
+.ed-fig-input {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.2rem 0.42rem;
+    font-family: inherit; font-size: 0.85rem; width: 100%; max-width: 9rem;
+    height: 1.8rem; line-height: 1.4;
+}
+.ed-fig-input:focus { outline: none; border-color: var(--accent); }
+.ed-fig-btn {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); padding: 0.16rem 0.45rem; font-size: 0.75rem; cursor: pointer;
+}
+.ed-fig-btn:hover { background: rgba(255,255,255,0.06); }
+.ed-fig-preview {
+    font-family: 'Figurato', monospace; font-size: 1.25rem; color: var(--accent);
+    min-width: 2rem; line-height: 1; align-self: center;
+}
+
+/* Status bar & help */
+.ed-status {
+    padding: 0.28rem 0.8rem; font-size: 0.74rem; color: var(--muted);
+    border-top: 1px solid var(--border); font-family: monospace; min-height: 1.5rem;
+}
+.ed-help {
+    padding: 0.4rem 0.8rem; font-size: 0.72rem; color: var(--muted);
+    border-top: 1px solid var(--border); background: rgba(0,0,0,0.1);
+}
+.ed-help-row { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.ed-help kbd {
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 3px; padding: 0.03rem 0.26rem; font-size: 0.69rem; font-family: monospace;
+}
+
+/* Score area focus ring */
+#ed-score-wrap:focus { box-shadow: 0 0 0 2px var(--accent); }
+#ed-score-wrap .score-placeholder { color: #666; }
+
+/* Cursor blink animation */
+@keyframes ed-blink { 50% { opacity: 0; } }
+.ed-cursor-blink { animation: ed-blink 0.9s step-end infinite; }
+
+/* ── Mobile ─────────────────────────────────────────────── */
+@media (max-width: 540px) {
+    .ed-toolbar { gap: 0.5rem; padding: 0.5rem; }
+    .ed-realize-btn { margin-left: 0; width: 100%; }
+    .ed-dur-bar { gap: 0.18rem; }
+    .ed-fig-bar { min-height: auto; }
+    .ed-fig-input { max-width: 100%; }
+    .ed-help { display: none; }
+    .input-tab { padding: 0.65rem 1rem; font-size: 0.85rem; }
+    .import-body { padding: 1.25rem; }
+}

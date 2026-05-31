@@ -1,0 +1,92 @@
+/* ── Info Accordion ─────────────────────────────────────── */
+.accordion {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 2rem;
+}
+.accordion-header {
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: var(--muted);
+    user-select: none;
+    list-style: none;
+}
+.accordion-header:hover { color: var(--text); }
+.accordion-body {
+    display: none;
+    padding: 1.25rem;
+    background: var(--surface2);
+    font-size: 0.84rem;
+    color: var(--muted);
+    line-height: 1.7;
+}
+.accordion-body.open { display: block; }
+.accordion-body ul { padding-left: 1.4em; }
+.accordion-body li { margin-bottom: 0.35rem; }
+.accordion-body strong { color: var(--text); }
+.accordion-body h4 {
+    font-family: 'Playfair Display', serif;
+    color: var(--accent);
+    font-size: 0.95rem;
+    margin: 0.75rem 0 0.4rem;
+}
+.accordion-chevron { transition: transform 0.2s; font-size: 0.75rem; }
+.accordion-chevron.open { transform: rotate(180deg); }
+.accordion-body a { color: #8090a8; }
+.accordion-body a:hover { color: #a0b4cc; }
+
+/* ── Figured Bass reference table ───────────────────────── */
+.fb-ref { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin-top: 0.4rem; }
+.fb-ref td { padding: 0.15rem 0.75rem 0.15rem 0; vertical-align: baseline; }
+.fb-ref td:first-child { font-family: monospace; white-space: nowrap; font-weight: 600; color: var(--text); width: 8rem; }
+.fb-ref .fb-int { color: var(--muted); font-family: monospace; width: 5rem; }
+.fb-ref tr.fb-sec td { padding-top: 0.65rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+
+/* ── Voice Leading Rules ─────────────────────────────────── */
+.rules-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.rule-card { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.rule-card > summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    list-style: none;
+    gap: 1rem;
+}
+.rule-card > summary::-webkit-details-marker { display: none; }
+.rule-card > summary:hover { background: var(--surface2); }
+.rule-card-left { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.rule-name { font-weight: 600; color: var(--text); font-size: 0.88rem; }
+.rule-source { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rule-card-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.rule-priority { font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rule-badge { font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 3px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em; }
+.rule-enabled  { background: rgba(100,200,130,0.12); color: #64c882; border: 1px solid rgba(100,200,130,0.3); }
+.rule-disabled { background: rgba(200,100,100,0.12); color: #c86464; border: 1px solid rgba(200,100,100,0.3); }
+.rule-card-body { padding: 0.8rem 0.9rem 0.9rem; border-top: 1px solid var(--border); }
+.rule-original { font-style: italic; color: var(--muted); font-size: 0.82rem; margin-bottom: 0.35rem; line-height: 1.5; }
+.rule-translation { color: var(--text); font-size: 0.85rem; line-height: 1.55; margin-bottom: 0.6rem; }
+.rule-impl-toggle > summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; user-select: none; }
+.rule-impl-toggle > summary:hover { color: var(--text); }
+.rule-impl-toggle[open] > summary { color: var(--accent); }
+.rule-code {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.72rem;
+    font-family: 'Courier New', monospace;
+    overflow-x: auto;
+    margin-top: 0.4rem;
+    white-space: pre;
+    line-height: 1.5;
+    color: var(--text);
+}

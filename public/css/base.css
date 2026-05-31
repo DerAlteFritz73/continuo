@@ -1,0 +1,31 @@
+/* ── Figurato font ──────────────────────────────────────── */
+@font-face {
+    font-family: 'Figurato';
+    src: url('/fonts/Figurato.otf') format('opentype');
+    font-display: swap;
+}
+
+/* ── Reset & Variables ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --bg:       #0d0f14;
+    --surface:  #161923;
+    --surface2: #1e2430;
+    --border:   #2a3244;
+    --accent:   #c8a96e;
+    --accent2:  #7eb8b0;
+    --danger:   #e07070;
+    --text:     #e8e4dc;
+    --muted:    #8090a8;
+    --radius:   12px;
+    --shadow:   0 4px 32px rgba(0,0,0,.5);
+}
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+.wrapper { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+@media (max-width: 540px) { .wrapper { padding: 1.25rem 0.9rem 2.5rem; } }

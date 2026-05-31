@@ -1,0 +1,60 @@
+/* ── Result Panel ───────────────────────────────────────── */
+#result-panel { display: none; }
+#result-panel.visible { display: block; }
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.summary-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    text-align: center;
+}
+.summary-item .val {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent);
+    font-family: 'Playfair Display', serif;
+    display: block;
+    line-height: 1.3;
+}
+.summary-item .lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.chord-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.chord-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--accent2);
+    font-family: 'Playfair Display', serif;
+}
+.chord-pill .count { color: var(--muted); font-size: 0.75rem; margin-left: 0.3em; }
+
+/* ── XML Preview ────────────────────────────────────────── */
+.xml-preview {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 220px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 0.76rem;
+    color: #7a9ab8;
+    white-space: pre;
+    margin-top: 1rem;
+    line-height: 1.5;
+}
+.xml-preview::-webkit-scrollbar { width: 6px; }
+.xml-preview::-webkit-scrollbar-track { background: var(--surface); }
+.xml-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
