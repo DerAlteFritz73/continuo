@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 #[Route('/imslp')]
 class ImslpController extends AbstractController
@@ -26,6 +28,7 @@ class ImslpController extends AbstractController
         private readonly ImslpAiSearchService   $aiSearch,
         private readonly EntityManagerInterface $em,
         private readonly Connection             $db,
+        private readonly CacheInterface         $cache,
     ) {}
 
     #[Route('', name: 'app_imslp', methods: ['GET'])]
@@ -116,7 +119,7 @@ class ImslpController extends AbstractController
             'composerMatches' => $composerMatches,
             'composerStyle'   => $composerStyle,
             'styles'   => self::STYLES,
-            'genres'   => $this->workRepo->findDistinctGenres(),
+            'genres'   => $this->cachedDistinctGenres(),
             'mode'     => $mode,
         ]);
     }
@@ -162,7 +165,10 @@ class ImslpController extends AbstractController
     #[Route('/sync-status', name: 'app_imslp_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request): Response
     {
-        $data = $this->buildStatusData();
+        $data = $this->cache->get('imslp.sync_status', function (ItemInterface $item): array {
+            $item->expiresAfter(60);
+            return $this->buildStatusData();
+        });
 
         if ($request->query->has('json')) {
             return $this->json($data);
@@ -244,16 +250,7 @@ class ImslpController extends AbstractController
     #[Route('/composers-log', name: 'app_imslp_composers_log', methods: ['GET'])]
     public function composersLog(): Response
     {
-        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-composers.log';
-
-        if (!file_exists($logFile)) {
-            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
-        }
-
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -200);
-
-        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+        return $this->tailLog($this->getParameter('kernel.project_dir') . '/var/log/imslp-composers.log');
     }
 
     #[Route('/sync-works/start', name: 'app_imslp_sync_works_start', methods: ['POST'])]
@@ -294,31 +291,13 @@ class ImslpController extends AbstractController
     #[Route('/sync-log', name: 'app_imslp_sync_log', methods: ['GET'])]
     public function syncLog(): Response
     {
-        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-sync.log';
-
-        if (!file_exists($logFile)) {
-            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
-        }
-
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -200);
-
-        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+        return $this->tailLog($this->getParameter('kernel.project_dir') . '/var/log/imslp-sync.log');
     }
 
     #[Route('/fetch-log', name: 'app_imslp_fetch_log', methods: ['GET'])]
     public function fetchLog(): Response
     {
-        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-fetch.log';
-
-        if (!file_exists($logFile)) {
-            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
-        }
-
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -200);
-
-        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+        return $this->tailLog($this->getParameter('kernel.project_dir') . '/var/log/imslp-fetch.log');
     }
 
     #[Route('/sync-dates/start', name: 'app_imslp_sync_dates_start', methods: ['POST'])]
@@ -359,21 +338,31 @@ class ImslpController extends AbstractController
     #[Route('/dates-log', name: 'app_imslp_dates_log', methods: ['GET'])]
     public function datesLog(): Response
     {
-        $logFile = $this->getParameter('kernel.project_dir') . '/var/log/imslp-dates.log';
-
-        if (!file_exists($logFile)) {
-            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
-        }
-
-        $lines = file($logFile, FILE_IGNORE_NEW_LINES);
-        $tail  = array_slice($lines, -200);
-
-        return new Response(implode("\n", $tail), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+        return $this->tailLog($this->getParameter('kernel.project_dir') . '/var/log/imslp-dates.log');
     }
 
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    private function cachedDistinctGenres(): array
+    {
+        return $this->cache->get('imslp.distinct_genres', function (ItemInterface $item): array {
+            $item->expiresAfter(3600);
+            return $this->workRepo->findDistinctGenres();
+        });
+    }
+
+    private function tailLog(string $logFile, int $lines = 200): Response
+    {
+        if (!file_exists($logFile)) {
+            return new Response('(no log file yet)', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        $output = shell_exec('tail -' . (int) $lines . ' ' . escapeshellarg($logFile));
+
+        return new Response($output ?? '', 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
 
     private function buildStatusData(): array
     {

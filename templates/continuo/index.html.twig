@@ -7,369 +7,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-/* ── Reset & Variables ──────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-    --bg:       #0d0f14;
-    --surface:  #161923;
-    --surface2: #1e2430;
-    --border:   #2a3244;
-    --accent:   #c8a96e;
-    --accent2:  #7eb8b0;
-    --danger:   #e07070;
-    --text:     #e8e4dc;
-    --muted:    #8090a8;
-    --radius:   12px;
-    --shadow:   0 4px 32px rgba(0,0,0,.5);
-}
-body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.6;
-}
-.wrapper { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
-
-/* ── Header ─────────────────────────────────────────────── */
-.site-header { text-align: center; padding: 3rem 0 2rem; }
-.site-header .subtitle {
-    font-family: 'Playfair Display', serif;
-    font-style: italic;
-    color: var(--muted);
-    font-size: 0.95rem;
-    margin-bottom: 0.5rem;
-    letter-spacing: 0.05em;
-}
-.site-header h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    font-weight: 700;
-    color: var(--accent);
-    line-height: 1.2;
-}
-.site-header .desc {
-    color: var(--muted);
-    margin-top: 0.75rem;
-    font-size: 0.92rem;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-}
-.staff-deco {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 1.5rem auto;
-    max-width: 400px;
-}
-.staff-deco .line { flex: 1; height: 1px; background: var(--border); }
-.staff-deco .clef { font-size: 2.8rem; color: var(--accent); line-height: 1; opacity: 0.7; }
-
-/* ── Card ───────────────────────────────────────────────── */
-.card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 2rem;
-    box-shadow: var(--shadow);
-}
-.card + .card { margin-top: 1.5rem; }
-.card-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.15rem;
-    color: var(--accent);
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-/* ── Drop Zone ──────────────────────────────────────────── */
-.drop-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 3rem 2rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    position: relative;
-}
-.drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--accent);
-    background: rgba(200,169,110,0.05);
-}
-.drop-zone input[type="file"] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-}
-.drop-zone .icon {
-    font-size: 3rem; margin-bottom: 0.75rem; display: block; color: var(--accent); opacity: 0.6;
-}
-.drop-zone .label { font-size: 1rem; color: var(--text); font-weight: 500; }
-.drop-zone .hint { font-size: 0.82rem; color: var(--muted); margin-top: 0.35rem; }
-.drop-zone.has-file { border-style: solid; border-color: var(--accent2); background: rgba(126,184,176,0.05); }
-.file-name {
-    display: none;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    padding: 0.6rem 1rem;
-    background: var(--surface2);
-    border-radius: 8px;
-    font-size: 0.88rem;
-    color: var(--accent2);
-    font-weight: 500;
-    justify-content: center;
-}
-.file-name.visible { display: flex; }
-
-/* ── Button ─────────────────────────────────────────────── */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 2rem;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
-}
-.btn:active { transform: translateY(1px); }
-.btn-primary { background: linear-gradient(135deg, var(--accent), #a88a50); color: #0d0f14; }
-.btn-primary:hover { box-shadow: 0 4px 20px rgba(200,169,110,0.35); }
-.btn-dl { background: var(--accent2); color: #0d0f14; }
-.btn-dl:hover { box-shadow: 0 4px 20px rgba(126,184,176,0.35); }
-.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
-.btn-row { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center; }
-
-/* ── Progress / Spinner ─────────────────────────────────── */
-.progress-wrap {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    padding: 2rem;
-}
-.progress-wrap.visible { display: flex; }
-.spinner {
-    width: 44px; height: 44px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.progress-text { color: var(--muted); font-size: 0.9rem; }
-
-/* ── Alert ──────────────────────────────────────────────── */
-.alert {
-    padding: 0.9rem 1.2rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    margin-bottom: 1rem;
-}
-.alert-error {
-    background: rgba(224,112,112,0.12);
-    border: 1px solid rgba(224,112,112,0.3);
-    color: var(--danger);
-}
-.alert-success {
-    background: rgba(126,184,176,0.12);
-    border: 1px solid rgba(126,184,176,0.3);
-    color: var(--accent2);
-}
-
-/* ── Result Panel ───────────────────────────────────────── */
-#result-panel { display: none; }
-#result-panel.visible { display: block; }
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-.summary-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.9rem 1rem;
-    text-align: center;
-}
-.summary-item .val {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: var(--accent);
-    font-family: 'Playfair Display', serif;
-    display: block;
-    line-height: 1.3;
-}
-.summary-item .lbl {
-    font-size: 0.72rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-.chord-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
-.chord-pill {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.82rem;
-    color: var(--accent2);
-    font-family: 'Playfair Display', serif;
-}
-.chord-pill .count { color: var(--muted); font-size: 0.75rem; margin-left: 0.3em; }
-
-/* ── XML Preview ────────────────────────────────────────── */
-.xml-preview {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1rem;
-    max-height: 220px;
-    overflow-y: auto;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-    font-size: 0.76rem;
-    color: #7a9ab8;
-    white-space: pre;
-    margin-top: 1rem;
-    line-height: 1.5;
-}
-.xml-preview::-webkit-scrollbar { width: 6px; }
-.xml-preview::-webkit-scrollbar-track { background: var(--surface); }
-.xml-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ── Info Accordion ─────────────────────────────────────── */
-.accordion {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-top: 2rem;
-}
-.accordion-header {
-    padding: 1rem 1.25rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--surface);
-    font-weight: 500;
-    font-size: 0.88rem;
-    color: var(--muted);
-    user-select: none;
-    list-style: none;
-}
-.accordion-header:hover { color: var(--text); }
-.accordion-body {
-    display: none;
-    padding: 1.25rem;
-    background: var(--surface2);
-    font-size: 0.84rem;
-    color: var(--muted);
-    line-height: 1.7;
-}
-.accordion-body.open { display: block; }
-.accordion-body ul { padding-left: 1.4em; }
-.accordion-body li { margin-bottom: 0.35rem; }
-.accordion-body strong { color: var(--text); }
-.accordion-body h4 {
-    font-family: 'Playfair Display', serif;
-    color: var(--accent);
-    font-size: 0.95rem;
-    margin: 0.75rem 0 0.4rem;
-}
-.accordion-chevron { transition: transform 0.2s; font-size: 0.75rem; }
-.accordion-chevron.open { transform: rotate(180deg); }
-
-/* ── Score Viewer ───────────────────────────────────────── */
-.score-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 1.25rem;
-    gap: 0;
-}
-.score-tab {
-    padding: 0.65rem 1.25rem;
-    font-size: 0.88rem;
-    font-weight: 500;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
-    user-select: none;
-}
-.score-tab:hover { color: var(--text); }
-.score-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.score-pane { display: none; }
-.score-pane.active { display: block; }
-.page-nav {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    margin: 0 0 0.75rem;
-    font-size: 0.85rem;
-    color: var(--muted);
-}
-.page-nav-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    padding: 0.25rem 0.85rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: border-color 0.15s, color 0.15s;
-    line-height: 1.4;
-}
-.page-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.page-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.score-wrap {
-    background: #fff;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    overflow-x: auto;
-    min-height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.score-wrap svg { max-width: 100%; height: auto; display: block; }
-.score-placeholder {
-    color: #888;
-    font-size: 0.88rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 2rem;
-}
-.score-error { color: #c0392b; }
-
-/* ── Footer ─────────────────────────────────────────────── */
-footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.8rem;
-    padding: 2rem 0;
-    border-top: 1px solid var(--border);
-    margin-top: 3rem;
-}
-footer a { color: var(--accent); text-decoration: none; }
-footer a:hover { text-decoration: underline; }
-</style>
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/header.css">
+<link rel="stylesheet" href="/css/card.css">
+<link rel="stylesheet" href="/css/result.css">
+<link rel="stylesheet" href="/css/accordion.css">
+<link rel="stylesheet" href="/css/score.css">
+<link rel="stylesheet" href="/css/bass-editor.css">
+<link rel="stylesheet" href="/css/chord-inspector.css">
+<link rel="stylesheet" href="/css/playback.css">
+<link rel="stylesheet" href="/css/layout.css">
 {% endblock %}
 
 {% block body %}
@@ -377,76 +24,175 @@ footer a:hover { text-decoration: underline; }
 
     <!-- Header -->
     <header class="site-header">
-        <p class="subtitle">Baroque Music Technology</p>
-        <h1>Basso Continuo Realizer</h1>
+        <p class="subtitle">{{ 'app.subtitle'|trans }}</p>
+        <h1>{{ 'app.title'|trans }}</h1>
         <div class="staff-deco">
             <div class="line"></div>
             <span class="clef">𝄢</span>
             <div class="line"></div>
         </div>
-        <p class="desc">
-            Upload a MusicXML file containing a bass line to generate an historically-informed
-            continuo realization using rules from Gasparini (1708), Delair (1724), and the
-            Wead–Knopke decision tree (ICMC 2007).
-        </p>
+        <p class="desc">{{ 'app.desc'|trans }}</p>
     </header>
 
-    <!-- Upload Card -->
-    <div class="card">
-        <div class="card-title">Upload Score</div>
+    <!-- Input card: Compose / Import tabs -->
+    <div class="card" id="input-card">
 
-        {% if error is defined and error %}
-        <div class="alert alert-error">
-            <span>⚠</span>
-            <span>{{ error }}</span>
+        <div class="input-tabs" id="input-tabs">
+            <div class="input-tab active" data-pane="pane-compose">♩ Enter notes</div>
+            <div class="input-tab"        data-pane="pane-import">⬆ Import</div>
         </div>
-        {% endif %}
 
-        <form id="upload-form" action="{{ path('app_realize_preview') }}" method="post" enctype="multipart/form-data">
-            <div class="drop-zone" id="drop-zone">
-                <input type="file" name="musicxml" id="file-input" accept=".xml,.musicxml,.mxl">
-                <span class="icon">𝄞</span>
-                <div class="label">Drop your MusicXML file here</div>
-                <div class="hint">or click to browse &mdash; .xml / .musicxml files, max 5 MB</div>
+        <!-- ── Compose pane (speedy entry) ── -->
+        <div class="input-pane active" id="pane-compose">
+            <div class="ed-toolbar">
+                <div class="ed-ctrl-group">
+                    <label>Key</label>
+                    <select class="ed-ctrl-select" id="ed-key">
+                        <option value="-7">C♭ / A♭m</option>
+                        <option value="-6">G♭ / E♭m</option>
+                        <option value="-5">D♭ / B♭m</option>
+                        <option value="-4">A♭ / Fm</option>
+                        <option value="-3">E♭ / Cm</option>
+                        <option value="-2">B♭ / Gm</option>
+                        <option value="-1">F / Dm</option>
+                        <option value="0" selected>C / Am</option>
+                        <option value="1">G / Em</option>
+                        <option value="2">D / Bm</option>
+                        <option value="3">A / F♯m</option>
+                        <option value="4">E / C♯m</option>
+                        <option value="5">B / G♯m</option>
+                        <option value="6">F♯ / D♯m</option>
+                        <option value="7">C♯ / A♯m</option>
+                    </select>
+                </div>
+                <div class="ed-ctrl-group">
+                    <label>Time</label>
+                    <select class="ed-ctrl-select" id="ed-time">
+                        <option value="4/4" selected>4/4</option>
+                        <option value="3/4">3/4</option>
+                        <option value="2/4">2/4</option>
+                        <option value="2/2">2/2 (¢)</option>
+                        <option value="6/8">6/8</option>
+                        <option value="3/8">3/8</option>
+                    </select>
+                </div>
+                <button class="ed-realize-btn" id="ed-realize-btn" disabled>♩ Realize</button>
             </div>
-            <div class="file-name" id="file-name-display">
-                <span>📄</span>
-                <span id="file-name-text"></span>
+            <div class="ed-dur-bar">
+                <span class="ed-dur-lbl">Dur:</span>
+                <button class="ed-dur-btn" data-dur="whole"   title="Whole (key 7)">W</button>
+                <button class="ed-dur-btn" data-dur="half"    title="Half (key 6)">H</button>
+                <button class="ed-dur-btn ed-active" data-dur="quarter" title="Quarter (key 5)">Q</button>
+                <button class="ed-dur-btn" data-dur="eighth"  title="Eighth (key 4)">8</button>
+                <button class="ed-dur-btn" data-dur="16th"    title="16th (key 3)">16</button>
+                <button class="ed-dot-btn" id="ed-dot-btn"    title="Dotted (key .)">·</button>
+                <span style="width:.5rem"></span>
+                <button class="ed-dur-btn ed-acc-btn" id="ed-flat-btn"    data-acc="-1" title="Flat prefix (key -)">♭</button>
+                <button class="ed-dur-btn ed-acc-btn" id="ed-natural-btn" data-acc="0"  title="Natural prefix (key =)">♮</button>
+                <button class="ed-dur-btn ed-acc-btn" id="ed-sharp-btn"   data-acc="1"  title="Sharp prefix (key +)">♯</button>
+                <span class="ed-acc-display" id="ed-acc-display"></span>
             </div>
+            <div class="score-wrap" id="ed-score-wrap" tabindex="0" style="min-height:280px;outline:none;cursor:text">
+                <div class="score-placeholder"><div class="spinner" style="width:22px;height:22px;border-width:2px"></div></div>
+            </div>
+            <div class="ed-fig-bar">
+                <span>Figures for selected note</span>
+                <span style="color:var(--muted);font-size:0.73rem;margin-left:.25rem">(Tab)</span>
+                <span style="flex:1"></span>
+                <input type="text" class="ed-fig-input" id="ed-fig-input"
+                       placeholder="7,s" autocomplete="off" spellcheck="false">
+                <button class="ed-fig-btn" id="ed-fig-set" title="Apply (Enter)">✓</button>
+                <span class="ed-fig-preview" id="ed-fig-preview"></span>
+            </div>
+            <div class="ed-status" id="ed-status"></div>
+            <div class="ed-help">
+                <div class="ed-help-row">
+                    <span><kbd>↑</kbd><kbd>↓</kbd> pitch &nbsp;<kbd>⇧↑↓</kbd> octave</span>
+                    <span><kbd>7</kbd> whole &nbsp;<kbd>6</kbd> half &nbsp;<kbd>5</kbd> quarter &nbsp;<kbd>4</kbd> 8th &nbsp;<kbd>3</kbd> 16th</span>
+                    <span><kbd>.</kbd> dot &nbsp;<kbd>R</kbd> rest &nbsp;<kbd>=</kbd> tie</span>
+                    <span><kbd>-</kbd> ♭ &nbsp;<kbd>*</kbd> ♮ &nbsp;<kbd>+</kbd> ♯</span>
+                    <span><kbd>←</kbd><kbd>→</kbd> navigate &nbsp;<kbd>⌫</kbd> delete</span>
+                    <span><kbd>Tab</kbd> figures</span>
+                </div>
+            </div>
+        </div>
 
-            <div class="btn-row">
-                <button type="submit" class="btn btn-primary" id="realize-btn" disabled>
-                    <span>♩</span>
-                    Realize Continuo
-                </button>
-                <button type="button" class="btn btn-secondary" id="clear-btn" style="display:none">
-                    Clear
-                </button>
-                <span id="sample-hint" style="font-size:0.82rem;color:var(--muted);margin-left:0.25rem">
-                    &larr; or
-                    <a href="#" id="load-sample-btn"
-                       style="color:var(--accent);text-decoration:none;font-weight:500">
-                       load sample file
-                    </a>
-                </span>
-            </div>
-        </form>
+        <!-- ── Import pane (file upload) ── -->
+        <div class="input-pane" id="pane-import">
+            <div class="import-body">
+                {% if error is defined and error %}
+                <div class="alert alert-error">
+                    <span>⚠</span>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
 
-        <!-- Spinner -->
+                <form id="upload-form" action="{{ path('app_realize_preview') }}" method="post" enctype="multipart/form-data">
+                    <div class="drop-zone" id="drop-zone">
+                        <input type="file" name="musicxml" id="file-input" accept=".xml,.musicxml,.mxl">
+                        <span class="icon">𝄞</span>
+                        <div class="label">{{ 'upload.drop_label'|trans }}</div>
+                        <div class="hint">{{ 'upload.drop_hint'|trans }}</div>
+                    </div>
+                    <div class="file-name" id="file-name-display">
+                        <span>📄</span>
+                        <span id="file-name-text"></span>
+                    </div>
+
+                    <div class="btn-row">
+                        <button type="submit" class="btn btn-primary" id="realize-btn" disabled>
+                            <span>♩</span>
+                            {{ 'upload.realize_btn'|trans }}
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="clear-btn" style="display:none">
+                            {{ 'upload.clear_btn'|trans }}
+                        </button>
+                        <button type="button" class="btn btn-params" id="params-btn" aria-expanded="false" aria-controls="params-panel">
+                            ⚙ {{ 'params.btn'|trans }}
+                        </button>
+                        <span id="sample-hint" style="font-size:0.82rem;color:var(--muted);margin-left:0.25rem">
+                            &larr; or
+                            <a href="#" id="load-sample-btn"
+                               style="color:var(--accent);text-decoration:none;font-weight:500">
+                               {{ 'upload.sample_hint'|trans }}
+                            </a>
+                        </span>
+                    </div>
+
+                    <!-- Params panel (collapsed by default) -->
+                    <div class="params-panel" id="params-panel" style="display:none">
+                        <fieldset class="params-fieldset">
+                            <legend class="params-legend">{{ 'params.voices_label'|trans }}</legend>
+                            <label class="params-radio">
+                                <input type="radio" name="voices" value="4" checked>
+                                {{ 'params.voices_4'|trans }}
+                            </label>
+                            <label class="params-radio">
+                                <input type="radio" name="voices" value="3">
+                                {{ 'params.voices_3'|trans }}
+                            </label>
+                        </fieldset>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Spinner (shared between both panes) -->
         <div class="progress-wrap" id="progress-wrap">
             <div class="spinner"></div>
-            <p class="progress-text">Analyzing bass line and realizing harmony&hellip;</p>
+            <p class="progress-text">{{ 'upload.progress'|trans }}</p>
         </div>
+
     </div>
 
     <!-- Result Panel -->
     <div id="result-panel">
         <div class="card">
-            <div class="card-title">Realization Complete</div>
+            <div class="card-title">{{ 'result.card_title'|trans }}</div>
 
             <div class="alert alert-success" id="success-msg">
                 <span>✓</span>
-                <span>Continuo realization generated successfully.</span>
+                <span>{{ 'result.success_msg'|trans }}</span>
             </div>
 
             <!-- Summary grid -->
@@ -456,34 +202,69 @@ footer a:hover { text-decoration: underline; }
 
             <!-- Top chords -->
             <div id="chord-section" style="display:none">
-                <p style="font-size:0.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Most frequent harmonies</p>
+                <p style="font-size:0.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">{{ 'result.top_chords'|trans }}</p>
                 <div class="chord-pills" id="chord-pills"></div>
             </div>
 
             <!-- XML preview -->
             <div>
-                <p style="font-size:0.82rem;color:var(--muted);margin-top:1rem;text-transform:uppercase;letter-spacing:.06em">Output preview</p>
+                <p style="font-size:0.82rem;color:var(--muted);margin-top:1rem;text-transform:uppercase;letter-spacing:.06em">{{ 'result.output_preview'|trans }}</p>
                 <div class="xml-preview" id="xml-preview"></div>
             </div>
 
             <!-- Actions -->
             <div class="btn-row">
                 <button class="btn btn-dl" id="download-btn">
-                    ⬇ Download MusicXML
+                    ⬇ {{ 'result.download_btn'|trans }}
                 </button>
                 <button class="btn btn-secondary" id="new-btn">
-                    ↩ Realize Another
+                    ↩ {{ 'result.new_btn'|trans }}
                 </button>
             </div>
         </div>
 
         <!-- Score Viewer Card -->
         <div class="card" id="score-viewer-card" style="display:none">
-            <div class="card-title">Score Viewer</div>
+            <div class="card-title">{{ 'viewer.card_title'|trans }}</div>
 
             <div class="score-tabs">
-                <div class="score-tab active" data-pane="pane-orig">Original Bass Line</div>
-                <div class="score-tab"        data-pane="pane-real">Continuo Realization</div>
+                <div class="score-tab active" data-pane="pane-orig">{{ 'viewer.tab_orig'|trans }}</div>
+                <div class="score-tab"        data-pane="pane-real">{{ 'viewer.tab_real'|trans }}</div>
+            </div>
+
+            <!-- Playback bar (shown once a score is loaded) -->
+            <div class="playback-bar" id="playback-bar" style="display:none">
+                <button id="pb-play" class="pb-btn" title="Play" disabled>▶</button>
+                <button id="pb-stop" class="pb-btn" title="Stop" disabled>⏹</button>
+                <div class="pb-progress" id="pb-progress">
+                    <div class="pb-progress-fill" id="pb-fill"></div>
+                </div>
+                <span class="pb-time" id="pb-time">0:00</span>
+                <span class="pb-loading" id="pb-loading" style="display:none">⟳ loading…</span>
+
+                <!-- Speed knob — symmetric log₄ scale: ×0.25 … ×1.0 … ×4.0 -->
+                <div class="pb-knob-wrap" id="pb-spd-wrap"
+                     title="Playback speed — drag up/down or scroll · double-click to reset">
+                    <svg class="pb-knob" viewBox="0 0 40 40" width="38" height="38">
+                        <path class="pb-knob-track" d="M 9.39 30.61 A 15 15 0 1 1 30.61 30.61"/>
+                        <path class="pb-knob-fill"  id="pb-spd-fill" d=""/>
+                        <line class="pb-knob-notch" id="pb-spd-notch" x1="20" y1="16" x2="20" y2="7"/>
+                        <circle class="pb-knob-dot" cx="20" cy="20" r="2.5"/>
+                    </svg>
+                    <div class="pb-knob-lbl">Speed<b id="pb-spd-val">×1.00</b></div>
+                </div>
+
+                <!-- Pitch knob — ±12 semitones, centred at 0 -->
+                <div class="pb-knob-wrap" id="pb-pit-wrap"
+                     title="Pitch offset (semitones) — drag up/down or scroll · double-click to reset">
+                    <svg class="pb-knob" viewBox="0 0 40 40" width="38" height="38">
+                        <path class="pb-knob-track" d="M 9.39 30.61 A 15 15 0 1 1 30.61 30.61"/>
+                        <path class="pb-knob-fill"  id="pb-pit-fill" d=""/>
+                        <line class="pb-knob-notch" id="pb-pit-notch" x1="20" y1="16" x2="20" y2="7"/>
+                        <circle class="pb-knob-dot" cx="20" cy="20" r="2.5"/>
+                    </svg>
+                    <div class="pb-knob-lbl">Pitch<b id="pb-pit-val">±0</b></div>
+                </div>
             </div>
 
             <!-- Original pane -->
@@ -496,13 +277,23 @@ footer a:hover { text-decoration: underline; }
                 <div class="score-wrap" id="wrap-orig">
                     <div class="score-placeholder">
                         <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
-                        <span>Waiting for realization&hellip;</span>
+                        <span>{{ 'viewer.waiting'|trans }}</span>
                     </div>
                 </div>
             </div>
 
             <!-- Realization pane -->
             <div class="score-pane" id="pane-real">
+                <p id="click-hint" style="display:none;font-size:0.78rem;color:var(--muted);text-align:center;margin-bottom:0.5rem">
+                    {{ 'viewer.click_hint'|trans }}
+                </p>
+                <div class="real-toolbar">
+                    <label class="cb-label">
+                        <input type="checkbox" id="cb-show-computed">
+                        {{ 'viewer.show_computed'|trans }}
+                        <span class="cb-swatch"></span>
+                    </label>
+                </div>
                 <div class="page-nav" id="nav-real" style="display:none">
                     <button class="page-nav-btn" id="prev-real" disabled>&#8592;</button>
                     <span id="lbl-real">1 / 1</span>
@@ -511,7 +302,7 @@ footer a:hover { text-decoration: underline; }
                 <div class="score-wrap" id="wrap-real">
                     <div class="score-placeholder">
                         <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
-                        <span>Waiting for realization&hellip;</span>
+                        <span>{{ 'viewer.waiting'|trans }}</span>
                     </div>
                 </div>
             </div>
@@ -521,442 +312,232 @@ footer a:hover { text-decoration: underline; }
     <!-- Accordion: How it works -->
     <details class="accordion">
         <summary class="accordion-header">
-            <span>How It Works</span>
+            <span>{{ 'how_it_works.heading'|trans }}</span>
             <span class="accordion-chevron">▼</span>
         </summary>
         <div class="accordion-body">
-            <h4>Algorithm Overview</h4>
-            <p>The realizer implements the decision tree described by Wead &amp; Knopke (ICMC 2007), drawing on two primary Baroque treatises:</p>
+            <h4>{{ 'how_it_works.algo_heading'|trans }}</h4>
+            <p>{{ 'how_it_works.algo_intro'|trans }}</p>
             <ul>
-                <li><strong>Francesco Gasparini</strong> — <em>L'Armonico Pratico al Cimbalo</em> (1708, Venice)</li>
-                <li><strong>Denis Delair</strong> — <em>Traité d'Accompagnement pour le Théorbe et le Clavecin</em> (1724, Paris)</li>
+                <li><strong>Francesco Gasparini</strong> — <em>{{ 'how_it_works.algo_gasparini'|trans }}</em></li>
+                <li><strong>Denis Delair</strong> — <em>{{ 'how_it_works.algo_delair'|trans }}</em></li>
             </ul>
 
-            <h4>Processing Pipeline</h4>
+            <h4>{{ 'how_it_works.pipeline_heading'|trans }}</h4>
             <ul>
-                <li><strong>1. Parse</strong> — MusicXML is read; the lowest-pitched part is selected as the bass line.</li>
-                <li><strong>2. Figured Bass Detection</strong> — If <code>&lt;figured-bass&gt;</code> elements are present, they are used directly. Otherwise, the unfigured bass decision tree runs.</li>
-                <li><strong>3. Unfigured Decision Tree</strong> — Computes scale degree (1–7) and melodic motion (step/leap, up/down), then selects figures per Gasparini/Delair:
+                <li><strong>1.</strong> {{ 'how_it_works.step1'|trans }}</li>
+                <li><strong>2.</strong> {{ 'how_it_works.step2'|trans }}</li>
+                <li><strong>3.</strong> {{ 'how_it_works.step3'|trans }}
                     <ul>
-                        <li>Scale degree 7 (leading tone) → 6 (V⁶)</li>
-                        <li>Scale degrees 2, 3 → 6 (first inversion)</li>
-                        <li>Scale degree 5 approaching tonic by step → 7 (V⁷)</li>
-                        <li>Ascending step on degree 4 → 6 (passing)</li>
-                        <li>All others → 5 3 (root position)</li>
+                        <li>{{ 'how_it_works.step3_a'|trans }}</li>
+                        <li>{{ 'how_it_works.step3_b'|trans }}</li>
+                        <li>{{ 'how_it_works.step3_c'|trans }}</li>
+                        <li>{{ 'how_it_works.step3_d'|trans }}</li>
+                        <li>{{ 'how_it_works.step3_e'|trans }}</li>
                     </ul>
                 </li>
-                <li><strong>4. Interval Expansion</strong> — Abbreviated figures are expanded: <code>6</code>→<code>6 3</code>, <code>7</code>→<code>7 5 3</code>, <code>6 5</code>→<code>6 5 3</code>, etc.</li>
-                <li><strong>5. Voice Realization</strong> — Three upper voices (soprano, alto, tenor) are chosen to minimize total voice movement (law of the shortest way) while enforcing:
+                <li><strong>4.</strong> {{ 'how_it_works.step4'|trans }}</li>
+                <li><strong>5.</strong> {{ 'how_it_works.step5'|trans }}
                     <ul>
-                        <li>No parallel perfect fifths or octaves</li>
-                        <li>No voice crossing or doubling of the leading tone</li>
-                        <li>Voice ranges: soprano C4–G5, alto G3–C5, tenor C3–E4</li>
+                        <li>{{ 'how_it_works.step5_a'|trans }}</li>
+                        <li>{{ 'how_it_works.step5_b'|trans }}</li>
+                        <li>{{ 'how_it_works.step5_c'|trans }}</li>
                     </ul>
                 </li>
-                <li><strong>6. Export</strong> — Output is a two-part MusicXML: Part 1 = original bass, Part 2 = realized realization (voices 1–3 upper + voice 4 bass).</li>
+                <li><strong>6.</strong> {{ 'how_it_works.step6'|trans }}</li>
             </ul>
 
-            <h4>Figured Bass Notation Reference</h4>
-            <ul>
-                <li><strong>(none)</strong> → 5 3 — root position triad</li>
-                <li><strong>6</strong> → 6 3 — first inversion triad</li>
-                <li><strong>6 4</strong> → 6 4 — second inversion (cadential)</li>
-                <li><strong>7</strong> → 7 5 3 — root position dominant seventh</li>
-                <li><strong>6 5</strong> → 6 5 3 — first inversion seventh</li>
-                <li><strong>4 3</strong> → 6 4 3 — second inversion seventh</li>
-                <li><strong>4 2</strong> → 6 4 2 — third inversion seventh</li>
-                <li><strong>9</strong> → 9 5 3 — 9–8 suspension</li>
-            </ul>
+            <h4>{{ 'how_it_works.fb_heading'|trans }}</h4>
+            <table class="fb-ref">
+              <tbody>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_triads'|trans }}</td></tr>
+                <tr><td>(none) / 5</td><td class="fb-int">5</td><td>{{ 'how_it_works.fb_none'|trans }}</td></tr>
+                <tr><td>6</td><td class="fb-int">6</td><td>{{ 'how_it_works.fb_6'|trans }}</td></tr>
+                <tr><td>6 4</td><td class="fb-int">6 4</td><td>{{ 'how_it_works.fb_64'|trans }}</td></tr>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_sevenths'|trans }}</td></tr>
+                <tr><td>7</td><td class="fb-int">7 5</td><td>{{ 'how_it_works.fb_7'|trans }}</td></tr>
+                <tr><td>6 5</td><td class="fb-int">6 5</td><td>{{ 'how_it_works.fb_65'|trans }}</td></tr>
+                <tr><td>♭5</td><td class="fb-int">♭5 6</td><td>{{ 'how_it_works.fb_b5'|trans }}</td></tr>
+                <tr><td>4 3</td><td class="fb-int">4 3</td><td>{{ 'how_it_works.fb_43'|trans }}</td></tr>
+                <tr><td>2 <small>(= 4 2)</small></td><td class="fb-int">4 2</td><td>{{ 'how_it_works.fb_2'|trans }}</td></tr>
+                <tr><td>♯4</td><td class="fb-int">♯4 2</td><td>{{ 'how_it_works.fb_sharp4'|trans }}</td></tr>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_ninths'|trans }}</td></tr>
+                <tr><td>9</td><td class="fb-int">9 5</td><td>{{ 'how_it_works.fb_9'|trans }}</td></tr>
+                <tr><td>9 7</td><td class="fb-int">9 7 5</td><td>{{ 'how_it_works.fb_97'|trans }}</td></tr>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_suspensions'|trans }}</td></tr>
+                <tr><td>7 6</td><td class="fb-int">7 6</td><td>{{ 'how_it_works.fb_76'|trans }}</td></tr>
+                <tr><td>5 4</td><td class="fb-int">5 4</td><td>{{ 'how_it_works.fb_54'|trans }}</td></tr>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_chromatic'|trans }}</td></tr>
+                <tr><td>♯5</td><td class="fb-int">♯5 7 9</td><td>{{ 'how_it_works.fb_sharp5'|trans }}</td></tr>
+                <tr><td>♭7</td><td class="fb-int">♭7 5</td><td>{{ 'how_it_works.fb_b7'|trans }}</td></tr>
+                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_special'|trans }}</td></tr>
+                <tr><td>8</td><td class="fb-int">8</td><td>{{ 'how_it_works.fb_8'|trans }}</td></tr>
+                <tr><td>♯ / ♭ / ♮</td><td class="fb-int"></td><td>{{ 'how_it_works.fb_acc'|trans }}</td></tr>
+              </tbody>
+            </table>
         </div>
     </details>
 
     <!-- Accordion: Bibliography -->
     <details class="accordion" style="margin-top:1rem">
         <summary class="accordion-header">
-            <span>Bibliography</span>
+            <span>{{ 'bibliography.heading'|trans }}</span>
             <span class="accordion-chevron">▼</span>
         </summary>
         <div class="accordion-body">
             <ul>
-                <li><strong>Wead, A. &amp; Knopke, I.</strong> (2007). "A Computer-Based Implementation of Basso Continuo Rules for Figured Bass Realizations." <em>Proceedings of the International Computer Music Conference (ICMC)</em>, Copenhagen.</li>
-                <li><strong>Gasparini, F.</strong> (1708). <em>L'Armonico Pratico al Cimbalo</em>. Venice. [Trans. F. Stillings, 1963. Yale University Press.]</li>
-                <li><strong>Delair, D.</strong> (1724). <em>Traité d'Accompagnement pour le Théorbe et le Clavecin</em>. Paris.</li>
-                <li><strong>Arnold, F.T.</strong> (1931). <em>The Art of Accompaniment from a Thorough-Bass</em>. Oxford University Press.</li>
-                <li><strong>Williams, P.</strong> (1970). <em>Figured Bass Accompaniment</em>. Edinburgh University Press.</li>
-                <li><strong>Aldrich, P.</strong> (1959). <em>Rhythm in Seventeenth-Century Italian Monody</em>. Norton.</li>
-                <li><strong>Schulenberg, D.</strong> (1992). <em>The Keyboard Music of J.S. Bach</em>. Schirmer Books.</li>
-                <li><strong>Rameau, J.-P.</strong> (1722). <em>Traité de l'harmonie réduite à ses principes naturels</em>. Paris.</li>
-                <li><strong>Heinichen, J.D.</strong> (1728). <em>Der General-Bass in der Composition</em>. Dresden.</li>
-                <li><strong>C.P.E. Bach</strong> (1762). <em>Versuch über die wahre Art das Clavier zu spielen</em>, Part II. Berlin. [Trans. Mitchell, 1949. Norton.]</li>
+                <li><strong>Gasparini, F.</strong> (1729). <em><a href="https://imslp.org/wiki/L%27Armonico_Pratico_al_Cimbalo_(Gasparini%2C_Francesco)" target="_blank" rel="noopener">L'Armonico Pratico al Cimbalo</a></em>. 3rd ed. Venice. [Trans. F. Stillings, 1963. Yale University Press.]</li>
+                <li><strong>St. Lambert, M. de</strong> (1707). <em><a href="https://imslp.org/wiki/Nouveau_trait%C3%A9_de_l%27accompagnement_(Saint-Lambert%2C_Michel_de)" target="_blank" rel="noopener">Nouveau Traité de l'Accompagnement du Clavecin, de l'Orgue et des autres Instruments</a></em>. Paris: Ballard.</li>
+                <li><strong>Delair, D.</strong> (1690). <em><a href="https://gallica.bnf.fr/ark:/12148/bpt6k324883j" target="_blank" rel="noopener">Traité d'Accompagnement pour le Théorbe et le Clavecin</a></em>. Paris. <small>(via Gallica)</small></li>
+                <li><strong>Heinichen, J.D.</strong> (1728). <em><a href="https://imslp.org/wiki/Der_General-Bass_in_der_Composition_(Heinichen%2C_Johann_David)" target="_blank" rel="noopener">Der General-Bass in der Composition</a></em>. Dresden.</li>
+                <li><strong>Fux, J.J.</strong> (1725). <em><a href="https://imslp.org/wiki/Gradus_ad_Parnassum_(Fux%2C_Johann_Joseph)" target="_blank" rel="noopener">Gradus ad Parnassum</a></em>. Vienna. [Trans. A. Mann, 1943. Norton.]</li>
+                <li><strong>Rameau, J.-P.</strong> (1722). <em><a href="https://imslp.org/wiki/Trait%C3%A9_de_l%27harmonie_r%C3%A9duite_%C3%A0_ses_principes_naturels_(Rameau%2C_Jean-Philippe)" target="_blank" rel="noopener">Traité de l'harmonie réduite à ses principes naturels</a></em>. Paris.</li>
+                <li><strong>Telemann, G.M.</strong> (1773). <em><a href="https://imslp.org/wiki/Unterricht_im_Generalba%C3%9F-Spielen_(Telemann%2C_Georg_Michael)" target="_blank" rel="noopener">Unterricht im Generalbaß-Spielen</a></em>. Hamburg: M.C. Bock. [Quoted in T. Christensen 1992.]</li>
+                <li><strong>Christensen, T.</strong> (1992). "<a href="https://www.jstor.org/stable/932911" target="_blank" rel="noopener">The <em>Règle de l'octave</em> in Thorough-Bass Theory and Practice</a>." <em>Acta Musicologica</em>, 64/2, pp. 112–145.</li>
+                <li><strong>Christensen, J.B.</strong> (2002). <em><a href="https://openlibrary.org/works/OL6084240W" target="_blank" rel="noopener">18th Century Continuo Playing: A Historical Guide to the Basics</a></em>. Kassel: Bärenreiter.</li>
+                <li><strong>Wead, A. &amp; Knopke, I.</strong> (2007). "<a href="https://docs.google.com/viewer?url=https%3A%2F%2Fquod.lib.umich.edu%2Fcgi%2Fp%2Fpod%2Fdod-idx%2Fa-computer-based-implementation-of-basso-continuo-rules.pdf%3Fc%3Dicmc%3Bidno%3Dbbp2372.2007.150" target="_blank" rel="noopener">A Computer-Based Implementation of Basso Continuo Rules for Figured Bass Realizations</a>." <em>Proceedings of the International Computer Music Conference (ICMC)</em>, Copenhagen.</li>
             </ul>
+        </div>
+    </details>
+
+    <!-- Accordion: Voice Leading Rules -->
+    <details class="accordion" style="margin-top:1rem">
+        <summary class="accordion-header">
+            <span>Voice Leading Rules ({{ rules|length }})</span>
+            <span class="accordion-chevron">▼</span>
+        </summary>
+        <div class="accordion-body">
+            <div class="rules-list">
+            {% for rule in rules %}
+                <details class="rule-card">
+                    <summary>
+                        <div class="rule-card-left">
+                            <span class="rule-name">{{ rule.name|replace({'_': ' '})|title }}</span>
+                            <span class="rule-source">{{ rule.source }}</span>
+                        </div>
+                        <div class="rule-card-right">
+                            <span class="rule-priority">P{{ rule.priority }}</span>
+                            <span class="rule-badge {% if rule.enabled %}rule-enabled{% else %}rule-disabled{% endif %}">
+                                {{ rule.enabled ? 'enabled' : 'disabled' }}
+                            </span>
+                        </div>
+                    </summary>
+                    <div class="rule-card-body">
+                        <p class="rule-original">{{ rule.definition }}</p>
+                        <p class="rule-translation">{{ rule.translation }}</p>
+                        <details class="rule-impl-toggle">
+                            <summary>Implementation</summary>
+                            <pre class="rule-code">{{ rule.implementation }}</pre>
+                        </details>
+                    </div>
+                </details>
+            {% else %}
+                <p style="color:var(--muted);font-size:0.85rem">No rules found. Run <code>php bin/console app:seed-voice-leading-rules</code> to seed the database.</p>
+            {% endfor %}
+            </div>
         </div>
     </details>
 
 </div><!-- .wrapper -->
 
+<!-- Chord Inspector Modal -->
+<div id="chord-inspector" class="ci-overlay" role="dialog" aria-modal="true" aria-labelledby="ci-title-text">
+    <div class="ci-panel">
+        <div class="ci-header">
+            <div class="ci-symbol" id="ci-symbol">?</div>
+            <div class="ci-fig-stack" id="ci-fig-stack"></div>
+            <div class="ci-header-text">
+                <div class="ci-title" id="ci-title-text">{{ 'inspector.title'|trans }}</div>
+                <div class="ci-subtitle" id="ci-subtitle"></div>
+            </div>
+            <button class="ci-edit-fig" id="ci-edit-fig" title="Edit figured bass" style="display:none">✎</button>
+            <button class="ci-close" id="ci-close" aria-label="{{ 'inspector.close'|trans }}">✕</button>
+        </div>
+
+        <!-- Bass note grand staff (rendered by Verovio) -->
+        <div class="ci-note-staff" id="ci-note-staff" style="display:none"></div>
+
+        <!-- General information -->
+        <div class="ci-section">
+            <div class="ci-section-title">{{ 'inspector.section_info'|trans }}</div>
+            <table class="ci-table" id="ci-info-table"></table>
+        </div>
+
+        <!-- Decision tree -->
+        <div class="ci-section" id="ci-tree-section">
+            <div class="ci-section-title">{{ 'inspector.section_tree'|trans }}</div>
+            <div id="ci-source-badge-wrap"></div>
+            <div class="ci-context" id="ci-context"></div>
+            <div class="ci-steps" id="ci-steps"></div>
+        </div>
+
+        <!-- Figure editor (hidden until ✎ is clicked) -->
+        <div class="ci-fig-editor" id="ci-fig-editor" style="display:none">
+            <div class="ci-fig-editor-title">Edit Figured Bass</div>
+            <div class="fig-hint">
+                Figurato syntax: <code>65</code> = 6–5, <code>b7</code> = ♭7, <code>#4</code> = ♯4,
+                <code>bb7</code> = 𝄫7, <code>n6</code> = ♮6. Clear the field to let the algorithm decide.
+            </div>
+            <input type="text" class="fig-input" id="ci-fig-input"
+                   placeholder="e.g. 65 or b7 or #4 or empty"
+                   autocomplete="off" spellcheck="false">
+            <div class="fig-preview-row">
+                <span class="fig-preview-label">Preview:</span>
+                <span class="fig-preview" id="ci-fig-preview"></span>
+            </div>
+            <div class="fig-btn-row">
+                <button class="fig-btn fig-btn-cancel" id="ci-fig-cancel">Cancel</button>
+                <button class="fig-btn fig-btn-apply" id="ci-fig-apply">Apply &amp; Re-realize</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <footer>
     <p>
         Basso Continuo Realizer &mdash; Based on
         <a href="https://quod.lib.umich.edu/i/icmc/bbp2372.2007.150" target="_blank" rel="noopener">Wead &amp; Knopke (ICMC 2007)</a>,
-        Gasparini (1708) &amp; Delair (1724)
+        Gasparini (1729) &amp; Delair (1724)
     </p>
 </footer>
 
 <script>
-(function () {
-    'use strict';
+// Translations for dynamic JS strings (rendered server-side per locale)
+const TRANS = {
+    lbl_title:          {{ 'result.summary.title'|trans|json_encode|raw }},
+    lbl_key:            {{ 'result.summary.key'|trans|json_encode|raw }},
+    lbl_measures:       {{ 'result.summary.measures'|trans|json_encode|raw }},
+    lbl_notes:          {{ 'result.summary.notes'|trans|json_encode|raw }},
+    rendering:          {{ 'viewer.rendering'|trans|json_encode|raw }},
+    inspector_title:    {{ 'inspector.title'|trans|json_encode|raw }},
+    voice_soprano:      {{ 'inspector.voice_soprano'|trans|json_encode|raw }},
+    voice_alto:         {{ 'inspector.voice_alto'|trans|json_encode|raw }},
+    voice_tenor:        {{ 'inspector.voice_tenor'|trans|json_encode|raw }},
+    voice_bass:         {{ 'inspector.voice_bass'|trans|json_encode|raw }},
+    figures_computed:   {{ 'inspector.figures_computed'|trans|json_encode|raw }},
+    figures_from_file:  {{ 'inspector.figures_from_file'|trans|json_encode|raw }},
+    badge_from_file:    {{ 'inspector.badge_from_file'|trans|json_encode|raw }},
+    badge_computed:     {{ 'inspector.badge_computed'|trans|json_encode|raw }},
+    from_file_note:     {{ 'inspector.from_file_note'|trans|json_encode|raw }},
+    ctx_scale_degree:   {{ 'inspector.ctx_scale_degree'|trans|json_encode|raw }},
+    ctx_motion_in:      {{ 'inspector.ctx_motion_in'|trans|json_encode|raw }},
+    ctx_motion_out:     {{ 'inspector.ctx_motion_out'|trans|json_encode|raw }},
+    ctx_key:            {{ 'inspector.ctx_key'|trans|json_encode|raw }},
+    lbl_bass_pitch:     {{ 'inspector.lbl_bass_pitch'|trans|json_encode|raw }},
+    lbl_note_type:      {{ 'inspector.lbl_note_type'|trans|json_encode|raw }},
+    lbl_scale_degree:   {{ 'inspector.lbl_scale_degree'|trans|json_encode|raw }},
+    lbl_key_ins:        {{ 'inspector.lbl_key'|trans|json_encode|raw }},
+    lbl_figured_bass:   {{ 'inspector.lbl_figured_bass'|trans|json_encode|raw }},
+    lbl_chord_symbol:   {{ 'inspector.lbl_chord_symbol'|trans|json_encode|raw }},
+    lbl_figures_source: {{ 'inspector.lbl_figures_source'|trans|json_encode|raw }},
+};
 
-    const dropZone    = document.getElementById('drop-zone');
-    const fileInput   = document.getElementById('file-input');
-    const realizeBtn  = document.getElementById('realize-btn');
-    const clearBtn    = document.getElementById('clear-btn');
-    const fileNameEl  = document.getElementById('file-name-display');
-    const fileNameTxt = document.getElementById('file-name-text');
-    const progressWrap= document.getElementById('progress-wrap');
-    const resultPanel = document.getElementById('result-panel');
-    const summaryGrid = document.getElementById('summary-grid');
-    const xmlPreview  = document.getElementById('xml-preview');
-    const downloadBtn = document.getElementById('download-btn');
-    const newBtn      = document.getElementById('new-btn');
-    const chordSection= document.getElementById('chord-section');
-    const chordPills  = document.getElementById('chord-pills');
-    const form        = document.getElementById('upload-form');
-    const sampleHint  = document.getElementById('sample-hint');
-
-    let currentXml    = null;
-    let currentFile   = null;
-
-    const SAMPLE_URL  = '/sample/aria_bassline.xml';
-    const SAMPLE_NAME = 'aria_bassline.xml';
-
-    // ── Load sample on page load ──────────────────────────────
-    async function loadSample() {
-        try {
-            const resp = await fetch(SAMPLE_URL);
-            if (!resp.ok) return;
-            const blob = await resp.blob();
-            const file = new File([blob], SAMPLE_NAME, { type: 'application/xml' });
-            setFile(file);
-        } catch (_) { /* silently ignore */ }
-    }
-    loadSample();
-
-    // ── "Load sample file" link ───────────────────────────────
-    const loadSampleBtn = document.getElementById('load-sample-btn');
-    if (loadSampleBtn) {
-        loadSampleBtn.addEventListener('click', ev => {
-            ev.preventDefault();
-            loadSample();
-        });
-    }
-
-    // ── Drag & Drop ───────────────────────────────────────────
-    ['dragenter','dragover'].forEach(e => {
-        dropZone.addEventListener(e, ev => {
-            ev.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-    });
-    ['dragleave','drop'].forEach(e => {
-        dropZone.addEventListener(e, ev => {
-            ev.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-    });
-    dropZone.addEventListener('drop', ev => {
-        const file = ev.dataTransfer.files[0];
-        if (file) setFile(file);
-    });
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files[0]) setFile(fileInput.files[0]);
-    });
-
-    function setFile(file) {
-        currentFile = file;
-        // Swap the input files via DataTransfer
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileInput.files = dt.files;
-
-        dropZone.classList.add('has-file');
-        fileNameTxt.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-        fileNameEl.classList.add('visible');
-        realizeBtn.disabled = false;
-        clearBtn.style.display = '';
-        if (sampleHint) sampleHint.style.display = 'none';
-    }
-
-    function clearFile() {
-        fileInput.value = '';
-        currentFile = null;
-        currentXml  = null;
-        dropZone.classList.remove('has-file');
-        fileNameEl.classList.remove('visible');
-        realizeBtn.disabled = true;
-        clearBtn.style.display = 'none';
-        if (sampleHint) sampleHint.style.display = '';
-        resultPanel.classList.remove('visible');
-        resultPanel.style.display = 'none';
-    }
-    clearBtn.addEventListener('click', clearFile);
-    newBtn.addEventListener('click',  clearFile);
-
-    // ── Form submit → AJAX ────────────────────────────────────
-    form.addEventListener('submit', async ev => {
-        ev.preventDefault();
-        if (!currentFile) return;
-
-        // Show spinner, hide result
-        progressWrap.classList.add('visible');
-        realizeBtn.disabled = true;
-        resultPanel.classList.remove('visible');
-        resultPanel.style.display = 'none';
-
-        try {
-            const fd = new FormData(form);
-
-            const resp = await fetch(form.action, {
-                method: 'POST',
-                body: fd,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-
-            const data = await resp.json();
-            progressWrap.classList.remove('visible');
-
-            if (!resp.ok || data.error) {
-                showError(data.error || 'Server error');
-                realizeBtn.disabled = false;
-                return;
-            }
-
-            currentXml = data.xml;
-            showResult(data);
-        } catch (err) {
-            progressWrap.classList.remove('visible');
-            showError('Network error: ' + err.message);
-            realizeBtn.disabled = false;
-        }
-    });
-
-    function showError(msg) {
-        const existing = document.querySelector('.alert-error.dynamic');
-        if (existing) existing.remove();
-
-        const el = document.createElement('div');
-        el.className = 'alert alert-error dynamic';
-        el.innerHTML = '<span>⚠</span><span>' + escapeHtml(msg) + '</span>';
-        form.insertBefore(el, form.firstChild);
-    }
-
-    function showResult(data) {
-        const s = data.summary || {};
-
-        // Summary grid
-        const items = [
-            { val: escapeHtml(s.title    || '—'), lbl: 'Title' },
-            { val: escapeHtml(s.key      || '—'), lbl: 'Key' },
-            { val: s.measures   || '—',           lbl: 'Measures' },
-            { val: s.totalNotes || '—',           lbl: 'Notes Realized' },
-        ];
-        summaryGrid.innerHTML = items.map(i =>
-            `<div class="summary-item"><span class="val">${i.val}</span><span class="lbl">${i.lbl}</span></div>`
-        ).join('');
-
-        // Chord pills
-        const topChords = s.topChords || {};
-        const chordKeys = Object.keys(topChords);
-        if (chordKeys.length) {
-            chordSection.style.display = '';
-            chordPills.innerHTML = chordKeys.map(k =>
-                `<span class="chord-pill">${escapeHtml(k)}<span class="count">×${topChords[k]}</span></span>`
-            ).join('');
-        } else {
-            chordSection.style.display = 'none';
-        }
-
-        // XML preview (first 40 lines)
-        const lines = (data.xml || '').split('\n').slice(0, 40).join('\n');
-        xmlPreview.textContent = lines + (data.xml.split('\n').length > 40 ? '\n…' : '');
-
-        // Show panel
-        resultPanel.style.display = 'block';
-        resultPanel.classList.add('visible');
-        resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        // Download button
-        downloadBtn.onclick = () => {
-            const blob = new Blob([data.xml], { type: 'application/vnd.recordare.musicxml+xml' });
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href     = url;
-            a.download = data.filename || 'continuo_realization.xml';
-            a.click();
-            URL.revokeObjectURL(url);
-        };
-
-        // Score viewer (runs after panel is visible so widths are available)
-        if (data.inputXml && data.xml) {
-            setTimeout(() => launchScoreViewer(data.inputXml, data.xml), 50);
-        }
-    }
-
-    function escapeHtml(s) {
-        return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    // ── Accordion ─────────────────────────────────────────────
-    document.querySelectorAll('details.accordion').forEach(details => {
-        const chevron = details.querySelector('.accordion-chevron');
-        const body    = details.querySelector('.accordion-body');
-        details.addEventListener('toggle', () => {
-            if (details.open) {
-                chevron && chevron.classList.add('open');
-                body    && body.classList.add('open');
-            } else {
-                chevron && chevron.classList.remove('open');
-                body    && body.classList.remove('open');
-            }
-        });
-    });
-
-    // ── Score Viewer (Verovio) ────────────────────────────────
-    const scoreViewerCard = document.getElementById('score-viewer-card');
-
-    // Tab switching
-    document.querySelectorAll('.score-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.score-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.score-pane').forEach(p => p.classList.remove('active'));
-            tab.classList.add('active');
-            const pane = document.getElementById(tab.dataset.pane);
-            if (pane) pane.classList.add('active');
-        });
-    });
-
-    // Per-score state
-    const scores = {
-        orig: { tk: null, page: 1, total: 0 },
-        real: { tk: null, page: 1, total: 0 },
-    };
-
-    ['orig', 'real'].forEach(key => {
-        document.getElementById('prev-' + key).addEventListener('click', () => {
-            const s = scores[key];
-            if (s.page > 1) { s.page--; renderScorePage(key); }
-        });
-        document.getElementById('next-' + key).addEventListener('click', () => {
-            const s = scores[key];
-            if (s.page < s.total) { s.page++; renderScorePage(key); }
-        });
-    });
-
-    function renderScorePage(key) {
-        const s    = scores[key];
-        const wrap = document.getElementById('wrap-' + key);
-        if (!s.tk || s.total < 1) return;
-        try {
-            wrap.innerHTML = s.tk.renderToSVG(s.page);
-        } catch (e) {
-            wrap.innerHTML = '<div class="score-placeholder score-error">⚠ ' + escapeHtml(e.message) + '</div>';
-        }
-        document.getElementById('lbl-'  + key).textContent = s.page + ' / ' + s.total;
-        document.getElementById('prev-' + key).disabled = s.page <= 1;
-        document.getElementById('next-' + key).disabled = s.page >= s.total;
-    }
-
-    // Verovio lazy loader
-    let vrvState = 'idle'; // idle | loading | ready | error
-    const vrvQueue = [];
-
-    function ensureVerovio() {
-        return new Promise((resolve, reject) => {
-            if (vrvState === 'ready')   { resolve();        return; }
-            if (vrvState === 'error')   { reject(new Error('Verovio unavailable')); return; }
-            vrvQueue.push({ resolve, reject });
-            if (vrvState === 'loading') return;
-            vrvState = 'loading';
-
-            const script = document.createElement('script');
-            script.src   = 'https://www.verovio.org/javascript/latest/verovio-toolkit-wasm.js';
-            script.onerror = () => {
-                vrvState = 'error';
-                const err = new Error('Could not load Verovio from CDN');
-                vrvQueue.forEach(q => q.reject(err));
-                vrvQueue.length = 0;
-            };
-            document.head.appendChild(script);
-
-            // Poll until verovio.toolkit constructor is ready (WASM initialised)
-            const timer = setInterval(() => {
-                try {
-                    if (typeof verovio !== 'undefined' && typeof verovio.toolkit === 'function') {
-                        clearInterval(timer);
-                        vrvState = 'ready';
-                        vrvQueue.forEach(q => q.resolve());
-                        vrvQueue.length = 0;
-                    }
-                } catch (_) {}
-            }, 150);
-        });
-    }
-
-    function scoreWrapWidth() {
-        const el = document.getElementById('wrap-orig');
-        return el ? Math.max(el.clientWidth - 32, 600) : 800;
-    }
-
-    async function initScore(key, xml) {
-        const s    = scores[key];
-        const wrap = document.getElementById('wrap-' + key);
-        s.tk    = null;
-        s.page  = 1;
-        s.total = 0;
-
-        wrap.innerHTML = '<div class="score-placeholder">'
-            + '<div class="spinner" style="width:28px;height:28px;border-width:2px"></div>'
-            + '<span>Rendering score\u2026</span></div>';
-
-        try {
-            await ensureVerovio();
-
-            const tk = new verovio.toolkit();
-            // Width in Verovio internal units: 1 unit ≈ 0.18 mm at 100%
-            // pageWidth 2100 at scale 45 renders ~945 px wide — matches typical container
-            tk.setOptions({
-                pageWidth:        2100,
-                pageHeight:       2970,
-                adjustPageHeight: true,
-                scale:            45,
-                breaks:           'auto',
-            });
-            tk.loadData(xml);
-
-            s.tk    = tk;
-            s.total = tk.getPageCount();
-            s.page  = 1;
-            renderScorePage(key);
-
-            const nav = document.getElementById('nav-' + key);
-            nav.style.display = s.total > 1 ? '' : 'none';
-
-        } catch (err) {
-            wrap.innerHTML = '<div class="score-placeholder score-error">⚠ '
-                + escapeHtml(err.message) + '</div>';
-        }
-    }
-
-    function launchScoreViewer(origXml, realXml) {
-        scoreViewerCard.style.display = '';
-        scoreViewerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        initScore('orig', origXml);
-        initScore('real', realXml);
-    }
-
-})();
 </script>
+<script src="/js/app.js"></script>
+<script src="/js/utils.js"></script>
+<script src="/js/upload.js"></script>
+<script src="/js/score-viewer.js"></script>
+<script src="/js/chord-inspector.js"></script>
+<script src="/js/playback.js"></script>
+<script src="/js/bass-editor.js"></script>
 {% endblock %}

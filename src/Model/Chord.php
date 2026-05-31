@@ -11,6 +11,9 @@ class Chord
     /** @var Note[] Upper voice notes (soprano, alto, tenor) */
     public array $upperVoices = [];
 
+    /** Decision trace: context + rule steps used to select figures for this chord */
+    public array $decisionTrace = [];
+
     public function __construct(
         public readonly Note  $bass,
         public readonly array $figures,       // raw figured bass numbers e.g. [7, 5, 3]

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Model\Chord;
 use App\Model\Note;
+use App\Repository\VoiceLeadingRuleRepository;
 
 /**
  * Applies voice-leading rules to produce smooth, historically-correct
@@ -14,7 +15,7 @@ use App\Model\Note;
  * 1. RANGE CONSTRAINTS (Baroque keyboard style, Gasparini):
  *    - Soprano: C4–G5
  *    - Alto:    G3–C5
- *    - Tenor:   C3–E4
+ *    - Tenor:   G3–E4  (hard floor G3 per historical practice)
  *    - Bass:    given (unchanged)
  *
  * 2. FORBIDDEN PARALLELS (Fux / Gasparini / Delair):
@@ -32,9 +33,10 @@ use App\Model\Note;
  *    - Never double the 7th of a chord
  *
  * 4. VOICE LEADING / LAW OF SHORTEST WAY (Delair):
- *    - Prefer common tones between chords
+ *    - Prefer common tones between chords; retain them in the same voice
+ *    - Exception for repeated chords: shift position away from range extremes
  *    - Prefer steps over leaps
- *    - Contrary motion between bass and upper voices preferred
+ *    - Contrary motion between soprano and bass preferred
  *    - One voice may leap if others move by step/common tone
  *
  * 5. SEVENTH CHORD RESOLUTION (Rameau / Gasparini):
@@ -46,6 +48,9 @@ use App\Model\Note;
  *    - 9-8: 9th resolves down to 8th (unison with bass)
  *    - 7-6: 7th resolves down to 6th
  *    - 4-3: 4th resolves down to 3rd
+ *
+ * Rules are loaded from the database via VoiceLeadingRuleRepository and
+ * compiled into closures at first use (lazy, cached per request).
  */
 class VoiceLeadingEngine
 {
@@ -53,7 +58,7 @@ class VoiceLeadingEngine
     private const RANGES = [
         'soprano' => [60, 79],  // C4–G5
         'alto'    => [55, 72],  // G3–C5
-        'tenor'   => [48, 64],  // C3–E4
+        'tenor'   => [55, 64],  // G3–E4  (floor raised from C3 to avoid muddy bass register)
     ];
 
     // Maximum right-hand span: soprano − tenor must not exceed a 9th (major 9th = 14 semitones)
@@ -62,7 +67,20 @@ class VoiceLeadingEngine
     // Perfect intervals in semitones (mod 12)
     private const PERFECT_CONSONANCES = [0, 7]; // unison/octave=0, fifth=7
 
-    public function __construct(private readonly PitchHelper $pitchHelper) {}
+    /** @var array<int, \Closure>|null Compiled rule closures, null until first use */
+    private ?array $compiledRules = null;
+
+    /** @var array<string, array{citations: array, translation: string}>|null DB rule data, null until first use */
+    private ?array $dbRulesMap = null;
+
+    /** Current key context, set per realize() call */
+    private int $keyFifths = 0;
+    private string $keyMode = 'major';
+
+    public function __construct(
+        private readonly PitchHelper $pitchHelper,
+        private readonly VoiceLeadingRuleRepository $ruleRepo,
+    ) {}
 
     /**
      * Choose upper voices (soprano, alto, tenor) for a chord given:
@@ -78,8 +96,13 @@ class VoiceLeadingEngine
         ?Chord  $prevChord,
         int     $keyFifths,
         string  $keyMode,
-        bool    $isLeadingTone7th = false
+        bool    $isLeadingTone7th = false,
+        ?int    $melodyPc = null,  // pitch class (0–11) of the melody note sounding now
+        int     $numVoices = 4,    // total voices: 4 = soprano+alto+tenor+bass, 3 = alto+soprano+bass
     ): Chord {
+        $this->keyFifths = $keyFifths;
+        $this->keyMode   = $keyMode;
+
         $bass = $chord->bass;
 
         // Build candidate pitches for each interval
@@ -94,21 +117,79 @@ class VoiceLeadingEngine
             );
         }
 
-        // Try to find 3 upper voices (or fewer for thin texture)
         $prevUpperMidis = $prevChord
             ? array_map(fn(Note $n) => $n->midiPitch(), $prevChord->upperVoices)
             : [];
+        $prevBassMidi = $prevChord ? $prevChord->bass->midiPitch() : null;
+
+        // When the user requested 3 voices, check whether this particular chord requires
+        // a 4th voice: either because the harmony needs 4 distinct pitch classes (7th chords
+        // and similar) or because an unresolved voice-leading obligation from the previous
+        // chord (leading-tone resolution up, chordal-7th resolution down) cannot be handled
+        // cleanly with only two upper voices.
+        $effectiveVoices = $numVoices === 3
+            ? $this->effectiveVoiceCount($intervals, $prevChord, $keyFifths, $keyMode)
+            : $numVoices;
 
         // Choose pitches by minimizing total voice movement
-        $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th);
+        $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th, $prevBassMidi, $melodyPc, $effectiveVoices);
+
+        // Voice name order matches the upperVoices array order (lowest first)
+        $voiceNames = $effectiveVoices === 3
+            ? ['alto', 'soprano']
+            : ['tenor', 'alto', 'soprano'];
 
         foreach ($chosen as $idx => $midi) {
-            $voiceName = ['tenor', 'alto', 'soprano'][$idx] ?? 'soprano';
+            $voiceName = $voiceNames[$idx] ?? 'soprano';
             $note      = PitchHelper::midiToNote($midi, $bass->duration, $bass->type, $idx + 2, $keyFifths);
             $chord->addUpperVoice($note);
         }
 
         return $chord;
+    }
+
+    /**
+     * Determine the effective voice count for a single chord when the user preference
+     * is 3 voices ("whenever possible").
+     *
+     * Upgrades to 4 voices when:
+     *  1. The chord has ≥ 3 intervals above the bass (7th chords, 6/5, 4/3 etc.) — four
+     *     distinct pitch classes cannot be covered by two upper voices.
+     *  2. The previous chord had a chordal seventh (interval 7 in figures) — the 7th must
+     *     resolve downward by step, and a dedicated tenor voice makes this smooth.
+     *  3. The previous chord's upper voices contained the diatonic leading tone — it must
+     *     resolve upward by a half step; an extra voice prevents the resolution from
+     *     forcing a forbidden parallel or omitting a required chord tone.
+     */
+    private function effectiveVoiceCount(array $intervals, ?Chord $prevChord, int $keyFifths, string $keyMode): int
+    {
+        // Rule 1: harmony needs 4 pitch classes
+        if (count($intervals) >= 3) {
+            return 4;
+        }
+
+        if ($prevChord === null) {
+            return 3;
+        }
+
+        // Rule 2: previous chord had a chordal 7th
+        foreach ($prevChord->figures as $fig) {
+            if (($fig['number'] ?? 0) === 7) {
+                return 4;
+            }
+        }
+
+        // Rule 3: previous chord had the leading tone in an upper voice
+        $scale   = PitchHelper::buildScale($keyFifths, $keyMode);
+        $tonicPc = $scale[0];
+        $ltPc    = ($tonicPc - 1 + 12) % 12;
+        foreach ($prevChord->upperVoices as $voice) {
+            if ($voice->pitchClass() === $ltPc) {
+                return 4;
+            }
+        }
+
+        return 3;
     }
 
     /**
@@ -136,15 +217,7 @@ class VoiceLeadingEngine
                 $targetPc = ($targetPc + $explicitAlter + 12) % 12;
             }
 
-            // Generate all octave transpositions in the combined range (tenor..soprano: C3..G5)
-            $candidates = [];
-            for ($oct = 3; $oct <= 6; $oct++) {
-                $midi = $oct * 12 + $targetPc; // (oct-1)*12 + 12 + pc = oct*12 + pc
-                // Correct: midi = (octave+1)*12 + pc, so octave = (midi/12)-1
-                $midi = ($oct + 1) * 12 + $targetPc; // skip — recalculate
-            }
-
-            // Correct calculation: for octave $o: midi = ($o+1)*12 + pc
+            // Octave transpositions in the combined range: midi = ($o+1)*12 + pc
             $candidates = [];
             for ($o = 2; $o <= 5; $o++) {
                 $midi = ($o + 1) * 12 + $targetPc;
@@ -168,88 +241,115 @@ class VoiceLeadingEngine
      *  2. Minimize total motion from previous chord
      *  3. Enforce range constraints
      *  4. Check for forbidden parallels (post-selection)
-     *  5. Apply doubling: duplicate root if only 2 intervals given
+     *  5. Doubling: every voice draws from the full pool of chord-tone pitch classes
+     *     (no fixed interval→voice assignment) so the optimizer can freely mix doublings.
      */
-    private function chooseVoices(array $candidateLists, array $prevMidis, int $bassMidi, bool $isLeadingTone): array
+    private function chooseVoices(array $candidateLists, array $prevMidis, int $bassMidi, bool $isLeadingTone, ?int $prevBassMidi = null, ?int $melodyPc = null, int $numVoices = 4): array
     {
-        $numVoices = min(3, count($candidateLists));
-        if ($numVoices === 0) {
+        if (empty($candidateLists)) {
             return [];
         }
 
-        // We need 3 voices; duplicate candidates if we have fewer unique intervals
-        while (count($candidateLists) < 3) {
-            $candidateLists[] = $candidateLists[0]; // double the root/lowest
-        }
-
-        // Sort: assign lower intervals to tenor, higher to soprano
-        // Each list is sorted ascending
-        foreach ($candidateLists as &$list) {
-            sort($list);
-        }
-        unset($list);
-
-        // Ranges for each voice slot: [min, max]
-        $voiceRanges = [
-            self::RANGES['tenor'],
-            self::RANGES['alto'],
-            self::RANGES['soprano'],
-        ];
-
-        // Filter each candidate list to its voice's range
-        $filtered = [];
-        for ($v = 0; $v < 3; $v++) {
-            [$min, $max] = $voiceRanges[$v];
-            $list = array_filter(
-                $candidateLists[$v] ?? $candidateLists[0],
-                fn($m) => $m >= $min && $m <= $max
-            );
-            if (empty($list)) {
-                // Expand search slightly
-                $list = array_filter(
-                    $candidateLists[$v] ?? $candidateLists[0],
-                    fn($m) => $m >= ($min - 5) && $m <= ($max + 5) && $m > $bassMidi
-                );
+        // Collect the pitch classes required by the figured-bass intervals.
+        $requiredPcs = [];
+        foreach ($candidateLists as $list) {
+            foreach ($list as $midi) {
+                $pc = $midi % 12;
+                if (!in_array($pc, $requiredPcs, true)) {
+                    $requiredPcs[] = $pc;
+                }
             }
-            $filtered[$v] = array_values($list);
         }
 
-        // Ensure all three filtered lists have at least one option
-        foreach ($filtered as $v => $list) {
-            if (empty($filtered[$v])) {
-                // Fallback: use any pitch above bass in any octave
-                $pc  = $candidateLists[$v][0] % 12 ?? 0;
-                $filtered[$v] = [];
+        // Melody completion: remove melody PC from required set so the freed voice
+        // can use a better doubling.
+        $requiredPcsForVoices = $requiredPcs;
+        if ($melodyPc !== null && in_array($melodyPc, $requiredPcsForVoices, true)) {
+            $requiredPcsForVoices = array_values(
+                array_filter($requiredPcsForVoices, fn($pc) => $pc !== $melodyPc)
+            );
+        }
+
+        // Build the full chord-tone pool.
+        // In 3-voice mode (2 upper voices): allow root doubling when ≤ 1 required PC
+        //   so that simple triads (e.g. 5-3) still cover root + third.
+        // In 4-voice mode (3 upper voices): allow root doubling when ≤ 2 required PCs.
+        $numUpper   = $numVoices === 3 ? 2 : 3;
+        $allPcs     = $requiredPcs;
+        $maxForRoot = $numVoices === 3 ? 1 : 2;
+        if (count($requiredPcs) <= $maxForRoot) {
+            $bassPc = $bassMidi % 12;
+            if (!in_array($bassPc, $allPcs, true)) {
+                $allPcs[] = $bassPc;
+            }
+        }
+
+        // Build per-voice candidate lists within each voice's range.
+        $voiceRanges = $numVoices === 3
+            ? [self::RANGES['alto'], self::RANGES['soprano']]
+            : [self::RANGES['tenor'], self::RANGES['alto'], self::RANGES['soprano']];
+
+        $filtered = [];
+        for ($v = 0; $v < $numUpper; $v++) {
+            [$min, $max] = $voiceRanges[$v];
+            $list = [];
+            foreach ($allPcs as $pc) {
                 for ($o = 2; $o <= 5; $o++) {
                     $midi = ($o + 1) * 12 + $pc;
-                    if ($midi > $bassMidi) {
-                        $filtered[$v][] = $midi;
+                    if ($midi >= $min && $midi <= $max && $midi > $bassMidi) {
+                        $list[] = $midi;
                     }
                 }
-                if (empty($filtered[$v])) {
-                    $filtered[$v] = [$bassMidi + 7]; // fifth above bass
+            }
+            sort($list);
+            $filtered[$v] = array_values(array_unique($list));
+
+            if (empty($filtered[$v])) {
+                $list = [];
+                foreach ($allPcs as $pc) {
+                    for ($o = 2; $o <= 5; $o++) {
+                        $midi = ($o + 1) * 12 + $pc;
+                        if ($midi >= ($min - 5) && $midi <= ($max + 5) && $midi > $bassMidi) {
+                            $list[] = $midi;
+                        }
+                    }
                 }
+                sort($list);
+                $filtered[$v] = array_values(array_unique($list));
+            }
+
+            if (empty($filtered[$v])) {
+                $filtered[$v] = [$bassMidi + 7];
             }
         }
 
-        // Emergency fallback if both search passes fail (should be extremely rare)
-        $bestChosen  = [$filtered[0][0], $filtered[1][0], $filtered[2][0]];
+        $limit = 8;
 
-        // Limit search space (take first N candidates per voice)
-        $limit = 6;
-        $t_opts = array_slice($filtered[0], 0, $limit);
-        $a_opts = array_slice($filtered[1], 0, $limit);
-        $s_opts = array_slice($filtered[2], 0, $limit);
+        if ($numVoices === 3) {
+            // ── 3-voice mode: alto + soprano only ────────────────────────────
+            $bestChosen = [$filtered[0][0], $filtered[1][0]];
+            $a_opts     = array_slice($filtered[0], 0, $limit);
+            $s_opts     = array_slice($filtered[1], 0, $limit);
 
-        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN);
+            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+            if ($found !== null) {
+                return $found;
+            }
+            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+            return $found ?? $bestChosen;
+        }
 
+        // ── 4-voice mode: tenor + alto + soprano ─────────────────────────────
+        $bestChosen = [$filtered[0][0], $filtered[1][0], $filtered[2][0]];
+        $t_opts     = array_slice($filtered[0], 0, $limit);
+        $a_opts     = array_slice($filtered[1], 0, $limit);
+        $s_opts     = array_slice($filtered[2], 0, $limit);
+
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
         if ($found !== null) {
             return $found;
         }
-
-        // Fallback: relax span to a 10th (16 semitones) rather than fail silently
-        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, 16);
-
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
         return $found ?? $bestChosen;
     }
 
@@ -259,10 +359,13 @@ class VoiceLeadingEngine
      */
     private function searchVoices(
         array $tOpts, array $aOpts, array $sOpts,
-        array $prevMidis, int $bassMidi, int $maxSpan
+        array $prevMidis, int $bassMidi, int $maxSpan, ?int $prevBassMidi = null,
+        array $requiredPcs = [], ?int $melodyPc = null
     ): ?array {
         $bestCost   = PHP_INT_MAX;
         $bestChosen = null;
+
+        $isStart = empty($prevMidis);
 
         foreach ($tOpts as $t) {
             if ($t <= $bassMidi) {
@@ -274,12 +377,39 @@ class VoiceLeadingEngine
                     if (!($t <= $a && $a <= $s)) {
                         continue;
                     }
+                    // Prevent adjacent-voice unisons (collapse of voice independence)
+                    if ($t === $a || $a === $s) {
+                        continue;
+                    }
                     // Right-hand span constraint
                     if (($s - $t) > $maxSpan) {
                         continue;
                     }
 
-                    $cost = $this->voiceCost([$t, $a, $s], $prevMidis, $bassMidi);
+                    $cost = $this->voiceCost([$t, $a, $s], $prevMidis, $bassMidi, $isStart, $prevBassMidi);
+
+                    // Hard penalty for omitting a required figured-bass interval.
+                    // 150 per missing PC dwarfs any motion-cost gain (max ~30), so the
+                    // optimizer will always prefer a voicing that includes all figure tones.
+                    if (!empty($requiredPcs)) {
+                        $presentPcs = [$t % 12, $a % 12, $s % 12];
+                        foreach ($requiredPcs as $rpc) {
+                            if (!in_array($rpc, $presentPcs, true)) {
+                                $cost += 150.0;
+                            }
+                        }
+                    }
+
+                    // Melody avoidance: penalise doubling the melody pitch class.
+                    // 40 per voice is enough to steer away when alternatives exist,
+                    // but stays below the required-PC penalty (150) so that figured
+                    // bass intervals are never omitted just to avoid a melody clash.
+                    if ($melodyPc !== null) {
+                        if ($t % 12 === $melodyPc) $cost += 40.0;
+                        if ($a % 12 === $melodyPc) $cost += 40.0;
+                        if ($s % 12 === $melodyPc) $cost += 40.0;
+                    }
+
                     if ($cost < $bestCost) {
                         $bestCost   = $cost;
                         $bestChosen = [$t, $a, $s];
@@ -292,11 +422,184 @@ class VoiceLeadingEngine
     }
 
     /**
-     * Cost function for a chord voicing.
-     * Lower = better (prefer common tones, steps, contrary motion).
-     * Heavy penalties for parallel perfect consonances (5ths, octaves).
+     * 2-voice inner search loop (3-voice mode: alto + soprano).
+     * Returns the best [alto, soprano] array, or null if none qualifies.
      */
-    private function voiceCost(array $chosen, array $prevMidis, int $bassMidi): float
+    private function searchVoices2(
+        array $aOpts, array $sOpts,
+        array $prevMidis, int $bassMidi, int $maxSpan, ?int $prevBassMidi = null,
+        array $requiredPcs = [], ?int $melodyPc = null
+    ): ?array {
+        $bestCost   = PHP_INT_MAX;
+        $bestChosen = null;
+        $isStart    = empty($prevMidis);
+
+        foreach ($aOpts as $a) {
+            if ($a <= $bassMidi) {
+                continue;
+            }
+            foreach ($sOpts as $s) {
+                if ($a > $s)           continue; // alto ≤ soprano
+                if ($a === $s)         continue; // no unison
+                if (($s - $a) > $maxSpan) continue;
+
+                $cost = $this->voiceCost2([$a, $s], $prevMidis, $bassMidi, $isStart, $prevBassMidi);
+
+                if (!empty($requiredPcs)) {
+                    $present = [$a % 12, $s % 12];
+                    foreach ($requiredPcs as $rpc) {
+                        if (!in_array($rpc, $present, true)) {
+                            $cost += 150.0;
+                        }
+                    }
+                }
+
+                if ($melodyPc !== null) {
+                    if ($a % 12 === $melodyPc) $cost += 40.0;
+                    if ($s % 12 === $melodyPc) $cost += 40.0;
+                }
+
+                if ($cost < $bestCost) {
+                    $bestCost   = $cost;
+                    $bestChosen = [$a, $s];
+                }
+            }
+        }
+
+        return $bestChosen;
+    }
+
+    /**
+     * Cost function for 2-voice (alto + soprano) mode.
+     * Index 0 = alto, index 1 = soprano.
+     */
+    private function voiceCost2(array $curr, array $prevMidis, int $bassCurr, bool $isStart, ?int $prevBassMidi): float
+    {
+        $cost    = 0.0;
+        $bassPrev = $isStart ? $bassCurr : ($prevBassMidi ?? $bassCurr);
+
+        // Motion from previous chord
+        foreach ($curr as $i => $midi) {
+            $prev = $prevMidis[$i] ?? null;
+            if ($prev !== null) {
+                $motion = abs($midi - $prev);
+                if ($motion === 0)     $cost += 0;
+                elseif ($motion <= 2)  $cost += 1;
+                elseif ($motion <= 4)  $cost += 4;
+                elseif ($motion <= 7)  $cost += 9;
+                else                   $cost += $motion * 3;
+            }
+        }
+
+        // Contrary motion: soprano (index 1) vs bass
+        if (!$isStart && isset($prevMidis[1])) {
+            $bassDir = $bassCurr - $bassPrev;
+            $sopDir  = $curr[1] - $prevMidis[1];
+            if ($bassDir !== 0 && $sopDir !== 0 && (($bassDir > 0) === ($sopDir > 0))) {
+                $cost += 6.0;
+            }
+        }
+
+        // Parallel perfect consonances (check alto–soprano and each vs bass)
+        if (!$isStart && count($prevMidis) >= 2) {
+            $allCurr = [$curr[0], $curr[1], $bassCurr];
+            $allPrev = [$prevMidis[0], $prevMidis[1], $bassPrev];
+            for ($i = 0; $i < 3; $i++) {
+                for ($j = $i + 1; $j < 3; $j++) {
+                    $pInt = abs($allPrev[$i] - $allPrev[$j]) % 12;
+                    $cInt = abs($allCurr[$i] - $allCurr[$j]) % 12;
+                    if ($pInt === $cInt && ($allPrev[$i] !== $allCurr[$i] || $allPrev[$j] !== $allCurr[$j])) {
+                        if ($cInt === 7)  $cost += 40;
+                        elseif ($cInt === 0) $cost += 60;
+                    }
+                }
+            }
+        }
+
+        // Voice crossing
+        if ($curr[0] > $curr[1]) {
+            $cost += 100;
+        }
+
+        // Outside ideal range
+        foreach ($curr as $i => $midi) {
+            [$lo, $hi] = $i === 0 ? self::RANGES['alto'] : self::RANGES['soprano'];
+            if ($midi < $lo) $cost += ($lo - $midi) * 3;
+            if ($midi > $hi) $cost += ($midi - $hi) * 3;
+        }
+
+        return $cost;
+    }
+
+    /**
+     * Cost function for a chord voicing.
+     * Delegates to DB-loaded rule closures; falls back to hard-coded logic if no
+     * rules are found (e.g., empty database during first boot before seeding).
+     */
+    private function voiceCost(array $curr, array $prev, int $bassCurr, bool $isStart, ?int $prevBassMidi = null): float
+    {
+        $rules = $this->loadRules();
+
+        if (empty($rules)) {
+            return $this->voiceCostFallback($curr, $prev, $bassCurr, $prevBassMidi);
+        }
+
+        $bassPrev = $isStart ? $bassCurr : ($prevBassMidi ?? $bassCurr);
+
+        $ctx = [
+            'prev'      => $prev,
+            'curr'      => $curr,
+            'bassPrev'  => $bassPrev,
+            'bassCurr'  => $bassCurr,
+            'ranges'    => self::RANGES,
+            'isStart'   => $isStart,
+            'keyFifths' => $this->keyFifths,
+            'keyMode'   => $this->keyMode,
+        ];
+
+        $cost = 0.0;
+        foreach ($rules as $closure) {
+            $cost += (float) $closure($ctx);
+        }
+
+        return $cost;
+    }
+
+    /**
+     * Lazy-load and compile rule closures from the database.
+     *
+     * @return array<int, \Closure>
+     */
+    private function loadRules(): array
+    {
+        if ($this->compiledRules !== null) {
+            return $this->compiledRules;
+        }
+
+        $this->compiledRules = [];
+
+        try {
+            foreach ($this->ruleRepo->findActiveOrderedByPriority() as $rule) {
+                $body = $rule->getImplementation();
+                // Wrap the raw PHP body in a closure
+                $fn = eval(sprintf('return function(array $ctx): float { %s };', $body));
+                if ($fn instanceof \Closure) {
+                    $this->compiledRules[] = $fn;
+                }
+            }
+        } catch (\Throwable) {
+            // DB unavailable — fall back to hard-coded rules (empty list triggers voiceCostFallback)
+            $this->compiledRules = [];
+        }
+
+        return $this->compiledRules;
+    }
+
+    /**
+     * Hard-coded fallback cost function used when the rules table is empty
+     * (e.g., immediately after install, before `app:seed-voice-leading-rules` runs).
+     */
+    private function voiceCostFallback(array $chosen, array $prevMidis, int $bassMidi, ?int $prevBassMidi = null): float
     {
         $cost = 0.0;
 
@@ -319,8 +622,16 @@ class VoiceLeadingEngine
             }
         }
 
+        // Contrary motion between soprano and bass
+        if ($prevBassMidi !== null && count($prevMidis) >= 3) {
+            $bassDir = $bassMidi - $prevBassMidi;
+            $sopDir  = $chosen[2] - $prevMidis[2];
+            if ($bassDir !== 0 && $sopDir !== 0 && (($bassDir > 0) === ($sopDir > 0))) {
+                $cost += 6.0;
+            }
+        }
+
         // Parallel perfect consonances penalty
-        // Upper voices: [0]=tenor,[1]=alto,[2]=soprano; plus bass
         $allCurr = array_merge($chosen, [$bassMidi]);
         $allPrev = array_merge($prevMidis, []);
 
@@ -335,23 +646,23 @@ class VoiceLeadingEngine
                     $moved = ($allPrev[$a] !== $allCurr[$a]) || ($allPrev[$b] !== $allCurr[$b]);
                     if ($moved && $prevInterval === $currInterval) {
                         if ($currInterval === 7) {
-                            $cost += 40;  // parallel 5ths — strongly penalize
+                            $cost += 40;  // parallel 5ths
                         } elseif ($currInterval === 0) {
-                            $cost += 60;  // parallel octaves/unisons — most strongly penalize
+                            $cost += 60;  // parallel octaves/unisons
                         }
                     }
                 }
             }
         }
 
-        // Penalize voice crossing
+        // Voice crossing
         for ($i = 0; $i < count($chosen) - 1; $i++) {
             if ($chosen[$i] > $chosen[$i + 1]) {
-                $cost += 100;  // voice crossing — forbidden
+                $cost += 100;
             }
         }
 
-        // Penalize voices outside their ideal range
+        // Outside ideal range
         $ranges = [self::RANGES['tenor'], self::RANGES['alto'], self::RANGES['soprano']];
         foreach ($chosen as $i => $midi) {
             [$lo, $hi] = $ranges[$i];
@@ -360,6 +671,166 @@ class VoiceLeadingEngine
         }
 
         return $cost;
+    }
+
+    /**
+     * Lazy-load the DB rules citation/translation map.
+     *
+     * @return array<string, array{citations: array, translation: string}>
+     */
+    private function loadDbRulesMap(): array
+    {
+        if ($this->dbRulesMap !== null) {
+            return $this->dbRulesMap;
+        }
+        try {
+            $this->dbRulesMap = $this->ruleRepo->findCitationsMap();
+        } catch (\Throwable) {
+            $this->dbRulesMap = [];
+        }
+        return $this->dbRulesMap;
+    }
+
+    /**
+     * Collect citations + translation from one or more DB rules by name.
+     * Citations from multiple rules are merged into a single flat array.
+     *
+     * @param  string[] $dbNames  DB rule names (keys in the citations map)
+     * @return array               Flat list of citation objects
+     */
+    private function dbCitations(array $dbNames): array
+    {
+        $map    = $this->loadDbRulesMap();
+        $result = [];
+        foreach ($dbNames as $name) {
+            if (!isset($map[$name])) {
+                continue;
+            }
+            foreach ($map[$name]['citations'] as $c) {
+                // Attach the rule-level English translation to each citation entry
+                // so the template can show it alongside the original-language text.
+                $c['translation'] = $map[$name]['translation'];
+                $result[] = $c;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Produce a human-readable trace of the voice-leading choices made for $chord
+     * relative to $prevChord.  Returns an array of step objects compatible with
+     * the chord-inspector UI (same format as FiguredBassInterpreter::unfiguredDecision).
+     */
+    public function traceVoiceLeading(Chord $chord, ?Chord $prevChord, int $keyFifths, string $keyMode): array
+    {
+        $steps      = [];
+        $currUpper  = $chord->upperVoices;
+        $voiceNames = count($currUpper) === 2 ? ['Alto', 'Soprano'] : ['Tenor', 'Alto', 'Soprano'];
+        $prevUpper  = $prevChord ? $prevChord->upperVoices : [];
+
+        // ── Per-voice motion ──────────────────────────────────────────────────
+        foreach ($currUpper as $vi => $currNote) {
+            $name      = $voiceNames[$vi] ?? 'Voice';
+            $currLabel = $this->noteLabel($currNote);
+            $prevNote  = $prevUpper[$vi] ?? null;
+
+            if ($prevNote === null) {
+                $steps[] = ['test' => $name . ': ' . $currLabel . ' (opening)', 'passed' => true, 'isDecision' => false];
+                continue;
+            }
+
+            $motion    = $currNote->midiPitch() - $prevNote->midiPitch();
+            $abs       = abs($motion);
+            $dir       = $motion > 0 ? '↑' : ($motion < 0 ? '↓' : '');
+            $prevLabel = $this->noteLabel($prevNote);
+
+            if ($abs === 0) {
+                $desc = 'common tone';
+            } elseif ($abs <= 2) {
+                $desc = 'step ' . $dir;
+            } elseif ($abs <= 4) {
+                $desc = 'small leap ' . $dir . ' (' . $abs . ' st.)';
+            } else {
+                $desc = 'leap ' . $dir . ' (' . $abs . ' st.)';
+            }
+
+            $steps[] = [
+                'test'       => $name . ': ' . $prevLabel . ' → ' . $currLabel . ' — ' . $desc,
+                'passed'     => $abs <= 7,
+                'isDecision' => false,
+            ];
+        }
+
+        // ── Parallel consonances ─────────────────────────────────────────────
+        if ($prevChord !== null) {
+            $violations = $this->checkParallels($prevChord, $chord);
+            $parallelCitations = $this->dbCitations(['no_parallel_fifths', 'no_parallel_octaves']);
+            if (empty($violations)) {
+                $steps[] = [
+                    'test'       => 'No parallel 5ths or octaves',
+                    'passed'     => true,
+                    'isDecision' => true,
+                    'rule'       => 'Forbidden Parallels',
+                    'source'     => 'Gasparini 1729; Delair 1724',
+                    'reason'     => 'All voice pairs move without forbidden parallels',
+                    'citations'  => $parallelCitations,
+                ];
+            } else {
+                foreach ($violations as $v) {
+                    $steps[] = [
+                        'test'       => 'Parallel: ' . $v,
+                        'passed'     => false,
+                        'isDecision' => true,
+                        'rule'       => 'Forbidden Parallels',
+                        'source'     => 'Gasparini 1729; Delair 1724',
+                        'reason'     => $v,
+                        'citations'  => $parallelCitations,
+                    ];
+                }
+            }
+
+            // ── Contrary motion (soprano vs bass) ────────────────────────────
+            $prevSop  = $prevUpper[2] ?? ($prevUpper[1] ?? ($prevUpper[0] ?? null));
+            $currSop  = $currUpper[2]  ?? ($currUpper[1]  ?? ($currUpper[0]  ?? null));
+            if ($prevSop && $currSop) {
+                $bassDir = $chord->bass->midiPitch() - $prevChord->bass->midiPitch();
+                $sopDir  = $currSop->midiPitch()     - $prevSop->midiPitch();
+                if ($bassDir !== 0 && $sopDir !== 0) {
+                    $contrary = ($bassDir > 0) !== ($sopDir > 0);
+                    $steps[] = [
+                        'test'       => $contrary
+                                        ? 'Soprano and bass move in contrary motion'
+                                        : 'Soprano and bass move in similar motion',
+                        'passed'     => $contrary,
+                        'isDecision' => true,
+                        'rule'       => 'Contrary Motion (outer voices)',
+                        'source'     => 'Delair 1724',
+                        'reason'     => $contrary
+                                        ? 'Outer voices in opposite directions — preferred'
+                                        : 'Similar motion of outer voices — penalised',
+                        'citations'  => $this->dbCitations(['contrary_motion_soprano_bass']),
+                    ];
+                }
+            }
+        }
+
+        // ── Right-hand span ───────────────────────────────────────────────────
+        if (count($currUpper) >= 3) {
+            $span = $currUpper[2]->midiPitch() - $currUpper[0]->midiPitch();
+            $steps[] = [
+                'test'   => 'Right-hand span: ' . $span . ' st. (' . ($span <= self::MAX_HAND_SPAN ? 'within' : 'exceeds') . ' 9th limit)',
+                'passed' => $span <= self::MAX_HAND_SPAN,
+                'isDecision' => false,
+            ];
+        }
+
+        return $steps;
+    }
+
+    private function noteLabel(Note $note): string
+    {
+        $acc = match($note->alter) { 1 => '#', -1 => 'b', 2 => '##', -2 => 'bb', default => '' };
+        return $note->step . $acc . $note->octave;
     }
 
     /**

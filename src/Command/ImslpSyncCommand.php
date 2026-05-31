@@ -8,12 +8,15 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(name: 'app:imslp:sync', description: 'Sync IMSLP composers and/or works into the local database')]
 class ImslpSyncCommand extends Command
 {
-    public function __construct(private readonly ImslpService $imslp)
-    {
+    public function __construct(
+        private readonly ImslpService  $imslp,
+        private readonly CacheInterface $cache,
+    ) {
         parent::__construct();
     }
 
@@ -86,6 +89,8 @@ class ImslpSyncCommand extends Command
 
             $output->writeln(sprintf('[%s] Done. Synced %d works.', $this->ts(), $count));
         }
+
+        $this->cache->delete('imslp.distinct_genres');
 
         return Command::SUCCESS;
     }

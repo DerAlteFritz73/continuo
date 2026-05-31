@@ -10,7 +10,7 @@ use App\Model\Score;
 /**
  * Main orchestrator for basso continuo realization.
  *
- * Algorithm (based on Wead & Knopke ICMC 2007 + Gasparini 1708 + Delair 1724):
+ * Algorithm (based on Wead & Knopke ICMC 2007 + Gasparini 1729 + Delair 1724):
  *
  * For each bass note in sequence:
  *  1. Determine if figured bass is already present
@@ -30,7 +30,7 @@ class ContinuoRealizer
         private readonly VoiceLeadingEngine     $voiceLeading,
     ) {}
 
-    public function realize(Score $score): Score
+    public function realize(Score $score, int $numVoices = 4): Score
     {
         $prevChord    = null;
         $prevNote     = null;
@@ -40,13 +40,15 @@ class ContinuoRealizer
         $noteIndex = 0;
 
         foreach ($score->measures as $measure) {
-            $keyFifths = $measure->keySignature['fifths'] ?? $score->keyFifths;
-            $keyMode   = $measure->keySignature['mode']   ?? $score->keyMode;
+            $keyFifths  = $measure->keySignature['fifths'] ?? $score->keyFifths;
+            $keyMode    = $measure->keySignature['mode']   ?? $score->keyMode;
+            $bassOffset = 0.0; // cumulative quarter-note offset within this measure
 
             foreach ($measure->bassNotes as $i => $bassNote) {
                 if ($bassNote->isRest()) {
-                    $prevNote  = null;
-                    $prevChord = null;
+                    $prevNote   = null;
+                    $prevChord  = null;
+                    $bassOffset += $bassNote->duration;
                     $noteIndex++;
                     continue;
                 }
@@ -62,17 +64,22 @@ class ContinuoRealizer
                 $scaleDeg = $this->analyzer->scaleDegree($bassNote, $keyFifths, $keyMode);
 
                 // Get raw figures (from file or from decision tree)
-                $rawFigures = $bassNote->figuredBass;
+                $rawFigures   = $bassNote->figuredBass;
+                $decisionSteps = [];
+                $figuresSource = 'file';
 
                 if (empty($rawFigures)) {
                     // Unfigured bass → run decision tree
-                    $rawFigures = $this->interpreter->unfiguredDecision(
+                    $figuresSource  = 'computed';
+                    $decisionResult = $this->interpreter->unfiguredDecision(
                         scaleDegree: $scaleDeg,
                         motion: $currMotion['type'],
                         nextMotion: $nextMotion['type'],
                         mode: $keyMode,
                         leapSize: $this->analyzer->genericInterval($currMotion['size']),
                     );
+                    $rawFigures    = $decisionResult['figures'];
+                    $decisionSteps = $decisionResult['trace'];
                 }
 
                 // Expand figures to interval list
@@ -88,6 +95,21 @@ class ContinuoRealizer
                     chordSymbol: $this->chordSymbol($scaleDeg, $rawFigures, $keyMode),
                 );
 
+                // Store decision context and trace in chord
+                $chord->decisionTrace = [
+                    'scaleDegree'  => $scaleDeg,
+                    'motionIn'     => $currMotion['type'],
+                    'motionInSize' => $currMotion['size'] ?? 0,
+                    'motionOut'    => $nextMotion['type'],
+                    'figuresSource' => $figuresSource,
+                    'keyFifths'    => $keyFifths,
+                    'keyMode'      => $keyMode,
+                    'steps'        => $decisionSteps,
+                ];
+
+                // Find melody pitch class sounding at this beat (if any)
+                $melodyPc = $this->findMelodyPc($measure->melodyNotes, $bassOffset);
+
                 // Realize upper voices
                 $chord = $this->voiceLeading->realize(
                     chord: $chord,
@@ -96,17 +118,43 @@ class ContinuoRealizer
                     keyFifths: $keyFifths,
                     keyMode: $keyMode,
                     isLeadingTone7th: $isLeadingTone,
+                    melodyPc: $melodyPc,
+                    numVoices: $numVoices,
                 );
+
+                // Append voice-leading trace to decision steps (works for both
+                // figured and unfigured notes: figured notes get only VL steps,
+                // unfigured notes get the figure-decision steps + VL steps).
+                $vlTrace = $this->voiceLeading->traceVoiceLeading($chord, $prevChord, $keyFifths, $keyMode);
+                $chord->decisionTrace['steps'] = array_merge($decisionSteps, $vlTrace);
 
                 $measure->realizedChords[$i] = $chord;
 
-                $prevNote  = $bassNote;
-                $prevChord = $chord;
+                $prevNote   = $bassNote;
+                $prevChord  = $chord;
+                $bassOffset += $bassNote->duration;
                 $noteIndex++;
             }
         }
 
         return $score;
+    }
+
+    /**
+     * Find the melody pitch class (0–11) sounding at $beatOffset quarters into
+     * the measure.  Returns null when no melody note covers that position.
+     *
+     * @param array<array{offset:float,duration:float,pc:int}> $melodyNotes
+     */
+    private function findMelodyPc(array $melodyNotes, float $beatOffset): ?int
+    {
+        foreach ($melodyNotes as $mn) {
+            if ($mn['offset'] <= $beatOffset + 0.001
+                && $beatOffset  <  $mn['offset'] + $mn['duration'] - 0.001) {
+                return $mn['pc'];
+            }
+        }
+        return null;
     }
 
     /**
@@ -138,24 +186,25 @@ class ContinuoRealizer
         $symbols = $isMajor ? $majorQuality : $minorQuality;
         $base    = $symbols[$scaleDeg - 1] ?? '?';
 
-        // Inversion suffix
-        if (in_array(6, $nums) && in_array(4, $nums)) {
-            return $base . '⁶₄';
+        // Inversion suffix — check most-specific cases first so that fully-spelled chords
+        // (e.g. [6,4,2] or [6,5,3]) are not mistaken for less-specific patterns.
+        if (in_array(2, $nums) && !in_array(9, $nums)) {  // 4/2 or 6/4/2 or 2 alone
+            return $base . '²';
         }
-        if (in_array(6, $nums) && !in_array(4, $nums) && !in_array(7, $nums)) {
-            return $base . '⁶';
-        }
-        if (in_array(7, $nums)) {
-            return $base . '⁷';
-        }
-        if (in_array(6, $nums) && in_array(5, $nums)) {
-            return $base . '⁶₅';
-        }
-        if (in_array(4, $nums) && in_array(3, $nums)) {
+        if (in_array(4, $nums) && in_array(3, $nums)) {   // 4/3 or 6/4/3
             return $base . '⁴₃';
         }
-        if (in_array(4, $nums) && in_array(2, $nums)) {
-            return $base . '²';
+        if (in_array(6, $nums) && in_array(5, $nums)) {   // 6/5 or 6/5/3
+            return $base . '⁶₅';
+        }
+        if (in_array(7, $nums)) {                          // 7, 7/5, 7/5/3
+            return $base . '⁷';
+        }
+        if (in_array(6, $nums) && in_array(4, $nums)) {   // 6/4 (cadential)
+            return $base . '⁶₄';
+        }
+        if (in_array(6, $nums)) {                          // 6 alone → first inversion triad
+            return $base . '⁶';
         }
 
         return $base;
