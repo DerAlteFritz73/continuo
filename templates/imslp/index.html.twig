@@ -126,12 +126,11 @@ body {
 }
 .ai-row {
     display: flex;
+    flex-direction: column;
     gap: .6rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
 }
 .ai-input {
-    flex: 1;
+    width: 100%;
     background: #1a1a1a;
     border: 1px solid #3a3a3a;
     border-radius: 6px;
@@ -148,6 +147,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: .4rem;
+    align-self: flex-end;
     background: #2a2520;
     border: 1px solid #c8a96e55;
     color: #c8a96e;
@@ -433,7 +433,6 @@ body {
     .search-field { min-width: 0; flex: 1 1 100%; }
     .search-field.narrow, .search-field.medium { flex: 1 1 100%; min-width: 0; }
     .btn-search { align-self: stretch; width: 100%; }
-    .ai-row { flex-direction: column; }
     .btn-ai { align-self: stretch; width: 100%; justify-content: center; }
 
     .composer-card { flex: 1 1 100%; min-width: 0; }
