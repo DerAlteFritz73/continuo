@@ -25,7 +25,6 @@
             <div class="work-title">
                 <a class="work-link" href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ work.title }}</a>
                 {% if work.yearComposed %}<span class="work-year">{{ work.yearComposed }}</span>{% endif %}
-                {% if work.catalogNumber %}<span class="catalog">{{ work.catalogNumber }}</span>{% endif %}
             </div>
 
             {# Line 3: key, instrumentation, tags #}

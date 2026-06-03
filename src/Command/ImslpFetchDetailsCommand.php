@@ -37,6 +37,8 @@ class ImslpFetchDetailsCommand extends Command
                 'Milliseconds to sleep between requests', 300)
              ->addOption('stop-file', null, InputOption::VALUE_REQUIRED,
                 'Path to a stop-file; process exits gracefully when the file appears', '')
+             ->addOption('pid-file', null, InputOption::VALUE_REQUIRED,
+                'Write the current process PID to this file at startup', '')
              ->addOption('refetch-no-tags', null, InputOption::VALUE_NONE,
                 'Re-fetch works that were synced but have no tags (to pick up category data)')
              ->addOption('fill-genres', null, InputOption::VALUE_NONE,
@@ -50,9 +52,14 @@ class ImslpFetchDetailsCommand extends Command
         $limit         = (int) $input->getOption('limit');
         $delay         = (int) $input->getOption('delay');
         $stopFile      = (string) $input->getOption('stop-file');
+        $pidFile       = (string) $input->getOption('pid-file');
         $refetchNoTags = (bool) $input->getOption('refetch-no-tags');
         $fillGenres    = (bool) $input->getOption('fill-genres');
         $fillAll       = (bool) $input->getOption('fill-all');
+
+        if ($pidFile !== '') {
+            file_put_contents($pidFile, (string) getmypid());
+        }
 
         $total   = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
         $pending = match (true) {

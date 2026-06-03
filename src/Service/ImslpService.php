@@ -865,30 +865,57 @@ class ImslpService
     }
 
     /**
+     * Strip any trailing |FieldName=Value pairs that appear at brace depth 0.
+     * Safe: leaves |param=value inside {{Template|...}} untouched.
+     */
+    private function cutInlineFields(string $val): string
+    {
+        $depth = 0;
+        $len   = strlen($val);
+        for ($i = 0; $i < $len; $i++) {
+            if (substr($val, $i, 2) === '{{') { $depth++; $i++; continue; }
+            if (substr($val, $i, 2) === '}}') { if ($depth > 0) $depth--; $i++; continue; }
+            if ($depth === 0 && $val[$i] === '|'
+                && preg_match('/^[A-Za-z][^=\n]*=/', substr($val, $i + 1))
+            ) {
+                return rtrim(substr($val, 0, $i));
+            }
+        }
+        return $val;
+    }
+
+    /**
      * Parse wikitext |Field=Value lines into an associative array.
-     * Handles multi-line values: a field's value continues until the next |Field= line.
+     * Handles multi-line values: a field's value continues until the next |Field= line
+     * at brace depth 0.  Lines that look like |Field=Value inside an open {{ template
+     * (depth > 0) are treated as continuation lines, not new fields.
      */
     private function parseWikiFields(string $text): array
     {
         $fields = [];
-        // Normalize line endings
-        $text  = str_replace("\r\n", "\n", $text);
-        $lines = explode("\n", $text);
+        $text   = str_replace("\r\n", "\n", $text);
+        $lines  = explode("\n", $text);
 
-        $currentKey = null;
-        $currentVal = [];
+        $currentKey  = null;
+        $currentVal  = [];
+        $braceDepth  = 0; // net {{ depth carried across lines
 
         foreach ($lines as $line) {
-            // A new field starts with | followed by a field name, then =
-            if (preg_match('/^\|\s*([^=|]+?)\s*=\s*(.*)/s', $line, $m)) {
+            $isFieldLine = $braceDepth === 0
+                && preg_match('/^\s*\|\s*([^=|]+?)\s*=\s*(.*)/s', $line, $m);
+
+            if ($isFieldLine) {
                 if ($currentKey !== null) {
                     $fields[$currentKey] = trim(implode("\n", $currentVal));
                 }
                 $currentKey = trim($m[1]);
-                $currentVal = [$m[2]];
+                $val        = $this->cutInlineFields($m[2]);
+                $currentVal = [$val];
+                // Track net open templates in the value portion of this line
+                $braceDepth = max(0, substr_count($m[2], '{{') - substr_count($m[2], '}}'));
             } elseif ($currentKey !== null) {
-                // Continuation of previous value
                 $currentVal[] = $line;
+                $braceDepth   = max(0, $braceDepth + substr_count($line, '{{') - substr_count($line, '}}'));
             }
         }
         if ($currentKey !== null) {
@@ -979,22 +1006,46 @@ class ImslpService
         // [[Link|Display]] → Display, [[Link]] → Link
         $text = preg_replace('/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/', '$1', $text);
 
-        // {{LinkEd|Firstname|Lastname|birthYear|deathYear}} → "Firstname Lastname"
-        $text = $this->replaceTemplateWithCallback($text, 'LinkEd', function (string $inner) {
+        // {{LinkEd|Firstname|Lastname|...}}, {{LinkCopy|...}}, {{LinkArr|...}} → "Firstname Lastname"
+        $nameCb = function (string $inner) {
             $params = $this->extractTemplateParams($inner);
-            // params[0]=template name, [1]=Firstname, [2]=Lastname
-            $first = $params[1] ?? '';
-            $last  = $params[2] ?? '';
+            $first  = $params[1] ?? '';
+            $last   = $params[2] ?? '';
             return trim("$first $last");
-        });
+        };
+        $text = $this->replaceTemplateWithCallback($text, 'LinkEd',   $nameCb);
+        $text = $this->replaceTemplateWithCallback($text, 'LinkCopy', $nameCb);
+        $text = $this->replaceTemplateWithCallback($text, 'LinkArr',  $nameCb);
 
-        // {{FE|...}} → "Facsimile" (IMSLP facsimile edition template)
-        $text = $this->replaceNamedTemplate($text, 'FE', 'Facsimile');
+        // {{FE|...}} — remove (it's a tag on the edition object, not part of a text field)
+        $text = $this->replaceNamedTemplate($text, 'FE', '');
 
-        // {{P|PublisherName|...}} → publisher name only (first positional param after name)
+        // {{P|Name|Short|City|Country|Year|Plate|...}} → "Name, Year" (year scanned by value)
         $text = $this->replaceTemplateWithCallback($text, 'P', function (string $inner) {
             $params = $this->extractTemplateParams($inner);
-            return trim($params[1] ?? '');
+            $name = trim($params[1] ?? '');
+            $year = '';
+            for ($i = 2; $i < count($params); $i++) {
+                if (preg_match('/^\d{4}$/', trim($params[$i]))) {
+                    $year = trim($params[$i]);
+                    break;
+                }
+            }
+            return $year !== '' ? "$name, $year" : $name;
+        });
+
+        // {{WC|id|Label}} → just the label (Wikipedia-Commons link)
+        $text = $this->replaceTemplateWithCallback($text, 'WC', function (string $inner) {
+            $params = $this->extractTemplateParams($inner);
+            // params: [0]=WC, [1]=id, [2]=label  or  [0]=WC, [1]=label
+            $label = count($params) >= 3 ? trim($params[2]) : trim($params[1] ?? '');
+            return $label !== '' ? $label : '';
+        });
+
+        // {{LinkWork|page_id|title}} → just the title
+        $text = $this->replaceTemplateWithCallback($text, 'LinkWork', function (string $inner) {
+            $params = $this->extractTemplateParams($inner);
+            return trim($params[2] ?? $params[1] ?? '');
         });
 
         // Remove remaining {{...}} iteratively (any nesting depth, outermost first)
@@ -1003,12 +1054,14 @@ class ImslpService
             $prev = $text;
             $text = preg_replace('/\{\{[^{}]*\}\}/', '', $text);
         }
-        // Remove any leftover {{ or }} fragments
+        // Remove any leftover {{ or }} fragments (e.g. truncated templates from old fetches)
         $text = str_replace(['{{', '}}'], '', $text);
         // '''bold''' and ''italic''
         $text = str_replace(["'''", "''"], '', $text);
         // HTML tags (e.g. <br>, <br/>, <ref>…</ref>)
         $text = preg_replace('/<[^>]+>/', ' ', $text);
+        // Bare year ranges left over after template stripping, e.g. " (1687-1863)" or "(1687–1863)"
+        $text = preg_replace('/\s*\(\d{3,4}\s*[-–]\d{3,4}\)/', '', $text);
         // Wiki list/definition markers at start of line (:, ;, #, *)
         $text = preg_replace('/^[;:#*]+\s*/m', '', $text);
         // Lines that are purely a number (artefacts from unresolved templates) → remove

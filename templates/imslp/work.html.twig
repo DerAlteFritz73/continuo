@@ -99,7 +99,22 @@ body {
     padding: .75rem 1.1rem;
     background: #252525;
     border-bottom: 1px solid #2e2e2e;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: .7rem;
 }
+.edition-header:hover { background: #2c2c2c; }
+.edition-header-content { flex: 1 1 auto; min-width: 0; }
+.edition-chevron {
+    flex: 0 0 auto;
+    color: #6a6058;
+    font-size: .85rem;
+    margin-top: .15rem;
+    transition: transform .2s;
+}
+.edition-card.open .edition-chevron { transform: rotate(90deg); }
 .edition-title {
     font-size: .92rem;
     color: #d8d0c4;
@@ -116,6 +131,79 @@ body {
 }
 .edition-meta .copyright { color: #8a8070; }
 
+/* Collapsible body */
+.edition-body { display: none; }
+.edition-card.open .edition-body { display: block; }
+
+/* Multi-file open panel */
+.files-open-panel {
+    padding: .45rem 1.1rem .55rem;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+}
+.files-open-panel-title {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #6a6058;
+    margin-bottom: .35rem;
+}
+.files-open-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+.files-open-link {
+    color: #c8a96e;
+    text-decoration: none;
+    font-size: .8rem;
+    font-family: monospace;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.files-open-link:hover { text-decoration: underline; }
+.files-open-link:visited { color: #9a7a4e; }
+
+/* Actions bar */
+.edition-actions {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .55rem 1.1rem;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+    flex-wrap: wrap;
+}
+.select-all-label {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .8rem;
+    color: #8a8070;
+    cursor: pointer;
+}
+.select-all-label input { cursor: pointer; accent-color: #c8a96e; }
+.select-all-label:hover { color: #c8a96e; }
+.download-btn {
+    margin-left: auto;
+    background: #c8a96e;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 5px;
+    padding: .35rem .85rem;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+}
+.download-btn:hover { opacity: .85; }
+.download-btn:disabled { opacity: .4; cursor: default; }
+
 /* File rows inside an edition */
 .edition-files {
     display: flex;
@@ -123,13 +211,29 @@ body {
 }
 .file-row {
     display: flex;
-    align-items: baseline;
-    gap: .6rem;
+    align-items: center;
+    gap: .7rem;
     padding: .45rem 1.1rem;
     border-bottom: 1px solid #1e1e1e;
-    flex-wrap: wrap;
 }
 .file-row:last-child { border-bottom: none; }
+.file-row:hover { background: #252525; }
+.file-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    cursor: pointer;
+    accent-color: #c8a96e;
+    width: 15px;
+    height: 15px;
+}
+.file-row label {
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    flex: 1 1 auto;
+    cursor: pointer;
+    min-width: 0;
+    flex-wrap: wrap;
+}
 .file-desc {
     font-size: .88rem;
     color: #d8d0c4;
@@ -257,9 +361,6 @@ body {
     <div class="work-header">
         <h1>{{ work.title }}</h1>
         <div class="composer-line">{{ work.composer }}</div>
-        {% if work.catalogNumber %}
-        <div class="catalog-no">{{ work.catalogNumber }}</div>
-        {% endif %}
     </div>
 
     {% set searchQ = (work.composer ~ ' ' ~ work.title)|url_encode %}
@@ -298,9 +399,6 @@ body {
         {% endif %}
         {% if work.yearComposed %}
         <div class="meta-item"><dt>{{ 'imslp.work_meta_year_composed'|trans }}</dt><dd>{{ work.yearComposed }}</dd></div>
-        {% endif %}
-        {% if work.yearPublished %}
-        <div class="meta-item"><dt>{{ 'imslp.work_meta_year_published'|trans }}</dt><dd>{{ work.yearPublished }}</dd></div>
         {% endif %}
         {% if work.pageType %}
         <div class="meta-item"><dt>{{ 'imslp.work_meta_type'|trans }}</dt><dd>{{ work.pageType }}</dd></div>
@@ -347,75 +445,176 @@ body {
     {% set isEditionFormat = work.filesJson[0] is defined and work.filesJson[0].files is defined %}
 
     {% if isEditionFormat %}
-        {# Count total files across all editions #}
-        {% set totalFiles = 0 %}
-        {% for ed in work.filesJson %}{% set totalFiles = totalFiles + ed.files|length %}{% endfor %}
         {% set edCount = work.filesJson|length %}
-        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} — {{ edCount != 1 ? 'imslp.work_files_editions_plural'|trans({'%editions%': edCount}) : 'imslp.work_files_editions'|trans({'%editions%': edCount}) }}, {{ totalFiles != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': totalFiles}) : 'imslp.work_files_count'|trans({'%count%': totalFiles}) }}</h2>
+        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} — {{ edCount != 1 ? 'imslp.work_files_editions_plural'|trans({'%editions%': edCount}) : 'imslp.work_files_editions'|trans({'%editions%': edCount}) }}</h2>
 
         {% for ed in work.filesJson %}
-        <div class="edition-card">
-            <div class="edition-header">
-                <div class="edition-title">
-                    {% if ed.editor is defined and ed.editor %}
-                        Ed. <em>{{ ed.editor }}</em>{% if ed.publisher is defined and ed.publisher %} — {{ ed.publisher }}{% endif %}
-                    {% elseif ed.arranger is defined and ed.arranger %}
-                        Arr. <em>{{ ed.arranger }}</em>{% if ed.publisher is defined and ed.publisher %} — {{ ed.publisher }}{% endif %}
-                    {% elseif ed.publisher is defined and ed.publisher %}
-                        {{ ed.publisher }}
-                    {% else %}
-                        <span style="color:#6a6058;font-style:italic">{{ 'imslp.work_edition_anonymous'|trans }}</span>
-                    {% endif %}
+        {% set edIdx = loop.index %}
+        {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher : (ed.editor is defined and ed.editor ? ed.editor : (ed.arranger is defined and ed.arranger ? ed.arranger : 'Anonymous')) %}
+        <div class="edition-card" id="edition-{{ edIdx }}"
+             data-zipname="{{ (work.composer ~ ' - ' ~ work.title ~ ' - ' ~ edLabel)|e('html_attr') }}">
+            <div class="edition-header" onclick="toggleEdition({{ edIdx }})">
+                <div class="edition-header-content">
+                    <div class="edition-title">
+                        {% if ed.publisher is defined and ed.publisher %}
+                            {{ ed.publisher }}
+                        {% else %}
+                            <span style="color:#6a6058;font-style:italic">{{ 'imslp.work_edition_anonymous'|trans }}</span>
+                        {% endif %}
+                        <span style="color:#6a6058;font-weight:400;font-size:.82rem;margin-left:.5rem">({{ ed.files|length }} {{ ed.files|length != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': ''}) : 'imslp.work_files_count'|trans({'%count%': ''}) |trim }})</span>
+                        {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
+                        {% if not isManuscript %}
+                            {% if ed.editor is defined and ed.editor %}
+                                <div style="font-size:.8rem;color:#8a8070;font-weight:400;margin-top:.15rem">{{ 'imslp.work_edition_ed'|trans }} <em style="color:#a89880">{{ ed.editor }}</em></div>
+                            {% elseif ed.arranger is defined and ed.arranger %}
+                                <div style="font-size:.8rem;color:#8a8070;font-weight:400;margin-top:.15rem">{{ 'imslp.work_edition_arr'|trans }} <em style="color:#a89880">{{ ed.arranger }}</em></div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="edition-meta">
+                        {% if ed.dateSubmitted is defined and ed.dateSubmitted %}
+                        <span>{{ 'imslp.work_edition_submitted'|trans({'%date%': ed.dateSubmitted}) }}</span>
+                        {% endif %}
+                        {% if ed.copyright is defined and ed.copyright %}
+                        <span class="copyright">{{ ed.copyright }}</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="edition-meta">
-                    {% if ed.dateSubmitted is defined and ed.dateSubmitted %}
-                    <span>{{ 'imslp.work_edition_submitted'|trans({'%date%': ed.dateSubmitted}) }}</span>
-                    {% endif %}
-                    {% if ed.copyright is defined and ed.copyright %}
-                    <span class="copyright">{{ ed.copyright }}</span>
-                    {% endif %}
-                </div>
+                <span class="edition-chevron">▶</span>
             </div>
-            <div class="edition-files">
-                {% for file in ed.files %}
-                <div class="file-row">
-                    <div class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</div>
-                    {% if file.description is defined and file.description %}
-                    <div class="file-name">{{ file.filename }}</div>
-                    {% endif %}
+            <div class="edition-body">
+                <div class="edition-actions">
+                    <label class="select-all-label">
+                        <input type="checkbox" class="select-all-cb" id="selAll-{{ edIdx }}" onchange="toggleSelectAll({{ edIdx }}, this.checked)">
+                        <span id="selAllLabel-{{ edIdx }}">{{ 'imslp.work_edition_select_all'|trans }}</span>
+                    </label>
+                    <button class="download-btn" id="dlBtn-{{ edIdx }}" onclick="downloadZip({{ edIdx }})"
+                            data-label-none="{{ 'imslp.work_edition_download_none'|trans }}"
+                            data-label-selected="{{ 'imslp.work_edition_download_selected'|trans({'%count%': '__N__'}) }}"
+                            disabled>
+                        {{ 'imslp.work_edition_download_none'|trans }}
+                    </button>
                 </div>
-                {% endfor %}
+                <div class="files-open-panel" id="open-panel-{{ edIdx }}" style="display:none">
+                    <div class="files-open-panel-title">{{ 'imslp.work_edition_open_panel_title'|trans }}</div>
+                    <ul class="files-open-list" id="open-panel-list-{{ edIdx }}"></ul>
+                </div>
+                <div class="edition-files" id="files-{{ edIdx }}">
+                    {% for file in ed.files %}
+                    {% set fileIdx = loop.index %}
+                    <div class="file-row">
+                        <input type="checkbox" id="f-{{ edIdx }}-{{ fileIdx }}"
+                               class="file-cb"
+                               data-edition="{{ edIdx }}"
+                               data-filename="{{ file.filename }}"
+                               onchange="onFileCheck({{ edIdx }})">
+                        <label for="f-{{ edIdx }}-{{ fileIdx }}">
+                            <span class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</span>
+                            {% if file.description is defined and file.description %}
+                            <span class="file-name">{{ file.filename }}</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         {% endfor %}
 
     {% else %}
-        {# Legacy flat format — render as before #}
+        {# Legacy flat format #}
         <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} ({{ work.filesJson|length }})</h2>
         {% for file in work.filesJson %}
         <div class="edition-card">
-            <div class="edition-header">
-                <div class="edition-meta">
-                    {% if file.editor is defined and file.editor %}<span>Ed. {{ file.editor }}</span>{% endif %}
-                    {% if file.publisher is defined and file.publisher %}<span>{{ file.publisher }}</span>{% endif %}
-                    {% if file.copyright is defined and file.copyright %}<span class="copyright">{{ file.copyright }}</span>{% endif %}
+            <div class="edition-header" style="cursor:default">
+                <div class="edition-header-content">
+                    <div class="edition-meta">
+                        {% if file.editor is defined and file.editor %}<span>Ed. {{ file.editor }}</span>{% endif %}
+                        {% if file.publisher is defined and file.publisher %}<span>{{ file.publisher }}</span>{% endif %}
+                        {% if file.copyright is defined and file.copyright %}<span class="copyright">{{ file.copyright }}</span>{% endif %}
+                    </div>
                 </div>
             </div>
             <div class="edition-files">
                 <div class="file-row">
-                    <div class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</div>
-                    <div class="file-name">{{ file.filename }}</div>
+                    <label style="flex:1;cursor:default">
+                        <span class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</span>
+                        <span class="file-name">{{ file.filename }}</span>
+                    </label>
                 </div>
             </div>
         </div>
         {% endfor %}
     {% endif %}
 
-    <p style="font-size:.8rem;color:#6a6058;margin-bottom:2rem;margin-top:.5rem;">
-        {{ 'imslp.work_files_download_hint'|trans }}
-        <a href="{{ work.permlink }}" target="_blank" rel="noopener" style="color:#c8a96e">{{ 'imslp.work_files_imslp_page'|trans }}</a>.
-    </p>
     {% endif %}
+
+<script>
+const IMSLP_BASE = 'https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/';
+
+function toggleEdition(idx) {
+    document.getElementById('edition-' + idx).classList.toggle('open');
+}
+
+function getChecked(idx) {
+    return Array.from(document.querySelectorAll('.file-cb[data-edition="' + idx + '"]:checked'));
+}
+
+function onFileCheck(idx) {
+    const all     = document.querySelectorAll('.file-cb[data-edition="' + idx + '"]');
+    const checked = getChecked(idx);
+    const n       = checked.length;
+
+    const selAllCb = document.getElementById('selAll-' + idx);
+    selAllCb.indeterminate = n > 0 && n < all.length;
+    selAllCb.checked = n === all.length && all.length > 0;
+
+    const btn = document.getElementById('dlBtn-' + idx);
+    btn.disabled = n === 0;
+    btn.textContent = n === 0
+        ? btn.dataset.labelNone
+        : btn.dataset.labelSelected.replace('__N__', n);
+
+    // Hide the open-panel whenever selection changes
+    document.getElementById('open-panel-' + idx).style.display = 'none';
+}
+
+function toggleSelectAll(idx, checked) {
+    document.querySelectorAll('.file-cb[data-edition="' + idx + '"]').forEach(cb => cb.checked = checked);
+    onFileCheck(idx);
+}
+
+function downloadZip(idx) {
+    const checked = getChecked(idx);
+    if (!checked.length) return;
+
+    if (checked.length === 1) {
+        // Single file: open directly — this is a user gesture, never blocked
+        window.open(IMSLP_BASE + encodeURIComponent(checked[0].dataset.filename), '_blank', 'noopener noreferrer');
+        return;
+    }
+
+    // Multiple files: browsers block window.open in a loop.
+    // Toggle a panel of <a> links — each click is its own user gesture.
+    const panel = document.getElementById('open-panel-' + idx);
+    if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+    const list = document.getElementById('open-panel-list-' + idx);
+    list.innerHTML = '';
+    checked.forEach(cb => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.href        = IMSLP_BASE + encodeURIComponent(cb.dataset.filename);
+        a.target      = '_blank';
+        a.rel         = 'noopener noreferrer';
+        a.textContent = cb.dataset.filename;
+        a.className   = 'files-open-link';
+        li.appendChild(a);
+        list.appendChild(li);
+    });
+    panel.style.display = 'block';
+}
+</script>
 
 </div>
 {% endblock %}

@@ -734,10 +734,44 @@ body {
         });
     });
 
-    // Auto-reload while any job is running
-    if (fetchRunning || syncRunning || datesRunning || composersRunning) {
-        setTimeout(() => location.reload(), 10000);
+    // Live status polling: refresh when job state or progress counters change.
+    const STATUS_URL = '{{ path('app_imslp_sync_status', {json: 1}) }}';
+    const initialStatus = {
+        running: fetchRunning,
+        syncRunning: syncRunning,
+        datesRunning: datesRunning,
+        composersRunning: composersRunning,
+        worksWithDetail: {{ worksWithDetail }},
+        composersWithDates: {{ composersWithDates }},
+        detailPercent: {{ detailPercent }},
+        datesPercent: {{ datesPercent }},
+    };
+
+    function shouldReload(next) {
+        return (
+            next.running !== initialStatus.running ||
+            next.syncRunning !== initialStatus.syncRunning ||
+            next.datesRunning !== initialStatus.datesRunning ||
+            next.composersRunning !== initialStatus.composersRunning ||
+            next.worksWithDetail !== initialStatus.worksWithDetail ||
+            next.composersWithDates !== initialStatus.composersWithDates ||
+            next.detailPercent !== initialStatus.detailPercent ||
+            next.datesPercent !== initialStatus.datesPercent
+        );
     }
+
+    function pollStatus() {
+        fetch(STATUS_URL, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+                if (shouldReload(data)) {
+                    location.reload();
+                }
+            })
+            .catch(() => {});
+    }
+
+    setInterval(pollStatus, 10000);
 
     // ── System gauges ─────────────────────────────────────────────────────────
     const STATS_URL = '{{ path('app_imslp_system_stats') }}';

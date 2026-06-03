@@ -167,20 +167,24 @@ class ImslpController extends AbstractController
     #[Route('/sync-status', name: 'app_imslp_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request): Response
     {
-        $data = $this->cache->get('imslp.sync_status', function (ItemInterface $item): array {
-            $item->expiresAfter(60);
-            return $this->buildStatusData();
-        });
-
         if ($request->query->has('json')) {
-            return $this->json($data);
+            // JSON is used for live UI polling and must not be served from stale cache.
+            return $this->json($this->buildStatusData());
         }
+
+        $data = $this->cache->get('imslp.sync_status', function (ItemInterface $item): array {
+            $data = $this->buildStatusData();
+            // Keep the HTML page responsive while jobs are active.
+            $isRunning = $data['running'] || $data['syncRunning'] || $data['datesRunning'] || $data['composersRunning'];
+            $item->expiresAfter($isRunning ? 5 : 60);
+            return $data;
+        });
 
         return $this->render('imslp/sync_status.html.twig', $data);
     }
 
     #[Route('/fetch-details/start', name: 'app_imslp_fetch_start', methods: ['POST'])]
-    public function startFetch(): JsonResponse
+    public function startFetch(Request $request): JsonResponse
     {
         if ($this->isFetchRunning()) {
             return $this->json(['started' => false, 'message' => 'Already running']);
@@ -197,17 +201,35 @@ class ImslpController extends AbstractController
 
         @unlink($stopFile);
 
+        $mode     = $request->request->get('mode', '');
+        $modeFlag = match ($mode) {
+            'fill-all'    => ' --fill-all',
+            'fill-genres' => ' --fill-genres',
+            default       => '',
+        };
+
         $cmd = sprintf(
-            'nohup env APP_DEBUG=0 php %s app:imslp:fetch-details --delay=500 --stop-file=%s >> %s 2>&1 & echo $!',
+            'nohup env APP_DEBUG=0 php %s app:imslp:fetch-details --delay=500%s --stop-file=%s --pid-file=%s >> %s 2>&1 &',
             escapeshellarg($projectDir . '/bin/console'),
+            $modeFlag,
             escapeshellarg($stopFile),
+            escapeshellarg($pidFile),
             escapeshellarg($logFile)
         );
 
-        $pid = (int) shell_exec($cmd);
+        shell_exec($cmd);
+
+        // Poll for up to 5 s for the command to write its own PID (Symfony boot ~2 s)
+        $pid = 0;
+        $deadline = microtime(true) + 5.0;
+        while (microtime(true) < $deadline) {
+            usleep(300_000);
+            if (file_exists($pidFile) && ($pid = (int) file_get_contents($pidFile)) > 0) {
+                break;
+            }
+        }
 
         if ($pid > 0) {
-            file_put_contents($pidFile, $pid);
             return $this->json(['started' => true, 'pid' => $pid]);
         }
 
@@ -559,6 +581,29 @@ class ImslpController extends AbstractController
             'mem'  => ['pct' => $memPct,  'used' => $fmt($memUsed),  'total' => $fmt($memTotal)],
             'disk' => ['pct' => $diskPct, 'used' => $fmtBytes($diskUsed), 'total' => $fmtBytes($diskTotal)],
         ]);
+    }
+
+    private function curlGet(string $url, ?string $cookieJar = null): ?string
+    {
+        $ch = curl_init($url);
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; ContinuoRealizer/1.0)',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_ENCODING       => '',
+        ];
+        if ($cookieJar) {
+            $opts[CURLOPT_COOKIEFILE] = $cookieJar;
+            $opts[CURLOPT_COOKIEJAR]  = $cookieJar;
+        }
+        curl_setopt_array($ch, $opts);
+        $body = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ($body !== false && $code === 200) ? $body : null;
     }
 
     private function isPidAlive(string $pidFile): bool

@@ -19,6 +19,7 @@ services:
 
   db:
     image: mariadb:10.11
+    restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: continuo
@@ -37,6 +38,7 @@ services:
 
   phpmyadmin:
     image: phpmyadmin:latest
+    restart: unless-stopped
     environment:
       PMA_HOST: db
       PMA_USER: root
