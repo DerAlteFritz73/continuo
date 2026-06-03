@@ -474,7 +474,7 @@ imslp:
     work_edition_download_selected: "Download (%count% files)"
     work_edition_download_none: "Select files to download"
     work_edition_open_tabs_confirm: "This will open %count% IMSLP tabs. Continue?"
-    work_edition_open_panel_title: "Open in IMSLP — click each file:"
+    work_edition_open_panel_title: "Popup blocked — click each file to open:"
 
     # Sync status page
     sync_title: "Import Status"

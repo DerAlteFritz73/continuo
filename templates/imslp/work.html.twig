@@ -588,20 +588,26 @@ function downloadZip(idx) {
     const checked = getChecked(idx);
     if (!checked.length) return;
 
-    if (checked.length === 1) {
-        // Single file: open directly — this is a user gesture, never blocked
-        window.open(IMSLP_BASE + encodeURIComponent(checked[0].dataset.filename), '_blank', 'noopener noreferrer');
-        return;
-    }
+    // Try to open all tabs at once — synchronous window.open calls within a
+    // user gesture are allowed if the browser permits popups for this site.
+    // window.open returns null when the popup blocker catches it, so we track
+    // which files were blocked and show them in the fallback panel.
+    const blocked = [];
+    checked.forEach(cb => {
+        const w = window.open(
+            IMSLP_BASE + encodeURIComponent(cb.dataset.filename),
+            '_blank', 'noopener noreferrer'
+        );
+        if (!w) blocked.push(cb);
+    });
 
-    // Multiple files: browsers block window.open in a loop.
-    // Toggle a panel of <a> links — each click is its own user gesture.
     const panel = document.getElementById('open-panel-' + idx);
-    if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+    if (blocked.length === 0) { panel.style.display = 'none'; return; }
 
+    // Some tabs were blocked — populate the panel with the blocked files only
     const list = document.getElementById('open-panel-list-' + idx);
     list.innerHTML = '';
-    checked.forEach(cb => {
+    blocked.forEach(cb => {
         const li = document.createElement('li');
         const a  = document.createElement('a');
         a.href        = IMSLP_BASE + encodeURIComponent(cb.dataset.filename);
