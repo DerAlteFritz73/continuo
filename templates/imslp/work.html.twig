@@ -706,8 +706,9 @@ function toggleRismPanel() {
                 fetch('/imslp/rism-incipits/' + id)
                     .then(r => r.json())
                     .then(items => {
-                        const svgs = items.filter(i => i.svg).slice(0, 4).map(i => i.svg);
-                        if (svgs.length) collected.push({ source: label, svgs });
+                        const incipits = items.filter(i => i.svg).slice(0, 4)
+                            .map(i => ({ svg: i.svg, label: i.label || null }));
+                        if (incipits.length) collected.push({ source: label, incipits });
                     })
                     .catch(() => {})
             )
@@ -718,7 +719,7 @@ function toggleRismPanel() {
     try {
         const resp = await fetch('/imslp/rism-work-incipits/{{ work.pageId }}');
         const data = await resp.json();
-        for (const src of data.sources ?? []) collected.push({ source: src.source, svgs: src.svgs });
+        for (const src of data.sources ?? []) collected.push({ source: src.source, incipits: src.incipits });
     } catch (_) {}
 
     if (!collected.length) return; // leave section hidden
@@ -726,7 +727,11 @@ function toggleRismPanel() {
     document.getElementById('rism-work-panel').innerHTML = collected.map(src => `
         <div class="rism-source-block">
             <div class="rism-source-label">${src.source}</div>
-            ${src.svgs.map(svg => `<div class="rism-incipit-item">${svg}</div>`).join('')}
+            ${(src.incipits || []).map(inc => `
+                <div style="margin-bottom:.6rem">
+                    ${inc.label ? `<div class="rism-incipit-label">${inc.label}</div>` : ''}
+                    <div class="rism-incipit-item">${inc.svg}</div>
+                </div>`).join('')}
         </div>`).join('');
     section.style.display = 'block';
 })();
@@ -743,10 +748,10 @@ async function toggleIncipits(idx, rismId) {
         const resp = await fetch('/imslp/rism-incipits/' + rismId);
         const items = await resp.json();
         if (!items.length) { panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No incipits found.</span>'; return; }
-        panel.innerHTML = items.map(inc => `
-            <div class="rism-incipit-item">
+        panel.innerHTML = items.filter(i => i.svg).map(inc => `
+            <div style="margin-bottom:.6rem">
                 ${inc.label ? `<div class="rism-incipit-label">${inc.label}</div>` : ''}
-                ${inc.svg || ''}
+                <div class="rism-incipit-item">${inc.svg}</div>
             </div>`).join('');
         panel.dataset.loaded = '1';
     } catch (e) {

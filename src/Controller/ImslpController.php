@@ -433,18 +433,21 @@ class ImslpController extends AbstractController
                 $items   = $incData['items'] ?? [];
                 if (empty($items)) continue;
 
-                $svgs = [];
+                $incipits = [];
                 foreach (array_slice($items, 0, 4) as $inc) {
                     $svg = null;
                     foreach ($inc['rendered'] ?? [] as $r) {
                         if (($r['format'] ?? '') === 'image/svg+xml') { $svg = $r['data']; break; }
                     }
-                    if ($svg) $svgs[] = $svg;
+                    if (!$svg) continue;
+                    $labelArr = $inc['label'] ?? [];
+                    $lv = !empty($labelArr) ? reset($labelArr) : null;
+                    $incipits[] = ['svg' => $svg, 'label' => is_array($lv) ? (reset($lv) ?: null) : ($lv ?: null)];
                 }
-                if (empty($svgs)) continue;
+                if (empty($incipits)) continue;
 
                 $srcLabel = $src['label']['en'][0] ?? $src['label']['none'][0] ?? $srcId;
-                $collected[] = ['source' => $srcLabel, 'svgs' => $svgs];
+                $collected[] = ['source' => $srcLabel, 'incipits' => $incipits];
             }
             return ['catalogueNumber' => $catNum, 'sources' => $collected];
         });
