@@ -10,6 +10,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(
@@ -25,6 +26,7 @@ class ImslpFetchDetailsCommand extends Command
         private readonly ImslpWorkRepository    $workRepo,
         private readonly EntityManagerInterface $em,
         private readonly CacheInterface         $cache,
+        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
     ) {
         parent::__construct();
     }
@@ -56,6 +58,13 @@ class ImslpFetchDetailsCommand extends Command
         $refetchNoTags = (bool) $input->getOption('refetch-no-tags');
         $fillGenres    = (bool) $input->getOption('fill-genres');
         $fillAll       = (bool) $input->getOption('fill-all');
+
+        // Exclusive non-blocking lock — exits immediately if another instance holds it
+        $lockFp = fopen($this->projectDir . '/var/imslp-fetch.lock', 'w');
+        if (!$lockFp || !flock($lockFp, LOCK_EX | LOCK_NB)) {
+            $output->writeln(sprintf('[%s] Another fetch-details instance is already running. Exiting.', $this->ts()));
+            return Command::FAILURE;
+        }
 
         if ($pidFile !== '') {
             file_put_contents($pidFile, (string) getmypid());
