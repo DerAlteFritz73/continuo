@@ -196,6 +196,14 @@ body {
     margin-bottom: .25rem;
 }
 .rism-incipit-item svg { max-width: 100%; height: auto; filter: invert(0.85) sepia(0.3) hue-rotate(5deg); }
+.rism-source-block { margin-bottom: 1.2rem; }
+.rism-source-label {
+    font-size: .75rem;
+    color: #8a8070;
+    margin-bottom: .4rem;
+    padding-bottom: .25rem;
+    border-bottom: 1px solid #2e2e2e;
+}
 
 /* Download progress bar */
 .dl-progress {
@@ -494,6 +502,16 @@ body {
     </dl>
     {% endif %}
 
+    {# Work-level RISM incipits (lazy-loaded from manuscript sources matching the catalogue number) #}
+    {% if work.hasDetail() %}
+    <div style="margin-bottom:1.5rem">
+        <button class="rism-btn" id="rism-work-btn" onclick="loadWorkIncipits({{ work.pageId }})">
+            {{ 'imslp.work_rism_incipits'|trans }}
+        </button>
+        <div id="rism-work-panel" style="display:none;margin-top:.8rem"></div>
+    </div>
+    {% endif %}
+
     <!-- Files / Editions -->
     {% if work.filesJson is not empty %}
     {# Detect format: new = array of editions (each has a 'files' key);
@@ -631,6 +649,36 @@ const IMSLP_BASE = 'https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/';
 
 function toggleEdition(idx) {
     document.getElementById('edition-' + idx).classList.toggle('open');
+}
+
+async function loadWorkIncipits(pageId) {
+    const btn   = document.getElementById('rism-work-btn');
+    const panel = document.getElementById('rism-work-panel');
+    if (panel.style.display === 'block') { panel.style.display = 'none'; btn.textContent = btn.dataset.label; return; }
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+
+    btn.textContent = 'Loading…';
+    panel.style.display = 'block';
+    panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">Searching RISM…</span>';
+
+    try {
+        const resp = await fetch('/imslp/rism-work-incipits/' + pageId);
+        const data = await resp.json();
+        if (!data.sources || !data.sources.length) {
+            panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No RISM incipits found for ' + (data.catalogueNumber || 'this work') + '.</span>';
+            btn.textContent = btn.dataset.label;
+            return;
+        }
+        panel.innerHTML = data.sources.map(src => `
+            <div class="rism-source-block">
+                <div class="rism-source-label">${src.source}</div>
+                ${src.svgs.map(svg => `<div class="rism-incipit-item">${svg}</div>`).join('')}
+            </div>`).join('');
+        btn.textContent = btn.dataset.label;
+    } catch (e) {
+        panel.innerHTML = '<span style="color:#8a3020;font-size:.8rem">Failed to load RISM data.</span>';
+        btn.textContent = btn.dataset.label;
+    }
 }
 
 async function toggleIncipits(idx, rismId) {

@@ -387,6 +387,97 @@ class ImslpController extends AbstractController
     // RISM incipit proxy
     // -------------------------------------------------------------------------
 
+    /**
+     * Search RISM for sources of an IMSLP work and return their incipits.
+     * Extracts the standard catalogue number (BWV, QV, HWV, TWV, K, RV …)
+     * from the work title, searches RISM, and collects SVG incipits from the
+     * first few matching sources that have them.
+     */
+    #[Route('/rism-work-incipits/{pageId}', name: 'app_imslp_rism_work_incipits', methods: ['GET'],
+            requirements: ['pageId' => '\d+'])]
+    public function rismWorkIncipits(int $pageId): JsonResponse
+    {
+        $cacheKey = 'imslp.rism_work.' . $pageId;
+        $result = $this->cache->get($cacheKey, function (ItemInterface $item) use ($pageId): array {
+            $item->expiresAfter(86400);
+
+            $work = $this->workRepo->findOneBy(['pageId' => $pageId]);
+            if (!$work) return [];
+
+            $catNum = $this->extractCatalogueNumber($work->getTitle());
+            if ($catNum === null) return [];
+
+            // Search RISM — remove colons/dots so "QV 2:Anh.28" → "QV 2 Anh 28"
+            $q    = preg_replace('/[:.\/]/', ' ', $catNum);
+            $q    = preg_replace('/\s+/', ' ', $q);
+            $rismHeaders = ['Accept: application/json'];
+            $body = $this->curlGet('https://rism.online/search?'
+                . http_build_query(['q' => $q, 'mode' => 'sources', 'rows' => 20]),
+                null, $rismHeaders);
+            if ($body === null) return [];
+
+            $search  = json_decode($body, true);
+            $sources = $search['items'] ?? [];
+
+            // Build a loose pattern from the catalogue number to filter out
+            // unrelated search hits (e.g. "Anh.14" when we wanted "Anh.28").
+            // Build a pattern that ignores separator differences (space, colon, dot, dash)
+            // so "QV 2: Anh.28" and "QV 2.Anh.28" both match catalogue number "QV 2:Anh.28"
+            $catPattern = preg_replace('/[^A-Za-z0-9]+/', '[^A-Za-z0-9]*', preg_quote($catNum, '/'));
+
+            $collected = [];
+            foreach ($sources as $src) {
+                if (count($collected) >= 2) break; // cap at 2 sources
+                $srcId = basename($src['id'] ?? '');
+                if (!preg_match('/^\d{6,12}$/', $srcId)) continue;
+
+                // Skip sources whose label doesn't look like our work
+                $srcLabel = implode(' ', array_merge(...array_values(
+                    array_map(fn($v) => (array)$v, $src['label'] ?? [])
+                )));
+                if (!preg_match('/' . $catPattern . '/i', $srcLabel)) continue;
+
+                $incBody = $this->curlGet("https://rism.online/sources/{$srcId}/incipits", null, $rismHeaders);
+                if ($incBody === null) continue;
+
+                $incData = json_decode($incBody, true);
+                $items   = $incData['items'] ?? [];
+                if (empty($items)) continue;
+
+                $svgs = [];
+                foreach (array_slice($items, 0, 4) as $inc) {
+                    $svg = null;
+                    foreach ($inc['rendered'] ?? [] as $r) {
+                        if (($r['format'] ?? '') === 'image/svg+xml') { $svg = $r['data']; break; }
+                    }
+                    if ($svg) $svgs[] = $svg;
+                }
+                if (empty($svgs)) continue;
+
+                $srcLabel = $src['label']['en'][0] ?? $src['label']['none'][0] ?? $srcId;
+                $collected[] = ['source' => $srcLabel, 'svgs' => $svgs];
+            }
+            return ['catalogueNumber' => $catNum, 'sources' => $collected];
+        });
+
+        return $this->json($result);
+    }
+
+    /** Extract a standard musicological catalogue number from an IMSLP work title. */
+    private function extractCatalogueNumber(string $title): ?string
+    {
+        // Patterns: "BWV 1087", "QV 2:Anh.28", "HWV 6", "TWV 40:2-13", "K. 331",
+        // "RV 297", "Op. 5 No. 2", "WoO 57", "D 960", "Hob. XVI:52"
+        if (preg_match(
+            '/\b(BWV|QV|HWV|TWV|RV|WoO|Hob\.?|K\.?|D\.?|Op\.?|L\.?|Z\.?|H\.?|CT|TH|P\.?|Wq)\s*[\d][\d:.\-\/Anh ]{0,20}/i',
+            $title,
+            $m
+        )) {
+            return rtrim(trim($m[0]), ' .-');
+        }
+        return null;
+    }
+
     #[Route('/rism-incipits/{rismId}', name: 'app_imslp_rism_incipits', methods: ['GET'],
             requirements: ['rismId' => '\d{7,12}'])]
     public function rismIncipits(string $rismId): JsonResponse
@@ -395,7 +486,8 @@ class ImslpController extends AbstractController
         $data = $this->cache->get($cacheKey, function (ItemInterface $item) use ($rismId): array {
             $item->expiresAfter(86400); // cache for 24 hours — RISM data changes rarely
 
-            $body = $this->curlGet("https://rism.online/sources/{$rismId}/incipits");
+            $body = $this->curlGet("https://rism.online/sources/{$rismId}/incipits", null,
+                ['Accept: application/json']);
             if ($body === null) return [];
 
             $raw = json_decode($body, true);
@@ -857,7 +949,7 @@ class ImslpController extends AbstractController
         ]);
     }
 
-    private function curlGet(string $url, ?string $cookieJar = null): ?string
+    private function curlGet(string $url, ?string $cookieJar = null, array $headers = []): ?string
     {
         $ch = curl_init($url);
         $opts = [
@@ -872,6 +964,9 @@ class ImslpController extends AbstractController
         if ($cookieJar) {
             $opts[CURLOPT_COOKIEFILE] = $cookieJar;
             $opts[CURLOPT_COOKIEJAR]  = $cookieJar;
+        }
+        if ($headers) {
+            $opts[CURLOPT_HTTPHEADER] = $headers;
         }
         curl_setopt_array($ch, $opts);
         $body = curl_exec($ch);
