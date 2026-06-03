@@ -517,7 +517,21 @@ body {
     </dl>
     {% endif %}
 
-    {# Work-level RISM incipits (lazy-loaded from manuscript sources matching the catalogue number) #}
+    {# Collect unique RISM source IDs from editions for work-level display #}
+    {% set editionRismSources = [] %}
+    {% set seenRismIds = [] %}
+    {% for ed in work.filesJson ?? [] %}
+        {% if ed.rismSourceId is defined and ed.rismSourceId and ed.rismSourceId not in seenRismIds %}
+            {% set seenRismIds = seenRismIds|merge([ed.rismSourceId]) %}
+            {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher
+                : (ed.editor is defined and ed.editor ? ed.editor
+                : (ed.arranger is defined and ed.arranger ? ed.arranger
+                : 'imslp.work_edition_anonymous'|trans)) %}
+            {% set editionRismSources = editionRismSources|merge([{'id': ed.rismSourceId, 'label': edLabel}]) %}
+        {% endif %}
+    {% endfor %}
+
+    {# Work-level RISM incipits — uses edition-linked sources first, then catalogue-number search #}
     {% if work.hasDetail() %}
     <div style="margin-bottom:1.5rem">
         <button class="rism-btn" id="rism-work-btn" onclick="loadWorkIncipits({{ work.pageId }})">
@@ -661,6 +675,8 @@ body {
 <script>
 const IMSLP_CREDENTIALS = {{ imslpCredentials ? 'true' : 'false' }};
 const IMSLP_BASE = 'https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/';
+// RISM source IDs extracted from edition links in this work's filesJson
+const EDITION_RISM_SOURCES = {{ editionRismSources|json_encode|raw }};
 
 function toggleEdition(idx) {
     document.getElementById('edition-' + idx).classList.toggle('open');
@@ -676,24 +692,40 @@ async function loadWorkIncipits(pageId) {
     panel.style.display = 'block';
     panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">Searching RISM…</span>';
 
+    const collected = [];
+
+    // 1. Edition-linked sources — fetch all in parallel (most reliable, directly from IMSLP links)
+    if (EDITION_RISM_SOURCES.length) {
+        await Promise.allSettled(
+            EDITION_RISM_SOURCES.slice(0, 5).map(({ id, label }) =>
+                fetch('/imslp/rism-incipits/' + id)
+                    .then(r => r.json())
+                    .then(items => {
+                        const svgs = items.filter(i => i.svg).slice(0, 4).map(i => i.svg);
+                        if (svgs.length) collected.push({ source: label, svgs });
+                    })
+                    .catch(() => {})
+            )
+        );
+    }
+
+    // 2. Catalogue-number search — supplements with any additional manuscript sources
     try {
         const resp = await fetch('/imslp/rism-work-incipits/' + pageId);
         const data = await resp.json();
-        if (!data.sources || !data.sources.length) {
-            panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No RISM incipits found for ' + (data.catalogueNumber || 'this work') + '.</span>';
-            btn.textContent = btn.dataset.label;
-            return;
-        }
-        panel.innerHTML = data.sources.map(src => `
-            <div class="rism-source-block">
-                <div class="rism-source-label">${src.source}</div>
-                ${src.svgs.map(svg => `<div class="rism-incipit-item">${svg}</div>`).join('')}
-            </div>`).join('');
-        btn.textContent = btn.dataset.label;
-    } catch (e) {
-        panel.innerHTML = '<span style="color:#8a3020;font-size:.8rem">Failed to load RISM data.</span>';
-        btn.textContent = btn.dataset.label;
+        for (const src of data.sources ?? []) collected.push({ source: src.source, svgs: src.svgs });
+    } catch (_) {}
+
+    btn.textContent = btn.dataset.label;
+    if (!collected.length) {
+        panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No RISM incipits found.</span>';
+        return;
     }
+    panel.innerHTML = collected.map(src => `
+        <div class="rism-source-block">
+            <div class="rism-source-label">${src.source}</div>
+            ${src.svgs.map(svg => `<div class="rism-incipit-item">${svg}</div>`).join('')}
+        </div>`).join('');
 }
 
 async function toggleIncipits(idx, rismId) {
