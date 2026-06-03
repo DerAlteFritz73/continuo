@@ -299,21 +299,37 @@ class ImslpController extends AbstractController
             CURLOPT_COOKIEJAR      => $cookieJar,
         ]);
         curl_setopt($ch, CURLOPT_COOKIELIST, 'Set-Cookie: redirectPassed=1; path=/; Domain=.imslp.org');
-        $html = curl_exec($ch);
+        $html     = curl_exec($ch);
+        $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         curl_close($ch);
 
         if ($html === null || $html === false) return null;
-        if (!preg_match('/data-id="([^"]+)"/', (string) $html, $m)) return null;
+        $html = (string) $html;
 
-        $cdnUrl = html_entity_decode($m[1]);
-        if (str_starts_with($cdnUrl, '//')) $cdnUrl = 'https:' . $cdnUrl;
-        if (!str_starts_with($cdnUrl, 'http')) return null;
+        // Path A: landed on IMSLPImageHandler — extract the CDN URL from data-id
+        if (preg_match('/data-id="([^"]+)"/', $html, $m)) {
+            $cdnUrl = html_entity_decode($m[1]);
+            if (str_starts_with($cdnUrl, '//')) $cdnUrl = 'https:' . $cdnUrl;
+            if (!str_starts_with($cdnUrl, 'http')) return null;
 
-        // CDN is publicly accessible — no session cookies needed
-        $content = $this->curlGet($cdnUrl, null);
-        if ($content === null || str_starts_with(ltrim($content), '<!')) return null;
+            $content = $this->curlGet($cdnUrl, null);
+            if ($content === null || str_starts_with(ltrim($content), '<!')) return null;
+            return $content;
+        }
 
-        return $content;
+        // Path B: landed on petruccilibrary.us — parse the relative file href
+        if (str_contains($finalUrl, 'petruccilibrary')) {
+            $base = preg_replace('/\?.*$/', '', $finalUrl); // strip query string
+            $base = preg_replace('#[^/]+$#', '', $base);   // strip last path segment
+            if (preg_match('#href="(files/imglnks/[^"]+\.(?:pdf|midi?|xml|mxl))"#i', $html, $hm)) {
+                $fileUrl = 'https://www.petruccilibrary.us/' . $hm[1];
+                $content = $this->curlGet($fileUrl, null);
+                if ($content === null || str_starts_with(ltrim($content), '<!')) return null;
+                return $content;
+            }
+        }
+
+        return null;
     }
 
     // -------------------------------------------------------------------------
