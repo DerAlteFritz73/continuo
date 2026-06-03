@@ -117,9 +117,17 @@ class ImslpFetchDetailsCommand extends Command
                 }
 
                 $label = sprintf('%s — %s', $work->getComposer(), $work->getTitle());
+                $attempt = 0;
+                retry:
                 try {
                     $this->imslp->fetchWorkDetail($work);
                 } catch (\Throwable $e) {
+                    // Retry once on deadlock (SQLSTATE 40001) with a short back-off
+                    if ($attempt === 0 && str_contains($e->getMessage(), '1213')) {
+                        $attempt++;
+                        usleep(500_000);
+                        goto retry;
+                    }
                     try {
                         $this->em->getConnection()->executeStatement(
                             'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',

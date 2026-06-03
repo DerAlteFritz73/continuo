@@ -660,22 +660,26 @@ class ImslpController extends AbstractController
 
     private function isFetchRunning(): bool
     {
-        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-fetch.pid');
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-fetch.pid')
+            || $this->isCommandRunning('fetch-details');
     }
 
     private function isSyncRunning(): bool
     {
-        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-sync.pid');
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-sync.pid')
+            || $this->isCommandRunning('imslp:sync');
     }
 
     private function isDatesRunning(): bool
     {
-        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-dates.pid');
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-dates.pid')
+            || $this->isCommandRunning('sync-composer-dates');
     }
 
     private function isComposersRunning(): bool
     {
-        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-composers.pid');
+        return $this->isPidAlive($this->getParameter('kernel.project_dir') . '/var/imslp-composers.pid')
+            || $this->isCommandRunning('imslp:sync.*composers');
     }
 
     /** @param ImslpWork[] $works */
@@ -785,5 +789,17 @@ class ImslpController extends AbstractController
         }
         $pid = (int) file_get_contents($pidFile);
         return $pid > 0 && is_dir('/proc/' . $pid);
+    }
+
+    /** Returns true if any process matching $pattern is running in /proc. */
+    private function isCommandRunning(string $pattern): bool
+    {
+        foreach (glob('/proc/[0-9]*/cmdline') ?: [] as $f) {
+            $cmd = @file_get_contents($f);
+            if ($cmd !== false && preg_match('/' . preg_quote($pattern, '/') . '/', $cmd)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
