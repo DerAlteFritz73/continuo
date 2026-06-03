@@ -446,9 +446,9 @@ imslp:
 
     # Work detail page
     work_back_to_search: "← Back to search"
-    work_imslp_link: "IMSLP ↗"
-    work_youtube_link: "YouTube"
-    work_spotify_link: "Spotify"
+    work_imslp_link: "Show on IMSLP.org"
+    work_youtube_link: "Search on YouTube"
+    work_spotify_link: "Search on Spotify"
     work_no_detail_notice: "Detail data (instrumentation, files) has not been fetched yet for this work. Run the fetch-details command to populate it, or visit the IMSLP page directly."
     work_meta_key: "Key"
     work_meta_instrumentation: "Instrumentation"
