@@ -170,9 +170,12 @@ class ImslpController extends AbstractController
     {
         set_time_limit(300);
 
-        // Release the session lock immediately so the progress-poll endpoint
-        // can respond concurrently without waiting for this long request.
-        $request->getSession()->save();
+        // Release the session lock (if a session is active) so the progress-poll
+        // endpoint can respond concurrently without being blocked.
+        $session = $request->getSession();
+        if ($session->isStarted()) {
+            $session->save();
+        }
 
         $filenames = $request->request->all('files');
         $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
