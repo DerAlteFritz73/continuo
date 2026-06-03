@@ -339,18 +339,19 @@ class ImslpController extends AbstractController
     #[Route('/sync-status', name: 'app_imslp_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request): Response
     {
-        if ($request->query->has('json')) {
-            // JSON is used for live UI polling and must not be served from stale cache.
-            return $this->json($this->buildStatusData());
-        }
-
+        // Both HTML and JSON share the same short-lived cache entry so that
+        // concurrent poll requests don't each trigger expensive COUNT queries
+        // while a fetch process is actively writing to the same tables.
         $data = $this->cache->get('imslp.sync_status', function (ItemInterface $item): array {
             $data = $this->buildStatusData();
-            // Keep the HTML page responsive while jobs are active.
             $isRunning = $data['running'] || $data['syncRunning'] || $data['datesRunning'] || $data['composersRunning'];
-            $item->expiresAfter($isRunning ? 5 : 60);
+            $item->expiresAfter($isRunning ? 10 : 60);
             return $data;
         });
+
+        if ($request->query->has('json')) {
+            return $this->json($data);
+        }
 
         return $this->render('imslp/sync_status.html.twig', $data);
     }
