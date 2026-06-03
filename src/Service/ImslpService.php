@@ -328,12 +328,19 @@ class ImslpService
         // Use DBAL directly to avoid ORM EntityManager closure on DB errors,
         // and to apply VARCHAR column limits explicitly.
         $now = (new \DateTime())->format('Y-m-d H:i:s');
+        $yearComposedStr = mb_substr($parsed['yearComposed'] ?: '', 0, 100) ?: null;
+        $yearComposedInt = null;
+        if ($yearComposedStr !== null && preg_match('/(\d{4})/', $yearComposedStr, $ym)) {
+            $yearComposedInt = ((int) $ym[1]) ?: null;
+        }
+
         $this->db->executeStatement(
             'UPDATE imslp_work SET
                 work_key            = ?,
                 instrumentation     = ?,
                 piece_style         = ?,
                 year_composed       = ?,
+                year_composed_int   = ?,
                 year_published      = ?,
                 tags                = ?,
                 genre_cats          = ?,
@@ -356,7 +363,8 @@ class ImslpService
                 mb_substr($parsed['key'] ?: '', 0, 255) ?: null,
                 $parsed['instrumentation'] ?: null,
                 mb_substr($parsed['pieceStyle'] ?: '', 0, 100) ?: null,
-                mb_substr($parsed['yearComposed'] ?: '', 0, 100) ?: null,
+                $yearComposedStr,
+                $yearComposedInt,
                 mb_substr($parsed['yearPublished'] ?: '', 0, 100) ?: null,
                 $parsed['tags'] ?: null,
                 !empty($genreCats) ? implode(' ; ', $genreCats) : null,

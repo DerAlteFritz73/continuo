@@ -23,6 +23,6 @@ class YearExtractFunction extends FunctionNode
     public function getSql(SqlWalker $sqlWalker): string
     {
         $col = $this->field->dispatch($sqlWalker);
-        return "CAST(REGEXP_SUBSTR($col, '[0-9]{4}') AS UNSIGNED)";
+        return "IF($col REGEXP '[0-9]{4}', CAST(REGEXP_SUBSTR($col, '[0-9]{4}') AS UNSIGNED), NULL)";
     }
 }

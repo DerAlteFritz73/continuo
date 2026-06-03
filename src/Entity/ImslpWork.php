@@ -49,6 +49,9 @@ class ImslpWork
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $yearComposed = null;
 
+    #[ORM\Column(name: 'year_composed_int', type: Types::INTEGER, nullable: true)]
+    private ?int $yearComposedInt = null;
+
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $yearPublished = null;
 
@@ -139,6 +142,9 @@ class ImslpWork
 
     public function getYearComposed(): ?string { return $this->yearComposed; }
     public function setYearComposed(?string $v): void { $this->yearComposed = $v; }
+
+    public function getYearComposedInt(): ?int { return $this->yearComposedInt; }
+    public function setYearComposedInt(?int $v): void { $this->yearComposedInt = $v; }
 
     public function getYearPublished(): ?string { return $this->yearPublished; }
     public function setYearPublished(?string $v): void { $this->yearPublished = $v; }

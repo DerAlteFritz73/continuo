@@ -499,9 +499,9 @@ class ImslpWorkRepository extends ServiceEntityRepository
         //   If both year_composed and composer dates are unknown, the work passes (inclusive).
         if ($f->yearFrom !== null) {
             $qb->andWhere('(
-                (YEAR_EXTRACT(w.yearComposed) IS NOT NULL AND YEAR_EXTRACT(w.yearComposed) != 0 AND YEAR_EXTRACT(w.yearComposed) >= :yearFrom)
+                (w.yearComposedInt IS NOT NULL AND w.yearComposedInt >= :yearFrom)
                 OR (
-                    (YEAR_EXTRACT(w.yearComposed) IS NULL OR YEAR_EXTRACT(w.yearComposed) = 0)
+                    w.yearComposedInt IS NULL
                     AND NOT EXISTS (
                         SELECT c1.id FROM App\Entity\ImslpComposer c1
                         WHERE c1.name = w.composer AND c1.diedYear IS NOT NULL AND c1.diedYear < :yearFrom
@@ -511,9 +511,9 @@ class ImslpWorkRepository extends ServiceEntityRepository
         }
         if ($f->yearTo !== null) {
             $qb->andWhere('(
-                (YEAR_EXTRACT(w.yearComposed) IS NOT NULL AND YEAR_EXTRACT(w.yearComposed) != 0 AND YEAR_EXTRACT(w.yearComposed) <= :yearTo)
+                (w.yearComposedInt IS NOT NULL AND w.yearComposedInt <= :yearTo)
                 OR (
-                    (YEAR_EXTRACT(w.yearComposed) IS NULL OR YEAR_EXTRACT(w.yearComposed) = 0)
+                    w.yearComposedInt IS NULL
                     AND NOT EXISTS (
                         SELECT c2.id FROM App\Entity\ImslpComposer c2
                         WHERE c2.name = w.composer AND c2.bornYear IS NOT NULL AND c2.bornYear > :yearTo

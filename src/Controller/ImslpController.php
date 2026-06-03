@@ -64,13 +64,7 @@ class ImslpController extends AbstractController
             $pages = (int) ceil($total / $perPage);
             $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
 
-            // Derive the composer's dominant period from their works (for style pre-fill)
-            $composerStyle = (string) ($this->db->fetchOne(
-                'SELECT piece_style FROM imslp_work
-                 WHERE composer = ? AND piece_style IS NOT NULL
-                 GROUP BY piece_style ORDER BY COUNT(*) DESC LIMIT 1',
-                [$composer]
-            ) ?: '');
+            $composerStyle = $this->cachedComposerStyle($composer);
 
         } elseif ($q !== '') {
             $mode            = 'search';
@@ -85,12 +79,7 @@ class ImslpController extends AbstractController
                 $composer        = $composerMatches[0]['name'];
                 $mode            = 'composer';
                 $composerMatches = [];
-                $composerStyle   = (string) ($this->db->fetchOne(
-                    'SELECT piece_style FROM imslp_work
-                     WHERE composer = ? AND piece_style IS NOT NULL
-                     GROUP BY piece_style ORDER BY COUNT(*) DESC LIMIT 1',
-                    [$composer]
-                ) ?: '');
+                $composerStyle   = $this->cachedComposerStyle($composer);
                 $total = $this->workRepo->countByComposer($composer, $filters);
                 $pages = (int) ceil($total / $perPage);
                 $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
@@ -734,7 +723,7 @@ class ImslpController extends AbstractController
     private function cachedDistinctGenres(): array
     {
         return $this->cache->get('imslp.distinct_genres', function (ItemInterface $item): array {
-            $item->expiresAfter(3600);
+            $item->expiresAfter(86400);
             return $this->workRepo->findDistinctGenres();
         });
     }
@@ -742,8 +731,22 @@ class ImslpController extends AbstractController
     private function cachedDistinctLanguages(): array
     {
         return $this->cache->get('imslp.distinct_languages', function (ItemInterface $item): array {
-            $item->expiresAfter(3600);
+            $item->expiresAfter(86400);
             return $this->workRepo->findDistinctLanguages();
+        });
+    }
+
+    private function cachedComposerStyle(string $composer): string
+    {
+        $key = 'imslp.composer_style.' . md5($composer);
+        return (string) $this->cache->get($key, function (ItemInterface $item) use ($composer): string {
+            $item->expiresAfter(86400);
+            return (string) ($this->db->fetchOne(
+                'SELECT piece_style FROM imslp_work
+                 WHERE composer = ? AND piece_style IS NOT NULL
+                 GROUP BY piece_style ORDER BY COUNT(*) DESC LIMIT 1',
+                [$composer]
+            ) ?: '');
         });
     }
 
