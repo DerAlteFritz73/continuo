@@ -210,7 +210,8 @@ body {
     color: #6a6058;
     margin-bottom: .25rem;
 }
-.rism-incipit-item svg { max-width: 100%; height: auto; filter: invert(0.85) sepia(0.3) hue-rotate(5deg); }
+.rism-incipit-item { background: #f0ece2; border-radius: 4px; padding: .4rem .6rem; display: inline-block; }
+.rism-incipit-item svg { max-width: 100%; height: auto; display: block; }
 .rism-source-block { margin-bottom: 1.2rem; }
 .rism-source-label {
     font-size: .75rem;
@@ -531,13 +532,14 @@ body {
         {% endif %}
     {% endfor %}
 
-    {# Work-level RISM incipits — uses edition-linked sources first, then catalogue-number search #}
+    {# Work-level RISM incipits — auto-loaded; hidden until results arrive #}
     {% if work.hasDetail() %}
-    <div style="margin-bottom:1.5rem">
-        <button class="rism-btn" id="rism-work-btn" onclick="loadWorkIncipits({{ work.pageId }})">
+    <div id="rism-work-section" style="display:none;margin-bottom:1.5rem">
+        <button class="rism-btn" id="rism-work-btn" onclick="toggleRismPanel()">
             {{ 'imslp.work_rism_incipits'|trans }}
+            <span id="rism-chevron" style="display:inline-block;transition:transform .2s;margin-left:.3rem">▾</span>
         </button>
-        <div id="rism-work-panel" style="display:none;margin-top:.8rem"></div>
+        <div id="rism-work-panel" style="margin-top:.8rem"></div>
     </div>
     {% endif %}
 
@@ -682,19 +684,22 @@ function toggleEdition(idx) {
     document.getElementById('edition-' + idx).classList.toggle('open');
 }
 
-async function loadWorkIncipits(pageId) {
-    const btn   = document.getElementById('rism-work-btn');
-    const panel = document.getElementById('rism-work-panel');
-    if (panel.style.display === 'block') { panel.style.display = 'none'; btn.textContent = btn.dataset.label; return; }
-    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+function toggleRismPanel() {
+    const panel   = document.getElementById('rism-work-panel');
+    const chevron = document.getElementById('rism-chevron');
+    const open    = panel.style.display !== 'none';
+    panel.style.display   = open ? 'none' : 'block';
+    if (chevron) chevron.style.transform = open ? 'rotate(-90deg)' : '';
+}
 
-    btn.textContent = 'Loading…';
-    panel.style.display = 'block';
-    panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">Searching RISM…</span>';
+// Auto-load RISM incipits on page load; reveal section only if data arrives.
+(async function () {
+    const section = document.getElementById('rism-work-section');
+    if (!section) return;
 
     const collected = [];
 
-    // 1. Edition-linked sources — fetch all in parallel (most reliable, directly from IMSLP links)
+    // 1. Edition-linked sources — parallel fetches (most reliable)
     if (EDITION_RISM_SOURCES.length) {
         await Promise.allSettled(
             EDITION_RISM_SOURCES.slice(0, 5).map(({ id, label }) =>
@@ -709,24 +714,22 @@ async function loadWorkIncipits(pageId) {
         );
     }
 
-    // 2. Catalogue-number search — supplements with any additional manuscript sources
+    // 2. Catalogue-number search — supplements with additional manuscript sources
     try {
-        const resp = await fetch('/imslp/rism-work-incipits/' + pageId);
+        const resp = await fetch('/imslp/rism-work-incipits/{{ work.pageId }}');
         const data = await resp.json();
         for (const src of data.sources ?? []) collected.push({ source: src.source, svgs: src.svgs });
     } catch (_) {}
 
-    btn.textContent = btn.dataset.label;
-    if (!collected.length) {
-        panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No RISM incipits found.</span>';
-        return;
-    }
-    panel.innerHTML = collected.map(src => `
+    if (!collected.length) return; // leave section hidden
+
+    document.getElementById('rism-work-panel').innerHTML = collected.map(src => `
         <div class="rism-source-block">
             <div class="rism-source-label">${src.source}</div>
             ${src.svgs.map(svg => `<div class="rism-incipit-item">${svg}</div>`).join('')}
         </div>`).join('');
-}
+    section.style.display = 'block';
+})();
 
 async function toggleIncipits(idx, rismId) {
     const panel = document.getElementById('rism-incipits-' + idx);
