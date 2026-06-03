@@ -457,9 +457,9 @@ imslp:
 
     # Work detail page
     work_back_to_search: "← Retour à la recherche"
-    work_imslp_link: "Show on IMSLP.org"
-    work_youtube_link: "Search on YouTube"
-    work_spotify_link: "Search on Spotify"
+    work_imslp_link: "Voir sur IMSLP.org"
+    work_youtube_link: "Rechercher sur YouTube"
+    work_spotify_link: "Rechercher sur Spotify"
     work_no_detail_notice: "Les données détaillées (instrumentation, fichiers) n'ont pas encore été récupérées pour cette œuvre. Exécutez la commande fetch-details pour les renseigner, ou visitez directement la page IMSLP."
     work_meta_key: "Tonalité"
     work_meta_instrumentation: "Instrumentation"
