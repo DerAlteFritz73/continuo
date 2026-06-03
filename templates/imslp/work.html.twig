@@ -131,9 +131,24 @@ body {
 }
 .edition-meta .copyright { color: #8a8070; }
 
-/* Collapsible body */
-.edition-body { display: none; }
-.edition-card.open .edition-body { display: block; }
+/* Collapsible body — smooth grid expand */
+.edition-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .28s ease;
+}
+.edition-card.open .edition-body { grid-template-rows: 1fr; }
+.edition-body-inner { overflow: hidden; }
+
+/* ── Page-load fade-in ── */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-up {
+    opacity: 0;
+    animation: fadeUp .32s ease both;
+}
 
 /* Multi-file open panel */
 .files-open-panel {
@@ -566,7 +581,7 @@ body {
                 </div>
                 <span class="edition-chevron">▶</span>
             </div>
-            <div class="edition-body">
+            <div class="edition-body"><div class="edition-body-inner">
                 <div class="edition-actions">
                     <label class="select-all-label">
                         <input type="checkbox" class="select-all-cb" id="selAll-{{ edIdx }}" onchange="toggleSelectAll({{ edIdx }}, this.checked)">
@@ -611,7 +626,7 @@ body {
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+            </div></div>{# /edition-body-inner /edition-body #}
         </div>
         {% endfor %}
 
@@ -832,6 +847,22 @@ async function downloadZip(idx) {
     });
     panel.style.display = 'block';
 }
+
+// ── Stagger-animate sections on page load ──
+(function () {
+    function anim(sel, delay) {
+        document.querySelectorAll(sel).forEach((el, i) => {
+            el.classList.add('anim-fade-up');
+            el.style.animationDelay = (delay + i * 45) + 'ms';
+        });
+    }
+    anim('.work-header',    0);
+    anim('.ext-links',     60);
+    anim('.notice',        80);
+    anim('.meta-grid',    100);
+    anim('.section-title', 150);
+    anim('.edition-card',  180);
+})();
 </script>
 
 </div>
