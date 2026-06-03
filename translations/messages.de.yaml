@@ -440,9 +440,9 @@ imslp:
 
     # Work detail page
     work_back_to_search: "← Zurück zur Suche"
-    work_imslp_link: "IMSLP ↗"
-    work_youtube_link: "YouTube"
-    work_spotify_link: "Spotify"
+    work_imslp_link: "Auf IMSLP.org anzeigen"
+    work_youtube_link: "Auf YouTube suchen"
+    work_spotify_link: "Auf Spotify suchen"
     work_no_detail_notice: "Detaildaten (Besetzung, Dateien) wurden für dieses Werk noch nicht abgerufen. Führen Sie den Befehl fetch-details aus oder besuchen Sie die IMSLP-Seite direkt."
     work_meta_key: "Tonart"
     work_meta_instrumentation: "Besetzung"

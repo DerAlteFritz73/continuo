@@ -437,9 +437,9 @@ imslp:
 
     # Work detail page
     work_back_to_search: "← Zpět na vyhledávání"
-    work_imslp_link: "IMSLP ↗"
-    work_youtube_link: "YouTube"
-    work_spotify_link: "Spotify"
+    work_imslp_link: "Zobrazit na IMSLP.org"
+    work_youtube_link: "Hledat na YouTube"
+    work_spotify_link: "Hledat na Spotify"
     work_no_detail_notice: "Podrobná data (obsazení, soubory) pro toto dílo dosud nebyla načtena. Spusťte příkaz fetch-details pro jejich doplnění, nebo navštivte stránku IMSLP přímo."
     work_meta_key: "Tónina"
     work_meta_instrumentation: "Obsazení"
