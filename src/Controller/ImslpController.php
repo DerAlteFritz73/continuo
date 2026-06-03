@@ -170,12 +170,34 @@ class ImslpController extends AbstractController
     {
         set_time_limit(300);
 
+        // Release the session lock immediately so the progress-poll endpoint
+        // can respond concurrently without waiting for this long request.
+        $request->getSession()->save();
+
         $filenames = $request->request->all('files');
         $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
         $folder    = mb_substr(trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. '), 0, 80) ?: 'imslp-download';
+        $jobId     = preg_replace('/[^a-z0-9]/', '', strtolower($request->request->getString('jobId')));
+
+        $progressFile = $jobId !== '' ? sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json' : null;
+
+        // Collect valid filenames up front so we know the total for progress
+        $valid = array_values(array_filter(
+            array_map(fn($f) => basename((string) $f), $filenames),
+            fn($f) => (bool) preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $f)
+        ));
+        $total = count($valid);
+
+        $writeProgress = function (int $done, string $current = '') use ($progressFile, $total): void {
+            if ($progressFile === null) return;
+            file_put_contents($progressFile, json_encode([
+                'done' => $done, 'total' => $total, 'current' => $current,
+            ]));
+        };
 
         $cookieJar = $this->imslpLogin();
         if ($cookieJar === null) {
+            if ($progressFile) @unlink($progressFile);
             return $this->json(['error' => 'IMSLP login failed. Check IMSLP_USER / IMSLP_PASS in .env.local.'], 502);
         }
 
@@ -184,17 +206,17 @@ class ImslpController extends AbstractController
         $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         $added   = 0;
 
-        foreach ($filenames as $filename) {
-            $filename = basename((string) $filename);
-            if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $filename)) {
-                continue;
-            }
+        foreach ($valid as $i => $filename) {
+            $writeProgress($i, $filename);
             $content = $this->fetchImslpFile($filename, $cookieJar);
             if ($content === null) continue;
 
             $zip->addFromString($folder . '/' . $filename, $content);
             $added++;
         }
+
+        $writeProgress($total);
+        if ($progressFile) @unlink($progressFile);
 
         @unlink($cookieJar);
         $zip->close();
@@ -210,6 +232,17 @@ class ImslpController extends AbstractController
         $response->deleteFileAfterSend(true);
 
         return $response;
+    }
+
+    #[Route('/download-progress/{jobId}', name: 'app_imslp_download_progress', methods: ['GET'],
+            requirements: ['jobId' => '[a-z0-9]{8,32}'])]
+    public function downloadProgress(string $jobId): JsonResponse
+    {
+        $progressFile = sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json';
+        if (!file_exists($progressFile)) {
+            return $this->json(['done' => 0, 'total' => 0, 'current' => '']);
+        }
+        return $this->json(json_decode(file_get_contents($progressFile), true) ?: []);
     }
 
     /**

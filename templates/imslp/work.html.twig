@@ -169,6 +169,34 @@ body {
 .files-open-link:hover { text-decoration: underline; }
 .files-open-link:visited { color: #9a7a4e; }
 
+/* Download progress bar */
+.dl-progress {
+    padding: .45rem 1.1rem .5rem;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+}
+.dl-progress-track {
+    height: 4px;
+    background: #2e2e2e;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: .35rem;
+}
+.dl-progress-fill {
+    height: 100%;
+    background: #c8a96e;
+    border-radius: 2px;
+    width: 0;
+    transition: width .35s ease;
+}
+.dl-progress-label {
+    font-size: .72rem;
+    color: #6a6058;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Actions bar */
 .edition-actions {
     display: flex;
@@ -495,6 +523,10 @@ body {
                         {{ 'imslp.work_edition_download_none'|trans }}
                     </button>
                 </div>
+                <div class="dl-progress" id="dl-progress-{{ edIdx }}" style="display:none">
+                    <div class="dl-progress-track"><div class="dl-progress-fill" id="dl-fill-{{ edIdx }}"></div></div>
+                    <div class="dl-progress-label" id="dl-label-{{ edIdx }}"></div>
+                </div>
                 <div class="files-open-panel" id="open-panel-{{ edIdx }}" style="display:none">
                     <div class="files-open-panel-title">{{ 'imslp.work_edition_open_panel_title'|trans }}</div>
                     <ul class="files-open-list" id="open-panel-list-{{ edIdx }}"></ul>
@@ -590,24 +622,53 @@ async function downloadZip(idx) {
     if (!checked.length) return;
 
     if (IMSLP_CREDENTIALS) {
-        // Server-side ZIP: login → IMSLPImageHandler data-id → CDN download
-        const card    = document.getElementById('edition-' + idx);
-        const btn     = document.getElementById('dlBtn-' + idx);
-        const zipName = card.dataset.zipname || 'imslp-download';
+        const card     = document.getElementById('edition-' + idx);
+        const btn      = document.getElementById('dlBtn-' + idx);
+        const fill     = document.getElementById('dl-fill-' + idx);
+        const label    = document.getElementById('dl-label-' + idx);
+        const progress = document.getElementById('dl-progress-' + idx);
+        const zipName  = card.dataset.zipname || 'imslp-download';
+
+        // Generate a job ID so the progress endpoint can find our progress file
+        const jobId = Math.random().toString(36).slice(2, 18).replace(/[^a-z0-9]/g, '0');
 
         btn.disabled    = true;
         btn.textContent = 'Downloading…';
+        progress.style.display = 'block';
+        fill.style.width = '0%';
+        label.textContent = '';
 
         const formData = new FormData();
         checked.forEach(cb => formData.append('files[]', cb.dataset.filename));
         formData.append('zipName', zipName);
+        formData.append('jobId', jobId);
+
+        // Poll progress while the download request runs
+        const total = checked.length;
+        const poller = setInterval(async () => {
+            try {
+                const p = await fetch('/imslp/download-progress/' + jobId);
+                if (!p.ok) return;
+                const d = await p.json();
+                if (d.total > 0) {
+                    const pct = Math.round(d.done / d.total * 100);
+                    fill.style.width = pct + '%';
+                    label.textContent = d.current
+                        ? `${d.done + 1}/${d.total}  ${d.current}`
+                        : `${d.done}/${d.total}`;
+                }
+            } catch (_) {}
+        }, 500);
 
         try {
             const resp = await fetch('/imslp/download-zip', { method: 'POST', body: formData });
+            clearInterval(poller);
+            fill.style.width = '100%';
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
                 throw new Error(err.error || 'Server error ' + resp.status);
             }
+            label.textContent = 'Preparing ZIP…';
             const blob = await resp.blob();
             const a = Object.assign(document.createElement('a'), {
                 href: URL.createObjectURL(blob),
@@ -618,9 +679,11 @@ async function downloadZip(idx) {
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
         } catch (err) {
+            clearInterval(poller);
             alert('Download failed: ' + err.message);
         }
 
+        progress.style.display = 'none';
         onFileCheck(idx);
         return;
     }
