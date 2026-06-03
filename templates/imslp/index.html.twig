@@ -110,10 +110,45 @@ body {
     padding: .55rem 1.4rem;
     cursor: pointer;
     white-space: nowrap;
-    transition: background .2s;
+    transition: background .2s, opacity .2s;
     align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
 }
 .btn-search:hover { background: #d9be88; }
+.btn-search.searching { opacity: .75; cursor: default; pointer-events: none; }
+
+/* Spinner inside the search button */
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-search .btn-spinner {
+    display: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(0,0,0,.25);
+    border-top-color: #1a1a1a;
+    border-radius: 50%;
+    animation: spin .65s linear infinite;
+    flex-shrink: 0;
+}
+.btn-search.searching .btn-spinner { display: block; }
+
+/* Search card shimmer border while a request is in flight */
+@keyframes searchBorderPulse {
+    0%, 100% { border-color: #333; box-shadow: none; }
+    50%       { border-color: #c8a96e55; box-shadow: 0 0 0 1px #c8a96e22; }
+}
+.search-card.searching { animation: searchBorderPulse 1.4s ease-in-out infinite; }
+
+/* Results fade-in */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-up {
+    opacity: 0;
+    animation: fadeUp .32s ease both;
+}
 .search-divider {
     border: none;
     border-top: 1px solid #2e2e2e;
@@ -509,7 +544,10 @@ body {
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit" class="btn-search">{{ 'imslp.search_btn'|trans }}</button>
+                <button type="submit" class="btn-search" id="btn-search">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-label">{{ 'imslp.search_btn'|trans }}</span>
+                </button>
             </div>
             {# Row 2: advanced filters #}
             <div class="search-row">
@@ -709,12 +747,32 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
 
-// ── Strip empty params from search form before submit ──
+// ── Search form: strip empty params + loading animation ──
 document.getElementById('search-form').addEventListener('submit', function () {
     this.querySelectorAll('input, select').forEach(el => {
         if (el.value === '' || el.value === null) el.disabled = true;
     });
+
+    // Activate loading state
+    const btn  = document.getElementById('btn-search');
+    const card = this.closest('.search-card');
+    if (btn)  btn.classList.add('searching');
+    if (card) card.classList.add('searching');
 });
+
+// ── Stagger-animate results on page load ──
+(function () {
+    function animateItems(selector, baseDelay, step) {
+        document.querySelectorAll(selector).forEach((el, i) => {
+            el.classList.add('anim-fade-up');
+            el.style.animationDelay = (baseDelay + i * step) + 'ms';
+        });
+    }
+    animateItems('.composer-card', 0,  45);
+    animateItems('.work-item',     60, 30);
+    animateItems('.results-header, .composer-browse-header', 0, 0);
+    animateItems('.section-label', 0, 0);
+})();
 
 // ── AI search ──
 (function () {
