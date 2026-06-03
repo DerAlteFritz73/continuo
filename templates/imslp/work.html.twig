@@ -492,10 +492,20 @@ body {
                         <span style="color:#6a6058;font-weight:400;font-size:.82rem;margin-left:.5rem">({{ ed.files|length }} {{ ed.files|length != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': ''}) : 'imslp.work_files_count'|trans({'%count%': ''}) |trim }})</span>
                         {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
                         {% if not isManuscript %}
-                            {% if ed.editor is defined and ed.editor %}
+                            {% if ed.arranger is defined and ed.arranger %}
+                                {# For arrangements: show what the piece is arranged for, then the arranger #}
+                                {% set forText = ed.arrangementFor is defined and ed.arrangementFor ? ed.arrangementFor : '' %}
+                                {% if forText %}
+                                <div style="font-size:.85rem;color:#c8a96e;font-weight:500;margin-top:.2rem">{{ 'imslp.work_edition_for'|trans }} <em style="font-style:normal">{{ forText }}</em></div>
+                                {% endif %}
+                                <div style="font-size:.8rem;color:#8a8070;font-weight:400;margin-top:.1rem">{{ 'imslp.work_edition_arr'|trans }} <em style="color:#a89880">{{ ed.arranger }}</em>
+                                    {# Fall back to miscNotes as instrumentation hint when arrangementFor is absent #}
+                                    {% if not forText and ed.miscNotes is defined and ed.miscNotes and 'arrang' in ed.miscNotes|lower %}
+                                        — <span style="color:#6a6058">{{ ed.miscNotes|split('\n')|first|trim }}</span>
+                                    {% endif %}
+                                </div>
+                            {% elseif ed.editor is defined and ed.editor %}
                                 <div style="font-size:.8rem;color:#8a8070;font-weight:400;margin-top:.15rem">{{ 'imslp.work_edition_ed'|trans }} <em style="color:#a89880">{{ ed.editor }}</em></div>
-                            {% elseif ed.arranger is defined and ed.arranger %}
-                                <div style="font-size:.8rem;color:#8a8070;font-weight:400;margin-top:.15rem">{{ 'imslp.work_edition_arr'|trans }} <em style="color:#a89880">{{ ed.arranger }}</em></div>
                             {% endif %}
                         {% endif %}
                     </div>

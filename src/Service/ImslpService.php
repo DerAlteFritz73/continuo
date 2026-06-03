@@ -802,8 +802,9 @@ class ImslpService
         // Extract all #fte:imslpfile blocks — each block = one edition.
         // Use brace-counting to handle arbitrary nesting depth inside blocks
         // (templates like {{LinkEd|...}} or {{FE|...}} inside mustn't close the outer match).
-        $fileBlocks = [[], []]; // mimic preg_match_all result: [0=>fullmatches, 1=>captures]
-        $searchFrom = 0;
+        $fileBlocks   = [[], []]; // [0=>fullmatches, 1=>captures]
+        $blockStarts  = [];       // byte offset of each block in $wikitext
+        $searchFrom   = 0;
         while (($start = strpos($wikitext, '{{#fte:imslpfile', $searchFrom)) !== false) {
             $depth = 0;
             $len   = strlen($wikitext);
@@ -823,26 +824,40 @@ class ImslpService
                 $content = substr($wikitext, $contentStart, $end - $contentStart);
                 $fileBlocks[0][] = substr($wikitext, $start, $end + 2 - $start);
                 $fileBlocks[1][] = $content;
+                $blockStarts[]   = $start;
                 $searchFrom = $end + 2;
             } else {
                 break; // unclosed block, stop
             }
         }
-        foreach ($fileBlocks[1] as $block) {
+        foreach ($fileBlocks[1] as $idx => $block) {
             $fields = $this->parseWikiFields($block);
 
+            // Find the nearest "=====For X (Arranger)=====" section heading before this block.
+            // These headings appear in the "Arrangements and Transcriptions" section and
+            // describe what instrument(s) each arrangement is written for.
+            $arrangementFor = '';
+            if (isset($blockStarts[$idx])) {
+                $textBefore = substr($wikitext, 0, $blockStarts[$idx]);
+                // Match the last level-3+ heading of the form "=====For X (optionalName)====="
+                if (preg_match_all('/={3,}For\s+([^=\n]+?)(?:\s*\([^)]*\))?\s*={3,}/i', $textBefore, $hm)) {
+                    $arrangementFor = trim(end($hm[1]));
+                }
+            }
+
             $edition = [
-                'copyright'     => $this->stripWikiMarkup($fields['Copyright'] ?? ''),
-                'publisher'     => $this->stripWikiMarkup($fields['Publisher Information'] ?? ''),
-                'arranger'      => $this->stripWikiMarkup($fields['Arranger'] ?? ''),
-                'editor'        => $this->stripWikiMarkup($fields['Editor'] ?? ''),
-                'dateSubmitted' => $fields['Date Submitted'] ?? '',
-                'imageType'     => $this->stripWikiMarkup($fields['Image Type'] ?? ''),
-                'uploader'      => $this->stripWikiMarkup($fields['Uploader'] ?? ''),
-                'scanner'       => $this->stripWikiMarkup($fields['Scanner'] ?? ''),
-                'plateNumber'   => $this->stripWikiMarkup($fields['Plate Number'] ?? ''),
-                'miscNotes'     => $this->stripWikiMarkup($fields['Misc. Notes'] ?? ''),
-                'files'         => [],
+                'copyright'      => $this->stripWikiMarkup($fields['Copyright'] ?? ''),
+                'publisher'      => $this->stripWikiMarkup($fields['Publisher Information'] ?? ''),
+                'arranger'       => $this->stripWikiMarkup($fields['Arranger'] ?? ''),
+                'editor'         => $this->stripWikiMarkup($fields['Editor'] ?? ''),
+                'dateSubmitted'  => $fields['Date Submitted'] ?? '',
+                'imageType'      => $this->stripWikiMarkup($fields['Image Type'] ?? ''),
+                'uploader'       => $this->stripWikiMarkup($fields['Uploader'] ?? ''),
+                'scanner'        => $this->stripWikiMarkup($fields['Scanner'] ?? ''),
+                'plateNumber'    => $this->stripWikiMarkup($fields['Plate Number'] ?? ''),
+                'miscNotes'      => $this->stripWikiMarkup($fields['Misc. Notes'] ?? ''),
+                'arrangementFor' => $arrangementFor,
+                'files'          => [],
             ];
 
             for ($n = 1; $n <= 30; $n++) {
@@ -1016,6 +1031,16 @@ class ImslpService
         $text = $this->replaceTemplateWithCallback($text, 'LinkEd',   $nameCb);
         $text = $this->replaceTemplateWithCallback($text, 'LinkCopy', $nameCb);
         $text = $this->replaceTemplateWithCallback($text, 'LinkArr',  $nameCb);
+
+        // {{Key|G}} → "G major", {{Key|G|minor}} → "G minor"
+        $text = $this->replaceTemplateWithCallback($text, 'Key', function (string $inner) {
+            $params = $this->extractTemplateParams($inner);
+            $root   = trim($params[1] ?? '');
+            $mode   = strtolower(trim($params[2] ?? ''));
+            if ($root === '') return '';
+            if (str_starts_with($mode, 'min')) return "$root minor";
+            return "$root major";
+        });
 
         // {{FE|...}} — remove (it's a tag on the edition object, not part of a text field)
         $text = $this->replaceNamedTemplate($text, 'FE', '');

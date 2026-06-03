@@ -465,6 +465,7 @@ imslp:
     work_files_count_plural: "%count% files"
     work_edition_ed: "Ed."
     work_edition_arr: "Arr."
+    work_edition_for: "For"
     work_edition_anonymous: "Anonymous edition"
     work_edition_submitted: "Submitted %date%"
     work_files_download_hint: "Download PDF files directly from the"
