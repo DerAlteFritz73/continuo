@@ -276,7 +276,17 @@ body {
 .gauge-svg { display: block; }
 .gauge-arc-bg  { fill: none; stroke: #2e2e2e; stroke-width: 10; }
 .gauge-arc-fill { fill: none; stroke-width: 10; stroke-linecap: round;
-                  transition: stroke-dashoffset .6s ease, stroke .4s; }
+                  transition: stroke-dasharray .8s ease, stroke-dashoffset .6s ease, stroke .4s; }
+
+/* ── Page-load fade-in ── */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.anim-fade-up {
+    opacity: 0;
+    animation: fadeUp .32s ease both;
+}
 .gauge-label {
     font-size: .72rem;
     text-transform: uppercase;
@@ -817,6 +827,19 @@ body {
 
     loadStats();
     setInterval(loadStats, 3000);
+
+    // ── Stagger-animate sections on page load ──
+    (function () {
+        function anim(sel, delay, step) {
+            document.querySelectorAll(sel).forEach((el, i) => {
+                el.classList.add('anim-fade-up');
+                el.style.animationDelay = (delay + i * step) + 'ms';
+            });
+        }
+        anim('.site-header',  0,   0);
+        anim('.gauges-row',  80,   0);
+        anim('.job-card',   160,  60);
+    })();
 })();
 </script>
 {% endblock %}
