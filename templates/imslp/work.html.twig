@@ -169,6 +169,34 @@ body {
 .files-open-link:hover { text-decoration: underline; }
 .files-open-link:visited { color: #9a7a4e; }
 
+/* RISM incipit panel */
+.rism-panel {
+    padding: .5rem 1.1rem .7rem;
+    background: #1e1e1e;
+    border-bottom: 1px solid #2a2a2a;
+}
+.rism-btn {
+    background: none;
+    border: 1px solid #3a3028;
+    border-radius: 4px;
+    color: #8a8070;
+    font-size: .72rem;
+    padding: .25rem .65rem;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+}
+.rism-btn:hover { border-color: #c8a96e; color: #c8a96e; }
+.rism-incipits { display: none; margin-top: .6rem; }
+.rism-incipit-item { margin-bottom: .5rem; }
+.rism-incipit-label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #6a6058;
+    margin-bottom: .25rem;
+}
+.rism-incipit-item svg { max-width: 100%; height: auto; filter: invert(0.85) sepia(0.3) hue-rotate(5deg); }
+
 /* Download progress bar */
 .dl-progress {
     padding: .45rem 1.1rem .5rem;
@@ -533,6 +561,12 @@ body {
                         {{ 'imslp.work_edition_download_none'|trans }}
                     </button>
                 </div>
+                {% if ed.rismSourceId is defined and ed.rismSourceId %}
+                <div class="rism-panel">
+                    <button class="rism-btn" onclick="toggleIncipits({{ edIdx }}, '{{ ed.rismSourceId }}')">RISM incipits</button>
+                    <div class="rism-incipits" id="rism-incipits-{{ edIdx }}"></div>
+                </div>
+                {% endif %}
                 <div class="dl-progress" id="dl-progress-{{ edIdx }}" style="display:none">
                     <div class="dl-progress-track"><div class="dl-progress-fill" id="dl-fill-{{ edIdx }}"></div></div>
                     <div class="dl-progress-label" id="dl-label-{{ edIdx }}"></div>
@@ -597,6 +631,29 @@ const IMSLP_BASE = 'https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/';
 
 function toggleEdition(idx) {
     document.getElementById('edition-' + idx).classList.toggle('open');
+}
+
+async function toggleIncipits(idx, rismId) {
+    const panel = document.getElementById('rism-incipits-' + idx);
+    if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+    if (panel.dataset.loaded) { panel.style.display = 'block'; return; }
+
+    panel.style.display = 'block';
+    panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">Loading…</span>';
+
+    try {
+        const resp = await fetch('/imslp/rism-incipits/' + rismId);
+        const items = await resp.json();
+        if (!items.length) { panel.innerHTML = '<span style="color:#6a6058;font-size:.8rem">No incipits found.</span>'; return; }
+        panel.innerHTML = items.map(inc => `
+            <div class="rism-incipit-item">
+                ${inc.label ? `<div class="rism-incipit-label">${inc.label}</div>` : ''}
+                ${inc.svg || ''}
+            </div>`).join('');
+        panel.dataset.loaded = '1';
+    } catch (e) {
+        panel.innerHTML = '<span style="color:#8a3020;font-size:.8rem">Failed to load.</span>';
+    }
 }
 
 function getChecked(idx) {

@@ -159,6 +159,21 @@ class ImslpController extends AbstractController
             }
         }
 
+        // Back-fill rismSourceId for editions already in the DB (parsed before this field existed).
+        // The RISM URL is preserved in miscNotes because stripWikiMarkup only strips [[...]] not [...].
+        $filesJson = $work->getFilesJson();
+        if ($filesJson) {
+            $enriched = false;
+            foreach ($filesJson as &$ed) {
+                if (!array_key_exists('rismSourceId', $ed) && !empty($ed['miscNotes'])) {
+                    $ed['rismSourceId'] = $this->imslp->extractRismId($ed['miscNotes']);
+                    $enriched = true;
+                }
+            }
+            unset($ed);
+            if ($enriched) $work->setFilesJson($filesJson);
+        }
+
         return $this->render('imslp/work.html.twig', [
             'work'             => $work,
             'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
@@ -366,6 +381,52 @@ class ImslpController extends AbstractController
         }
 
         return null;
+    }
+
+    // -------------------------------------------------------------------------
+    // RISM incipit proxy
+    // -------------------------------------------------------------------------
+
+    #[Route('/rism-incipits/{rismId}', name: 'app_imslp_rism_incipits', methods: ['GET'],
+            requirements: ['rismId' => '\d{7,12}'])]
+    public function rismIncipits(string $rismId): JsonResponse
+    {
+        $cacheKey = 'imslp.rism.' . $rismId;
+        $data = $this->cache->get($cacheKey, function (ItemInterface $item) use ($rismId): array {
+            $item->expiresAfter(86400); // cache for 24 hours — RISM data changes rarely
+
+            $body = $this->curlGet("https://rism.online/sources/{$rismId}/incipits");
+            if ($body === null) return [];
+
+            $raw = json_decode($body, true);
+            $incipits = [];
+            foreach ($raw['items'] ?? [] as $item2) {
+                $svg = null;
+                foreach ($item2['rendered'] ?? [] as $r) {
+                    if (($r['format'] ?? '') === 'image/svg+xml') { $svg = $r['data']; break; }
+                }
+                // Plaine & Easie code
+                $pae = null;
+                foreach ($item2['encodings'] ?? [] as $enc) {
+                    $label = $enc['label'] ?? [];
+                    $langs = array_merge(...array_values(array_map(fn($v) => (array)$v, $label)));
+                    if (array_filter($langs, fn($l) => str_contains(strtolower($l), 'plain'))) {
+                        $pae = $enc['value'] ?? null;
+                        break;
+                    }
+                }
+                // Voice / section label (e.g. "1.1.1")
+                $labelArr = $item2['label'] ?? [];
+                $label    = !empty($labelArr) ? reset($labelArr) : null;
+                if (is_array($label)) $label = reset($label) ?: null;
+                if ($svg || $pae) {
+                    $incipits[] = ['label' => $label, 'svg' => $svg, 'pae' => $pae];
+                }
+            }
+            return $incipits;
+        });
+
+        return $this->json($data);
     }
 
     // -------------------------------------------------------------------------

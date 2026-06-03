@@ -109,6 +109,22 @@ class ImslpService
     }
 
     /**
+     * Extract a RISM Online numeric source ID from free text (miscNotes, publisher info, etc.).
+     * Handles opac.rism.info URLs, rism.info/sources/ paths, and plain "RISM: 1234567" strings.
+     */
+    public function extractRismId(string $text): ?string
+    {
+        if ($text === '') return null;
+        // opac.rism.info URL: ?...Content=1234567890
+        if (preg_match('/opac\.rism\.info[^?]*\?[^"\'>\s]*Content=(\d{7,})/i', $text, $m)) return $m[1];
+        // rism.info/sources/1234567890 or rism.online/sources/...
+        if (preg_match('/rism\.(?:info|online)\/sources\/(\d{7,})/i', $text, $m)) return $m[1];
+        // Plain "RISM: 1234567890" or "RISM 1234567890"
+        if (preg_match('/\bRISM[:\s#]*(\d{7,})\b/i', $text, $m)) return $m[1];
+        return null;
+    }
+
+    /**
      * Returns [bornYear|null, diedYear|null] for a composer name
      * by parsing the #imslpcomposer: template on their category page.
      */
@@ -845,6 +861,7 @@ class ImslpService
                 }
             }
 
+            $rawMiscNotes = $fields['Misc. Notes'] ?? '';
             $edition = [
                 'copyright'      => $this->stripWikiMarkup($fields['Copyright'] ?? ''),
                 'publisher'      => $this->stripWikiMarkup($fields['Publisher Information'] ?? ''),
@@ -855,8 +872,11 @@ class ImslpService
                 'uploader'       => $this->stripWikiMarkup($fields['Uploader'] ?? ''),
                 'scanner'        => $this->stripWikiMarkup($fields['Scanner'] ?? ''),
                 'plateNumber'    => $this->stripWikiMarkup($fields['Plate Number'] ?? ''),
-                'miscNotes'      => $this->stripWikiMarkup($fields['Misc. Notes'] ?? ''),
+                'miscNotes'      => $this->stripWikiMarkup($rawMiscNotes),
                 'arrangementFor' => $arrangementFor,
+                // RISM source ID extracted from raw (pre-stripWikiMarkup) misc notes
+                // so the URL survives the link-stripping pass.
+                'rismSourceId'   => $this->extractRismId($rawMiscNotes),
                 'files'          => [],
             ];
 
