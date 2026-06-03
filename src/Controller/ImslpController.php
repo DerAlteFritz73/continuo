@@ -172,7 +172,7 @@ class ImslpController extends AbstractController
 
         $filenames = $request->request->all('files');
         $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
-        $folder    = trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. ') ?: 'imslp-download';
+        $folder    = mb_substr(trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. '), 0, 80) ?: 'imslp-download';
 
         $cookieJar = $this->imslpLogin();
         if ($cookieJar === null) {
