@@ -550,6 +550,7 @@ body {
     {% endif %}
 
 <script>
+const IMSLP_CREDENTIALS = {{ imslpCredentials ? 'true' : 'false' }};
 const IMSLP_BASE = 'https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/';
 
 function toggleEdition(idx) {
@@ -584,14 +585,48 @@ function toggleSelectAll(idx, checked) {
     onFileCheck(idx);
 }
 
-function downloadZip(idx) {
+async function downloadZip(idx) {
     const checked = getChecked(idx);
     if (!checked.length) return;
 
-    // Try to open all tabs at once — synchronous window.open calls within a
-    // user gesture are allowed if the browser permits popups for this site.
-    // window.open returns null when the popup blocker catches it, so we track
-    // which files were blocked and show them in the fallback panel.
+    if (IMSLP_CREDENTIALS) {
+        // Server-side ZIP: login → IMSLPImageHandler data-id → CDN download
+        const card    = document.getElementById('edition-' + idx);
+        const btn     = document.getElementById('dlBtn-' + idx);
+        const zipName = card.dataset.zipname || 'imslp-download';
+
+        btn.disabled    = true;
+        btn.textContent = 'Downloading…';
+
+        const formData = new FormData();
+        checked.forEach(cb => formData.append('files[]', cb.dataset.filename));
+        formData.append('zipName', zipName);
+
+        try {
+            const resp = await fetch('/imslp/download-zip', { method: 'POST', body: formData });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || 'Server error ' + resp.status);
+            }
+            const blob = await resp.blob();
+            const a = Object.assign(document.createElement('a'), {
+                href: URL.createObjectURL(blob),
+                download: zipName + '.zip',
+            });
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        } catch (err) {
+            alert('Download failed: ' + err.message);
+        }
+
+        onFileCheck(idx);
+        return;
+    }
+
+    // No server credentials — open tabs in the browser.
+    // window.open returns null when blocked; show a panel for those.
     const blocked = [];
     checked.forEach(cb => {
         const w = window.open(
@@ -604,7 +639,6 @@ function downloadZip(idx) {
     const panel = document.getElementById('open-panel-' + idx);
     if (blocked.length === 0) { panel.style.display = 'none'; return; }
 
-    // Some tabs were blocked — populate the panel with the blocked files only
     const list = document.getElementById('open-panel-list-' + idx);
     list.innerHTML = '';
     blocked.forEach(cb => {

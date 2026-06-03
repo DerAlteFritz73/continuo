@@ -10,9 +10,11 @@ use App\Service\ImslpService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -157,7 +159,161 @@ class ImslpController extends AbstractController
             }
         }
 
-        return $this->render('imslp/work.html.twig', ['work' => $work]);
+        return $this->render('imslp/work.html.twig', [
+            'work'             => $work,
+            'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
+        ]);
+    }
+
+    #[Route('/download-zip', name: 'app_imslp_download_zip', methods: ['POST'])]
+    public function downloadZip(Request $request): Response
+    {
+        set_time_limit(300);
+
+        $filenames = $request->request->all('files');
+        $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
+        $folder    = trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. ') ?: 'imslp-download';
+
+        $cookieJar = $this->imslpLogin();
+        if ($cookieJar === null) {
+            return $this->json(['error' => 'IMSLP login failed. Check IMSLP_USER / IMSLP_PASS in .env.local.'], 502);
+        }
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'imslp_zip_');
+        $zip     = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $added   = 0;
+
+        foreach ($filenames as $filename) {
+            $filename = basename((string) $filename);
+            if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $filename)) {
+                continue;
+            }
+            $content = $this->fetchImslpFile($filename, $cookieJar);
+            if ($content === null) continue;
+
+            $zip->addFromString($folder . '/' . $filename, $content);
+            $added++;
+        }
+
+        @unlink($cookieJar);
+        $zip->close();
+
+        if ($added === 0) {
+            @unlink($tmpFile);
+            return $this->json(['error' => 'No files could be downloaded. They may require a paid IMSLP membership.'], 502);
+        }
+
+        $response = new BinaryFileResponse($tmpFile);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $folder . '.zip');
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    /**
+     * Login to IMSLP via the web form (not the MediaWiki API) and inject the
+     * redirectPassed cookie so subsequent requests skip the JS redirect interstitial.
+     * Returns a path to the cookie jar file, or null on failure.
+     */
+    private function imslpLogin(): ?string
+    {
+        $username = $_ENV['IMSLP_USER'] ?? '';
+        $password = $_ENV['IMSLP_PASS'] ?? '';
+        if ($username === '' || $password === '') return null;
+
+        $jar = tempnam(sys_get_temp_dir(), 'imslp_ck_');
+
+        // Step 1: GET login page to obtain the CSRF token
+        $ch = curl_init('https://imslp.org/wiki/Special:UserLogin');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_COOKIEJAR      => $jar,
+            CURLOPT_COOKIEFILE     => $jar,
+        ]);
+        $body = curl_exec($ch);
+        curl_close($ch);
+
+        if (!preg_match('/name="wpLoginToken"\s+value="([^"]+)"/', (string) $body, $m)) {
+            @unlink($jar);
+            return null;
+        }
+
+        // Step 2: POST the login form to the actual submit action
+        $ch = curl_init('https://imslp.org/index.php?title=Special%3AUserLogin&action=submitlogin&type=login');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'wpName'         => $username,
+                'wpPassword'     => $password,
+                'wpLoginToken'   => $m[1],
+                'wpRemember'     => '1',
+                'wpLoginAttempt' => '1',
+            ]),
+            CURLOPT_ENCODING       => '',
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_COOKIEJAR      => $jar,
+            CURLOPT_COOKIEFILE     => $jar,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+        ]);
+        curl_exec($ch);
+        $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        curl_close($ch);
+
+        if (str_contains((string) $finalUrl, 'UserLogin')) {
+            @unlink($jar);
+            return null;
+        }
+
+        return $jar;
+    }
+
+    /**
+     * Fetch one IMSLP file via the IMSLPImageHandler page.
+     * That page embeds the CDN URL in a data-id attribute; the CDN itself is public.
+     */
+    private function fetchImslpFile(string $filename, string $cookieJar): ?string
+    {
+        // Use DisclaimerAccept which redirects to IMSLPImageHandler after acceptance.
+        // Inject redirectPassed=1 in-memory via CURLOPT_COOKIELIST — this bypasses
+        // the friendlyredirect.html JS interstitial that curl cannot follow.
+        $ch = curl_init('https://imslp.org/wiki/Special:IMSLPDisclaimerAccept/' . rawurlencode($filename));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_COOKIEFILE     => $cookieJar,
+            CURLOPT_COOKIEJAR      => $cookieJar,
+        ]);
+        curl_setopt($ch, CURLOPT_COOKIELIST, 'Set-Cookie: redirectPassed=1; path=/; Domain=.imslp.org');
+        $html = curl_exec($ch);
+        curl_close($ch);
+
+        if ($html === null || $html === false) return null;
+        if (!preg_match('/data-id="([^"]+)"/', (string) $html, $m)) return null;
+
+        $cdnUrl = html_entity_decode($m[1]);
+        if (str_starts_with($cdnUrl, '//')) $cdnUrl = 'https:' . $cdnUrl;
+        if (!str_starts_with($cdnUrl, 'http')) return null;
+
+        // CDN is publicly accessible — no session cookies needed
+        $content = $this->curlGet($cdnUrl, null);
+        if ($content === null || str_starts_with(ltrim($content), '<!')) return null;
+
+        return $content;
     }
 
     // -------------------------------------------------------------------------
