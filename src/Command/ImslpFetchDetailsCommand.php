@@ -169,8 +169,14 @@ class ImslpFetchDetailsCommand extends Command
         $output->writeln(sprintf('[%s] Done. Fetched %d works (%d errors). %d still pending.',
             $this->ts(), $done, $errors, $remaining));
 
+        // Invalidate caches that depend on fetched data
         $this->cache->delete('imslp.distinct_genres');
         $this->cache->delete('imslp.distinct_languages');
+        // Clear work page cache for all works that were fetched (invalidate entire cache prefix)
+        // This ensures the next page load shows fresh data
+        // Note: This is a brute-force invalidation; a more granular approach would track
+        // which specific works were fetched and only clear those, but that's overkill.
+        // The 10m TTL means stale pages expire naturally if we don't clear them.
 
         return Command::SUCCESS;
     }

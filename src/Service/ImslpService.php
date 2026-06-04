@@ -5,6 +5,8 @@ namespace App\Service;
 use App\Entity\ImslpWork;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class ImslpService
 {
@@ -15,6 +17,7 @@ class ImslpService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly Connection $db,
+        private readonly CacheInterface $cache,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -992,18 +995,24 @@ class ImslpService
 
     private function fetchGet(string $url): string
     {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_USERAGENT      => self::UA,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
-        ]);
-        $body = curl_exec($ch);
-        curl_close($ch);
+        // Cache IMSLP API responses (1h TTL) to speed up sync runs when data hasn't changed
+        $cacheKey = 'imslp.api_response.' . md5($url);
+        return $this->cache->get($cacheKey, function (ItemInterface $item) use ($url): string {
+            $item->expiresAfter(3600); // 1 hour
 
-        return is_string($body) ? $body : '';
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_USERAGENT      => self::UA,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+            ]);
+            $body = curl_exec($ch);
+            curl_close($ch);
+
+            return is_string($body) ? $body : '';
+        });
     }
 
     /**

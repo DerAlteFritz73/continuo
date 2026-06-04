@@ -61,9 +61,11 @@ class ImslpController extends AbstractController
         $composerStyle = '';
         if ($composer !== '') {
             $mode  = 'composer';
-            $total = $this->workRepo->countByComposer($composer, $filters);
+            $total = $this->cachedCount('imslp.count.composer.' . $composer,
+                fn() => $this->workRepo->countByComposer($composer, $filters), 900);
             $pages = (int) ceil($total / $perPage);
-            $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
+            $works = $this->cachedSearch('imslp.search.composer.' . $composer . '.' . $page,
+                fn() => $this->workRepo->findByComposer($composer, $filters, $page, $perPage), 3600);
 
             $composerStyle = $this->cachedComposerStyle($composer);
 
@@ -81,20 +83,28 @@ class ImslpController extends AbstractController
                 $mode            = 'composer';
                 $composerMatches = [];
                 $composerStyle   = $this->cachedComposerStyle($composer);
-                $total = $this->workRepo->countByComposer($composer, $filters);
+                $total = $this->cachedCount('imslp.count.composer.' . $composer,
+                    fn() => $this->workRepo->countByComposer($composer, $filters), 900);
                 $pages = (int) ceil($total / $perPage);
-                $works = $this->workRepo->findByComposer($composer, $filters, $page, $perPage);
+                $works = $this->cachedSearch('imslp.search.composer.' . $composer . '.' . $page,
+                    fn() => $this->workRepo->findByComposer($composer, $filters, $page, $perPage), 3600);
             } else {
-                $total = $this->workRepo->countByTitleSearch($q, $filters);
+                $searchHash = md5($q . json_encode((array) $filters));
+                $total = $this->cachedCount('imslp.count.search.' . $searchHash,
+                    fn() => $this->workRepo->countByTitleSearch($q, $filters), 900);
                 $pages = (int) ceil($total / $perPage);
-                $works = $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage);
+                $works = $this->cachedSearch('imslp.search.' . $searchHash . '.' . $page,
+                    fn() => $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage), 3600);
             }
 
         } elseif (!$filters->isEmpty()) {
             $mode  = 'filter';
-            $total = $this->workRepo->countByFilters($filters);
+            $filterHash = md5(json_encode((array) $filters));
+            $total = $this->cachedCount('imslp.count.filter.' . $filterHash,
+                fn() => $this->workRepo->countByFilters($filters), 900);
             $pages = (int) ceil($total / $perPage);
-            $works = $this->workRepo->findByFilters($filters, $page, $perPage);
+            $works = $this->cachedSearch('imslp.search.filter.' . $filterHash . '.' . $page,
+                fn() => $this->workRepo->findByFilters($filters, $page, $perPage), 3600);
         }
 
         $composerDates = $this->loadComposerDates($works);
@@ -134,50 +144,64 @@ class ImslpController extends AbstractController
     #[Route('/work/{pageId}', name: 'app_imslp_work', methods: ['GET'], requirements: ['pageId' => '\d+'])]
     public function work(int $pageId): Response
     {
-        /** @var ImslpWork|null $work */
-        $work = $this->workRepo->findOneBy(['pageId' => $pageId]);
+        // Cache the full work page response (10m TTL) to avoid repeated fetch-details calls
+        $workPageCacheKey = 'imslp.work_page.' . $pageId;
+        $cachedResponse = $this->cache->get($workPageCacheKey, function (ItemInterface $item) use ($pageId): ?Response {
+            $item->expiresAfter(600); // 10 minutes
 
-        if (!$work) {
+            /** @var ImslpWork|null $work */
+            $work = $this->workRepo->findOneBy(['pageId' => $pageId]);
+
+            if (!$work) {
+                return null; // Signals not found
+            }
+
+            if (!$work->hasDetail()) {
+                try {
+                    $this->imslp->fetchWorkDetail($work);
+                } catch (\Throwable) {
+                    // Non-fatal — show page with partial data
+                }
+            }
+
+            // Back-fill rismSourceId for editions already in the DB (parsed before this field existed).
+            // The RISM URL is preserved in miscNotes because stripWikiMarkup only strips [[...]] not [...].
+            $filesJson = $work->getFilesJson();
+            if ($filesJson) {
+                $enriched = false;
+                foreach ($filesJson as &$ed) {
+                    if (!array_key_exists('rismSourceId', $ed) && !empty($ed['miscNotes'])) {
+                        $ed['rismSourceId'] = $this->imslp->extractRismId($ed['miscNotes']);
+                        $enriched = true;
+                    }
+                }
+                unset($ed);
+                if ($enriched) $work->setFilesJson($filesJson);
+            }
+
+            // Extract publication year per edition from the publisher string (e.g. "Breitkopf, 1884" → 1884).
+            $editionYears = [];
+            foreach ($work->getFilesJson() ?? [] as $i => $ed) {
+                $pub = trim($ed['publisher'] ?? '');
+                if ($pub !== '' && preg_match('/\b(1[4-9]\d{2}|20[0-2]\d)\b/', $pub, $m)) {
+                    $editionYears[$i] = $m[1];
+                }
+            }
+
+            return new Response(
+                $this->renderView('imslp/work.html.twig', [
+                    'work'             => $work,
+                    'editionYears'     => $editionYears,
+                    'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
+                ])
+            );
+        });
+
+        if ($cachedResponse === null) {
             throw $this->createNotFoundException('Work not found in local database. Run app:imslp:sync first.');
         }
 
-        if (!$work->hasDetail()) {
-            try {
-                $this->imslp->fetchWorkDetail($work);
-            } catch (\Throwable) {
-                // Non-fatal — show page with partial data
-            }
-        }
-
-        // Back-fill rismSourceId for editions already in the DB (parsed before this field existed).
-        // The RISM URL is preserved in miscNotes because stripWikiMarkup only strips [[...]] not [...].
-        $filesJson = $work->getFilesJson();
-        if ($filesJson) {
-            $enriched = false;
-            foreach ($filesJson as &$ed) {
-                if (!array_key_exists('rismSourceId', $ed) && !empty($ed['miscNotes'])) {
-                    $ed['rismSourceId'] = $this->imslp->extractRismId($ed['miscNotes']);
-                    $enriched = true;
-                }
-            }
-            unset($ed);
-            if ($enriched) $work->setFilesJson($filesJson);
-        }
-
-        // Extract publication year per edition from the publisher string (e.g. "Breitkopf, 1884" → 1884).
-        $editionYears = [];
-        foreach ($work->getFilesJson() ?? [] as $i => $ed) {
-            $pub = trim($ed['publisher'] ?? '');
-            if ($pub !== '' && preg_match('/\b(1[4-9]\d{2}|20[0-2]\d)\b/', $pub, $m)) {
-                $editionYears[$i] = $m[1];
-            }
-        }
-
-        return $this->render('imslp/work.html.twig', [
-            'work'             => $work,
-            'editionYears'     => $editionYears,
-            'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
-        ]);
+        return $cachedResponse;
     }
 
     #[Route('/download-zip', name: 'app_imslp_download_zip', methods: ['POST'])]
@@ -754,7 +778,7 @@ class ImslpController extends AbstractController
     {
         $key = 'imslp.composer_style.' . md5($composer);
         return (string) $this->cache->get($key, function (ItemInterface $item) use ($composer): string {
-            $item->expiresAfter(86400);
+            $item->expiresAfter(604800); // 7 days — composer styles rarely change
             return (string) ($this->db->fetchOne(
                 'SELECT piece_style FROM imslp_work
                  WHERE composer = ? AND piece_style IS NOT NULL
@@ -1020,5 +1044,23 @@ class ImslpController extends AbstractController
         $svg = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $svg);
         $svg = preg_replace('/\s+on\w+\s*=\s*["\']?[^"\'\s>]+["\']?/i', '', $svg);
         return $svg;
+    }
+
+    /** Cache a count query result. Used for pagination counts. */
+    private function cachedCount(string $key, callable $query, int $ttl): int
+    {
+        return (int) $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): int {
+            $item->expiresAfter($ttl);
+            return $query();
+        });
+    }
+
+    /** Cache a search/filter query result. Used for work lists. */
+    private function cachedSearch(string $key, callable $query, int $ttl): array
+    {
+        return $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): array {
+            $item->expiresAfter($ttl);
+            return $query();
+        });
     }
 }
