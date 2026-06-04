@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Repository\ImslpWorkRepository;
+use App\Service\ImslpSearchService;
 use App\Service\ImslpService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -23,6 +24,7 @@ class ImslpFetchDetailsCommand extends Command
 
     public function __construct(
         private readonly ImslpService           $imslp,
+        private readonly ImslpSearchService     $search,
         private readonly ImslpWorkRepository    $workRepo,
         private readonly EntityManagerInterface $em,
         private readonly CacheInterface         $cache,
@@ -181,6 +183,8 @@ class ImslpFetchDetailsCommand extends Command
         // Invalidate caches that depend on fetched data
         $this->cache->delete('imslp.distinct_genres');
         $this->cache->delete('imslp.distinct_languages');
+        // Invalidate search/count caches since work counts have changed
+        $this->search->invalidateSearchCaches();
         // Clear work page cache for all works that were fetched (invalidate entire cache prefix)
         // This ensures the next page load shows fresh data
         // Note: This is a brute-force invalidation; a more granular approach would track

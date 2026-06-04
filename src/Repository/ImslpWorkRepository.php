@@ -204,6 +204,18 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Find works by page IDs (used for async message handling). */
+    public function findByPageIds(array $pageIds): array
+    {
+        if (empty($pageIds)) return [];
+        return $this->createQueryBuilder('w')
+            ->where('w.pageId IN (:pageIds)')
+            ->setParameter('pageIds', $pageIds)
+            ->orderBy('w.id')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function countWithoutAllFields(): int
     {
         return (int) $this->createQueryBuilder('w')

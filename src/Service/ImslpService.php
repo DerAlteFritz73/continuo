@@ -112,6 +112,92 @@ class ImslpService
     }
 
     /**
+     * Batch fetch composer dates in parallel using curl_multi.
+     * Returns array of [composerName, born, died, nationality, timePeriod] tuples.
+     */
+    public function fetchComposerDatesBatch(array $names, int $concurrency = 10): array
+    {
+        if (empty($names)) return [];
+
+        $mh = curl_multi_init();
+        $results = [];
+
+        // Batch requests to avoid overwhelming the API
+        $batches = array_chunk($names, $concurrency);
+        foreach ($batches as $batch) {
+            $handles = [];
+            $nameMap = [];
+
+            // Queue up to $concurrency requests
+            foreach ($batch as $name) {
+                $title = 'Category:' . str_replace(' ', '_', $name);
+                $url   = self::MW_API . '?' . http_build_query([
+                    'action'  => 'query',
+                    'titles'  => $title,
+                    'prop'    => 'revisions',
+                    'rvprop'  => 'content',
+                    'format'  => 'json',
+                ]);
+
+                $cacheKey = 'imslp.api_response.' . md5($url);
+                $cachedBody = $this->cache->getItem($cacheKey)->get();
+
+                if ($cachedBody !== null) {
+                    // Cache hit - parse immediately
+                    [$born, $died, $nationality, $timePeriod] = $this->parseComposerDatesJson((string) $cachedBody);
+                    $results[] = [$name, $born, $died, $nationality, $timePeriod];
+                    continue;
+                }
+
+                // Cache miss - queue curl request
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_USERAGENT      => self::UA,
+                    CURLOPT_TIMEOUT        => 30,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+                ]);
+                curl_multi_add_handle($mh, $ch);
+                $handles[(int) $ch] = $ch;
+                $nameMap[(int) $ch] = [$name, $url, $cacheKey];
+            }
+
+            // Execute all queued requests
+            if (!empty($handles)) {
+                $running = 0;
+                do {
+                    curl_multi_exec($mh, $running);
+                    if ($running > 0) usleep(10_000);
+                } while ($running > 0);
+
+                // Process responses
+                foreach ($handles as $key => $ch) {
+                    [$name, $url, $cacheKey] = $nameMap[$key];
+                    $body = curl_multi_getcontent($ch);
+                    curl_multi_remove_handle($mh, $ch);
+                    curl_close($ch);
+
+                    $bodyStr = is_string($body) ? $body : '';
+                    if ($bodyStr === '') continue;
+
+                    // Cache and parse
+                    $this->cache->get($cacheKey, function (ItemInterface $item) use ($bodyStr): string {
+                        $item->expiresAfter(3600);
+                        return $bodyStr;
+                    });
+
+                    [$born, $died, $nationality, $timePeriod] = $this->parseComposerDatesJson($bodyStr);
+                    $results[] = [$name, $born, $died, $nationality, $timePeriod];
+                }
+            }
+        }
+
+        curl_multi_close($mh);
+        return $results;
+    }
+
+    /**
      * Extract a RISM Online numeric source ID from free text (miscNotes, publisher info, etc.).
      * Handles opac.rism.info URLs, rism.info/sources/ paths, and plain "RISM: 1234567" strings.
      */
@@ -128,33 +214,20 @@ class ImslpService
     }
 
     /**
-     * Returns [bornYear|null, diedYear|null] for a composer name
-     * by parsing the #imslpcomposer: template on their category page.
+     * Parse composer birth/death years from MediaWiki API JSON response.
      */
-    public function fetchComposerDates(string $composerName): array
+    private function parseComposerDatesJson(string $json): array
     {
-        $title = 'Category:' . str_replace(' ', '_', $composerName);
-        $url   = self::MW_API . '?' . http_build_query([
-            'action'  => 'query',
-            'titles'  => $title,
-            'prop'    => 'revisions',
-            'rvprop'  => 'content',
-            'format'  => 'json',
-        ]);
-
-        $body = $this->fetchGet($url);
-        if ($body === '') return [null, null];
-
-        $json  = json_decode($body, true);
-        $pages = $json['query']['pages'] ?? [];
+        $data  = json_decode($json, true);
+        $pages = $data['query']['pages'] ?? [];
         $page  = reset($pages);
-        if (!$page || isset($page['missing'])) return [null, null];
+        if (!$page || isset($page['missing'])) return [null, null, null, null];
 
         $wikitext = $page['revisions'][0]['slots']['main']['*']
                  ?? $page['revisions'][0]['*']
                  ?? '';
 
-        if ($wikitext === '') return [null, null];
+        if ($wikitext === '') return [null, null, null, null];
 
         $born        = null;
         $died        = null;
@@ -177,6 +250,27 @@ class ImslpService
         }
 
         return [$born, $died, $nationality, $timePeriod];
+    }
+
+    /**
+     * Returns [bornYear|null, diedYear|null] for a composer name
+     * by parsing the #imslpcomposer: template on their category page.
+     */
+    public function fetchComposerDates(string $composerName): array
+    {
+        $title = 'Category:' . str_replace(' ', '_', $composerName);
+        $url   = self::MW_API . '?' . http_build_query([
+            'action'  => 'query',
+            'titles'  => $title,
+            'prop'    => 'revisions',
+            'rvprop'  => 'content',
+            'format'  => 'json',
+        ]);
+
+        $body = $this->fetchGet($url);
+        if ($body === '') return [null, null, null, null];
+
+        return $this->parseComposerDatesJson($body);
     }
 
     // -------------------------------------------------------------------------

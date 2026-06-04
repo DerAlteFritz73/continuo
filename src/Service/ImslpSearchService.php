@@ -97,24 +97,37 @@ class ImslpSearchService
     }
 
     /**
-     * Cache a count query result.
+     * Cache a count query result with invalidation tags.
      */
     private function cachedCount(string $key, callable $query, int $ttl): int
     {
         return (int) $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): int {
             $item->expiresAfter($ttl);
+            // Tag with 'imslp.counts' so all counts can be invalidated together
+            $item->tag('imslp.counts');
             return $query();
         });
     }
 
     /**
-     * Cache a search result.
+     * Cache a search result with invalidation tags.
      */
     private function cachedSearch(string $key, callable $query, int $ttl): array
     {
         return $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): array {
             $item->expiresAfter($ttl);
+            // Tag with 'imslp.searches' so all searches can be invalidated together
+            $item->tag('imslp.searches');
             return $query();
         });
+    }
+
+    /**
+     * Invalidate all search and count caches when works are updated.
+     * Call this after bulk imports or significant updates.
+     */
+    public function invalidateSearchCaches(): void
+    {
+        $this->cache->invalidateTags(['imslp.counts', 'imslp.searches']);
     }
 }
