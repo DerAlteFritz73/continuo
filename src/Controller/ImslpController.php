@@ -163,8 +163,18 @@ class ImslpController extends AbstractController
             if ($enriched) $work->setFilesJson($filesJson);
         }
 
+        // Extract publication year per edition from the publisher string (e.g. "Breitkopf, 1884" → 1884).
+        $editionYears = [];
+        foreach ($work->getFilesJson() ?? [] as $i => $ed) {
+            $pub = trim($ed['publisher'] ?? '');
+            if ($pub !== '' && preg_match('/\b(1[4-9]\d{2}|20[0-2]\d)\b/', $pub, $m)) {
+                $editionYears[$i] = $m[1];
+            }
+        }
+
         return $this->render('imslp/work.html.twig', [
             'work'             => $work,
+            'editionYears'     => $editionYears,
             'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
         ]);
     }
