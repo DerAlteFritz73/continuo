@@ -227,6 +227,18 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /** Distinct non-empty edition types ordered by frequency. */
+    public function findDistinctEditionTypes(): array
+    {
+        return $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT DISTINCT e.image_type AS type, COUNT(DISTINCT e.work_id) AS cnt
+             FROM imslp_edition e
+             WHERE e.image_type IS NOT NULL AND e.image_type != \'\'
+             GROUP BY e.image_type
+             ORDER BY cnt DESC'
+        );
+    }
+
     /** Distinct non-empty language values ordered by frequency. */
     public function findDistinctLanguages(): array
     {
@@ -539,6 +551,15 @@ class ImslpWorkRepository extends ServiceEntityRepository
                     )
                 )
             )')->setParameter('yearTo', $f->yearTo);
+        }
+
+        // edition type — filter by manuscript, printed edition, etc.
+        // Works must have at least one edition with the specified type
+        if ($f->editionType !== '') {
+            $qb->innerJoin('App\Entity\ImslpEdition', 'e', 'WITH', 'e.workId = w.id')
+               ->andWhere('e.imageType = :editionType')
+               ->setParameter('editionType', $f->editionType)
+               ->groupBy('w.id'); // Ensure distinct results when multiple editions match
         }
     }
 }

@@ -565,6 +565,17 @@ body {
                     <input type="text" id="f-key" name="key"
                            value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
+                <div class="search-field medium">
+                    <label for="f-edition-type">{{ 'imslp.search_edition_type_label'|trans }}</label>
+                    <select id="f-edition-type" name="edition_type">
+                        <option value="">{{ 'imslp.search_edition_type_all'|trans }}</option>
+                        {% for et in editionTypes %}
+                        <option value="{{ et.type }}" {% if filters.editionType == et.type %}selected{% endif %}>
+                            {{ et.type }} ({{ et.cnt }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="search-field narrow">
                     <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
                     <input type="number" id="f-year-from" name="year_from"
@@ -589,6 +600,7 @@ body {
         style:           filters.style           ?: null,
         genre:           filters.genre           ?: null,
         key:             filters.key             ?: null,
+        edition_type:    filters.editionType     ?: null,
         year_from:       filters.yearFrom        ?: null,
         year_to:         filters.yearTo          ?: null
     } %}
