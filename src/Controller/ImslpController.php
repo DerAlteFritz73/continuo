@@ -416,7 +416,7 @@ class ImslpController extends AbstractController
 
             $collected = [];
             foreach ($sources as $src) {
-                if (count($collected) >= 2) break; // cap at 2 sources
+                if (count($collected) >= 1) break; // use only the first matching source
                 $srcId = basename($src['id'] ?? '');
                 if (!preg_match('/^\d{6,12}$/', $srcId)) continue;
 
