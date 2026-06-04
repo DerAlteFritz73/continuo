@@ -587,6 +587,8 @@ body {
                            value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
                 <div class="search-field checkbox-field">
+                    <!-- Hidden field ensures unchecked checkbox sends 0 instead of missing parameter -->
+                    <input type="hidden" name="include_manuscripts" value="0">
                     <label for="f-include-manuscripts" class="checkbox-label">
                         <input type="checkbox" id="f-include-manuscripts" name="include_manuscripts" value="1"
                                {% if filters.includeManuscripts %}checked{% endif %}>
