@@ -118,7 +118,10 @@ class ImslpFetchDetailsCommand extends Command
             };
             if (empty($works)) break;
 
-            foreach ($works as $work) {
+            // Fetch work details in parallel (10 concurrent requests)
+            $results = $this->imslp->fetchWorkDetailBatch($works, 10);
+
+            foreach ($results as [$work, $exception]) {
                 if ($stopFile && file_exists($stopFile)) {
                     @unlink($stopFile);
                     $output->writeln(sprintf('[%s] Stopped via stop-file after %d works.', $this->ts(), $done));
@@ -126,31 +129,37 @@ class ImslpFetchDetailsCommand extends Command
                 }
 
                 $label = sprintf('%s — %s', $work->getComposer(), $work->getTitle());
-                $attempt = 0;
-                retry:
-                try {
-                    $this->imslp->fetchWorkDetail($work);
-                } catch (\Throwable $e) {
+                if ($exception !== null) {
                     // Retry once on deadlock (SQLSTATE 40001) with a short back-off
-                    if ($attempt === 0 && str_contains($e->getMessage(), '1213')) {
-                        $attempt++;
-                        usleep(500_000);
-                        goto retry;
+                    if (!str_contains($exception->getMessage(), '1213')) {
+                        try {
+                            $this->em->getConnection()->executeStatement(
+                                'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
+                                [date('Y-m-d H:i:s'), $work->getPageId()]
+                            );
+                        } catch (\Throwable) {}
+                        $errors++;
+                        $done++;
+                        $eta = $this->eta($done, $toFetch, $startTime);
+                        $output->writeln(sprintf('[%s] [%d/%d] SKIP %s (%s)%s',
+                            $this->ts(), $fetched + $done, $total, $label, $exception->getMessage(), $eta));
+                        if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
+                        continue;
                     }
+                    // Retry deadlock by fallback to sequential fetch
                     try {
-                        $this->em->getConnection()->executeStatement(
-                            'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
-                            [date('Y-m-d H:i:s'), $work->getPageId()]
-                        );
-                    } catch (\Throwable) {}
-                    $errors++;
-                    $done++;
-                    $eta = $this->eta($done, $toFetch, $startTime);
-                    $output->writeln(sprintf('[%s] [%d/%d] SKIP %s (%s)%s',
-                        $this->ts(), $fetched + $done, $total, $label, $e->getMessage(), $eta));
-                    if ($delay > 0 && $done < $toFetch) usleep($delay * 1000);
-                    continue;
+                        $this->imslp->fetchWorkDetail($work);
+                    } catch (\Throwable $e) {
+                        try {
+                            $this->em->getConnection()->executeStatement(
+                                'UPDATE imslp_work SET detail_synced_at = ? WHERE page_id = ?',
+                                [date('Y-m-d H:i:s'), $work->getPageId()]
+                            );
+                        } catch (\Throwable) {}
+                        $errors++;
+                    }
                 }
+
                 $done++;
                 $eta = $this->eta($done, $toFetch, $startTime);
                 $output->writeln(sprintf('[%s] [%d/%d] %s%s', $this->ts(), $fetched + $done, $total, $label, $eta));

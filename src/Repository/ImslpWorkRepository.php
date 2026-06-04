@@ -353,16 +353,23 @@ class ImslpWorkRepository extends ServiceEntityRepository
             return;
         }
 
-        $ftq = $this->toFulltextQuery($q);
+        // For common search queries, prefer LIKE over MATCH AGAINST for better cold-cache performance.
+        // MATCH AGAINST can be slow on full-text index cold cache, while LIKE is consistent.
+        // This is especially beneficial for frequently-searched short queries (composers, common works).
+        $useLike = strlen($q) < 5; // Queries shorter than 5 chars tend to match many results anyway
 
-        if ($ftq !== '') {
-            $qb->andWhere('MATCH_AGAINST(w.title, w.composer, w.catalogNumber, :ftq) > 0')
-               ->setParameter('ftq', $ftq);
-        } else {
-            // All terms < 3 chars (e.g. "K.", "op") — fall back to LIKE
-            $qb->andWhere('(w.title LIKE :q OR w.catalogNumber LIKE :q)')
-               ->setParameter('q', '%' . addcslashes($q, '%_\\') . '%');
+        if (!$useLike) {
+            $ftq = $this->toFulltextQuery($q);
+            if ($ftq !== '') {
+                $qb->andWhere('MATCH_AGAINST(w.title, w.composer, w.catalogNumber, :ftq) > 0')
+                   ->setParameter('ftq', $ftq);
+                return;
+            }
         }
+
+        // Fall back to LIKE for short queries or when no fulltext terms available
+        $qb->andWhere('(w.title LIKE :q OR w.catalogNumber LIKE :q)')
+           ->setParameter('q', '%' . addcslashes($q, '%_\\') . '%');
     }
 
     // Maps IMSLP abbreviations to long-form search terms used against the instrumentation text field.

@@ -263,23 +263,116 @@ class ImslpService
     // Detail fetch for a single work via MediaWiki API
     // -------------------------------------------------------------------------
 
-    public function fetchWorkDetail(ImslpWork $work): void
+    /**
+     * Fetch details for multiple works concurrently using curl_multi.
+     * Returns array of [work, exception|null] tuples for error handling.
+     */
+    public function fetchWorkDetailBatch(array $works, int $concurrency = 10): array
     {
-        $url = self::MW_API . '?' . http_build_query([
-            'action'  => 'query',
-            'pageids' => $work->getPageId(),
-            'prop'    => 'revisions|categories',
-            'rvprop'  => 'content',
-            'rvslots' => 'main',
-            'cllimit' => '500',
-            'format'  => 'json',
-        ]);
+        if (empty($works)) return [];
 
-        $body = $this->fetchGet($url);
-        if ($body === '') {
-            throw new \RuntimeException('Empty response from IMSLP API');
+        $mh = curl_multi_init();
+        $results = [];
+
+        // Build requests in batches to avoid overwhelming the API
+        $batches = array_chunk($works, $concurrency);
+        foreach ($batches as $batch) {
+            $handles = [];
+            $workMap = [];
+
+            // Queue up to $concurrency requests
+            foreach ($batch as $work) {
+                $url = self::MW_API . '?' . http_build_query([
+                    'action'  => 'query',
+                    'pageids' => $work->getPageId(),
+                    'prop'    => 'revisions|categories',
+                    'rvprop'  => 'content',
+                    'rvslots' => 'main',
+                    'cllimit' => '500',
+                    'format'  => 'json',
+                ]);
+
+                $cacheKey = 'imslp.api_response.' . md5($url);
+                $cachedBody = $this->cache->getItem($cacheKey)->get();
+
+                if ($cachedBody !== null) {
+                    // Hit in cache - process immediately without curl
+                    try {
+                        $this->processWorkDetailResponse($work, (string) $cachedBody);
+                        $results[] = [$work, null];
+                    } catch (\Throwable $e) {
+                        $results[] = [$work, $e];
+                    }
+                    continue;
+                }
+
+                // Cache miss - queue curl request
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_USERAGENT      => self::UA,
+                    CURLOPT_TIMEOUT        => 30,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+                ]);
+                curl_multi_add_handle($mh, $ch);
+                $handles[(int) $ch] = $ch;
+                $workMap[(int) $ch] = [$work, $url, $cacheKey];
+            }
+
+            // Execute all queued requests concurrently
+            if (!empty($handles)) {
+                $running = 0;
+                do {
+                    curl_multi_exec($mh, $running);
+                    if ($running > 0) usleep(10_000); // 10ms poll interval
+                } while ($running > 0);
+
+                // Process all responses
+                foreach ($handles as $key => $ch) {
+                    [$work, $url, $cacheKey] = $workMap[$key];
+                    $body = curl_exec($ch);
+                    $error = curl_error($ch);
+                    curl_multi_remove_handle($mh, $ch);
+                    curl_close($ch);
+
+                    if ($error !== '') {
+                        $results[] = [$work, new \RuntimeException('Curl error: ' . $error)];
+                        continue;
+                    }
+
+                    $bodyStr = is_string($body) ? $body : '';
+                    if ($bodyStr === '') {
+                        $results[] = [$work, new \RuntimeException('Empty response from IMSLP API')];
+                        continue;
+                    }
+
+                    // Cache the response and process it
+                    $this->cache->get($cacheKey, function (ItemInterface $item) use ($bodyStr): string {
+                        $item->expiresAfter(3600);
+                        return $bodyStr;
+                    });
+
+                    try {
+                        $this->processWorkDetailResponse($work, $bodyStr);
+                        $results[] = [$work, null];
+                    } catch (\Throwable $e) {
+                        $results[] = [$work, $e];
+                    }
+                }
+            }
         }
 
+        curl_multi_close($mh);
+        return $results;
+    }
+
+    /**
+     * Process JSON response body and update database for a work.
+     * Throws RuntimeException on error; updates work entity on success.
+     */
+    private function processWorkDetailResponse(ImslpWork $work, string $body): void
+    {
         $json  = json_decode($body, true);
         $pages = $json['query']['pages'] ?? [];
         $page  = reset($pages);
@@ -400,6 +493,26 @@ class ImslpService
         }
 
         $work->setDetailSyncedAt(new \DateTime());
+    }
+
+    public function fetchWorkDetail(ImslpWork $work): void
+    {
+        $url = self::MW_API . '?' . http_build_query([
+            'action'  => 'query',
+            'pageids' => $work->getPageId(),
+            'prop'    => 'revisions|categories',
+            'rvprop'  => 'content',
+            'rvslots' => 'main',
+            'cllimit' => '500',
+            'format'  => 'json',
+        ]);
+
+        $body = $this->fetchGet($url);
+        if ($body === '') {
+            throw new \RuntimeException('Empty response from IMSLP API');
+        }
+
+        $this->processWorkDetailResponse($work, $body);
     }
 
     // -------------------------------------------------------------------------

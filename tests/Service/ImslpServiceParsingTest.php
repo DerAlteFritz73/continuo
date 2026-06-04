@@ -6,6 +6,7 @@ use App\Service\ImslpService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Contracts\Cache\CacheInterface;
 
 class ImslpServiceParsingTest extends TestCase
 {
@@ -15,7 +16,8 @@ class ImslpServiceParsingTest extends TestCase
     {
         $em = $this->createMock(EntityManagerInterface::class);
         $db = $this->createMock(Connection::class);
-        $this->service = new ImslpService($em, $db);
+        $cache = $this->createMock(CacheInterface::class);
+        $this->service = new ImslpService($em, $db, $cache);
     }
 
     /** @test */

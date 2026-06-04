@@ -6,6 +6,7 @@ use App\Entity\ImslpWork;
 use App\Repository\ImslpWorkRepository;
 use App\Repository\WorkFilters;
 use App\Service\ImslpAiSearchService;
+use App\Service\ImslpSearchService;
 use App\Service\ImslpService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class ImslpController extends AbstractController
         private readonly ImslpWorkRepository    $workRepo,
         private readonly ImslpService           $imslp,
         private readonly ImslpAiSearchService   $aiSearch,
+        private readonly ImslpSearchService     $search,
         private readonly EntityManagerInterface $em,
         private readonly Connection             $db,
         private readonly CacheInterface         $cache,
@@ -52,60 +54,20 @@ class ImslpController extends AbstractController
             yearTo:          ($v = trim($request->query->getString('year_to')))   !== '' ? (int) $v : null,
         );
 
-        $works           = [];
-        $composerMatches = [];
-        $total           = 0;
-        $pages           = 0;
-        $mode            = 'empty'; // empty | search | composer | filter
+        // Use ImslpSearchService to delegate search/filter logic and caching
+        $result = match (true) {
+            $composer !== ''      => $this->search->searchByComposer($composer, $filters, $page, $perPage),
+            $q !== ''             => $this->search->searchByQuery($q, $filters, $page, $perPage),
+            !$filters->isEmpty()  => $this->search->searchByFilters($filters, $page, $perPage),
+            default               => ['works' => [], 'total' => 0, 'pages' => 0, 'mode' => 'empty'],
+        };
 
-        $composerStyle = '';
-        if ($composer !== '') {
-            $mode  = 'composer';
-            $total = $this->cachedCount('imslp.count.composer.' . $composer,
-                fn() => $this->workRepo->countByComposer($composer, $filters), 900);
-            $pages = (int) ceil($total / $perPage);
-            $works = $this->cachedSearch('imslp.search.composer.' . $composer . '.' . $page,
-                fn() => $this->workRepo->findByComposer($composer, $filters, $page, $perPage), 3600);
-
-            $composerStyle = $this->cachedComposerStyle($composer);
-
-        } elseif ($q !== '') {
-            $mode            = 'search';
-            $composerMatches = $this->workRepo->findComposersLike($q, $filters);
-
-            // If q is an exact (case-insensitive) match for a single composer, switch to
-            // composer mode so any active filters apply to the work list rather than
-            // appearing to return the full unfiltered composer catalogue.
-            if (count($composerMatches) === 1
-                && strcasecmp($composerMatches[0]['name'], $q) === 0
-            ) {
-                $composer        = $composerMatches[0]['name'];
-                $mode            = 'composer';
-                $composerMatches = [];
-                $composerStyle   = $this->cachedComposerStyle($composer);
-                $total = $this->cachedCount('imslp.count.composer.' . $composer,
-                    fn() => $this->workRepo->countByComposer($composer, $filters), 900);
-                $pages = (int) ceil($total / $perPage);
-                $works = $this->cachedSearch('imslp.search.composer.' . $composer . '.' . $page,
-                    fn() => $this->workRepo->findByComposer($composer, $filters, $page, $perPage), 3600);
-            } else {
-                $searchHash = md5($q . json_encode((array) $filters));
-                $total = $this->cachedCount('imslp.count.search.' . $searchHash,
-                    fn() => $this->workRepo->countByTitleSearch($q, $filters), 900);
-                $pages = (int) ceil($total / $perPage);
-                $works = $this->cachedSearch('imslp.search.' . $searchHash . '.' . $page,
-                    fn() => $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage), 3600);
-            }
-
-        } elseif (!$filters->isEmpty()) {
-            $mode  = 'filter';
-            $filterHash = md5(json_encode((array) $filters));
-            $total = $this->cachedCount('imslp.count.filter.' . $filterHash,
-                fn() => $this->workRepo->countByFilters($filters), 900);
-            $pages = (int) ceil($total / $perPage);
-            $works = $this->cachedSearch('imslp.search.filter.' . $filterHash . '.' . $page,
-                fn() => $this->workRepo->findByFilters($filters, $page, $perPage), 3600);
-        }
+        $works           = $result['works'];
+        $composerMatches = $result['composerMatches'] ?? [];
+        $total           = $result['total'];
+        $pages           = $result['pages'];
+        $mode            = $result['mode'];
+        $composerStyle   = ($mode === 'composer') ? $this->cachedComposerStyle($composer) : '';
 
         $composerDates = $this->loadComposerDates($works);
 
