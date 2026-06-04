@@ -11,6 +11,7 @@ use App\Service\ImslpService;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +35,8 @@ class ImslpController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly Connection             $db,
         private readonly CacheInterface         $cache,
+        #[Autowire('%env(IMSLP_SYNC_PASSWORD)%')]
+        private readonly string                 $syncPassword = '',
     ) {}
 
     #[Route('', name: 'app_imslp', methods: ['GET'])]
@@ -597,6 +600,7 @@ class ImslpController extends AbstractController
         if ($request->isMethod('POST')) {
             $password = $request->request->getString('password', '');
             if ($this->authenticateSyncStatus($request, $password)) {
+                // Redirect with SET auth session flag (will be checked on next request)
                 return $this->redirectToRoute('app_imslp_sync_status');
             }
             $error = 'imslp.sync_login_invalid_password';
@@ -1109,17 +1113,21 @@ class ImslpController extends AbstractController
 
     private function isSyncStatusAuthenticated(Request $request): bool
     {
+        if ($this->syncPassword === '') {
+            // No password configured — allow access
+            return true;
+        }
+        // Check session flag set during login
         return $request->getSession()->get('imslp_sync_authenticated', false) === true;
     }
 
     private function authenticateSyncStatus(Request $request, string $password): bool
     {
-        $correctPassword = getenv('IMSLP_SYNC_PASSWORD');
-        if ($correctPassword === false || $correctPassword === '') {
+        if ($this->syncPassword === '') {
             // No password configured — allow access
             return true;
         }
-        if (hash_equals($correctPassword, $password)) {
+        if (hash_equals($this->syncPassword, $password)) {
             $request->getSession()->set('imslp_sync_authenticated', true);
             return true;
         }
