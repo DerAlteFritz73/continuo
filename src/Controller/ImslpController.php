@@ -53,7 +53,7 @@ class ImslpController extends AbstractController
             genre:           trim($request->query->getString('genre')),
             key:             trim($request->query->getString('key')),
             language:        trim($request->query->getString('language')),
-            editionType:     trim($request->query->getString('edition_type')),
+            includeManuscripts: $request->query->getString('include_manuscripts', '1') === '1',
             yearFrom:        ($v = trim($request->query->getString('year_from'))) !== '' ? (int) $v : null,
             yearTo:          ($v = trim($request->query->getString('year_to')))   !== '' ? (int) $v : null,
         );
@@ -90,7 +90,6 @@ class ImslpController extends AbstractController
             'styles'    => self::STYLES,
             'genres'    => $this->cachedDistinctGenres(),
             'languages' => $this->cachedDistinctLanguages(),
-            'editionTypes' => $this->cachedDistinctEditionTypes(),
             'mode'      => $mode,
         ]);
     }
@@ -810,14 +809,6 @@ class ImslpController extends AbstractController
         return $this->cache->get('imslp.distinct_languages', function (ItemInterface $item): array {
             $item->expiresAfter(86400);
             return $this->workRepo->findDistinctLanguages();
-        });
-    }
-
-    private function cachedDistinctEditionTypes(): array
-    {
-        return $this->cache->get('imslp.distinct_edition_types', function (ItemInterface $item): array {
-            $item->expiresAfter(86400);
-            return $this->workRepo->findDistinctEditionTypes();
         });
     }
 

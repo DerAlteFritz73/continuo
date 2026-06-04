@@ -10,7 +10,7 @@ readonly class WorkFilters
         public string $genre           = '',
         public string $key             = '',
         public string $language        = '',
-        public string $editionType     = '',
+        public bool   $includeManuscripts = true,
         public ?int   $yearFrom        = null,
         public ?int   $yearTo          = null,
     ) {}
@@ -22,7 +22,7 @@ readonly class WorkFilters
             && $this->genre           === ''
             && $this->key             === ''
             && $this->language        === ''
-            && $this->editionType     === ''
+            && $this->includeManuscripts === true
             && $this->yearFrom        === null
             && $this->yearTo          === null;
     }

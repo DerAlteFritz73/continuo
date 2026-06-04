@@ -97,6 +97,27 @@ body {
 .search-field select:focus { border-color: #c8a96e; }
 .search-field input.ai-filled { border-color: #c8a96e88; background: #1e1a14; }
 .search-field select option { background: #252525; }
+.search-field.checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 0 1 auto;
+    min-width: auto;
+}
+.search-field.checkbox-field label {
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    cursor: pointer;
+    font-size: .9rem;
+}
+.search-field.checkbox-field input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #c8a96e;
+}
 .search-field.narrow { min-width: 60px; flex: 0 1 90px; }
 .search-field.medium { min-width: 80px; flex: 0 1 140px; }
 .btn-search {
@@ -565,16 +586,12 @@ body {
                     <input type="text" id="f-key" name="key"
                            value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
-                <div class="search-field medium">
-                    <label for="f-edition-type">{{ 'imslp.search_edition_type_label'|trans }}</label>
-                    <select id="f-edition-type" name="edition_type">
-                        <option value="">{{ 'imslp.search_edition_type_all'|trans }}</option>
-                        {% for et in editionTypes %}
-                        <option value="{{ et.type }}" {% if filters.editionType == et.type %}selected{% endif %}>
-                            {{ et.type }} ({{ et.cnt }})
-                        </option>
-                        {% endfor %}
-                    </select>
+                <div class="search-field checkbox-field">
+                    <label for="f-include-manuscripts" class="checkbox-label">
+                        <input type="checkbox" id="f-include-manuscripts" name="include_manuscripts" value="1"
+                               {% if filters.includeManuscripts %}checked{% endif %}>
+                        {{ 'imslp.search_include_manuscripts'|trans }}
+                    </label>
                 </div>
                 <div class="search-field narrow">
                     <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
@@ -600,7 +617,7 @@ body {
         style:           filters.style           ?: null,
         genre:           filters.genre           ?: null,
         key:             filters.key             ?: null,
-        edition_type:    filters.editionType     ?: null,
+        include_manuscripts: filters.includeManuscripts ? '1' : '0',
         year_from:       filters.yearFrom        ?: null,
         year_to:         filters.yearTo          ?: null
     } %}
