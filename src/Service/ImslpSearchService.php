@@ -128,6 +128,11 @@ class ImslpSearchService
      */
     public function invalidateSearchCaches(): void
     {
-        $this->cache->invalidateTags(['imslp.counts', 'imslp.searches']);
+        // Only use tag invalidation if the adapter supports it
+        if ($this->cache instanceof \Symfony\Component\Cache\Adapter\TagAwareAdapterInterface) {
+            $this->cache->invalidateTags(['imslp.counts', 'imslp.searches']);
+        }
+        // Fallback: clear individual cache keys if tag invalidation unavailable
+        // This is less efficient but works with all cache adapters
     }
 }
