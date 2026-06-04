@@ -21,6 +21,7 @@ class ImslpSearchService
     /**
      * Search works by title, with automatic composer detection.
      * Returns [works, composerMatches, total, pages, mode]
+     * All pages (1, 2, 3...) are cached separately for fast pagination.
      */
     public function searchByQuery(string $q, WorkFilters $filters, int $page = 1, int $perPage = 30): array
     {
@@ -39,6 +40,7 @@ class ImslpSearchService
         $total = $this->cachedCount('imslp.count.search.' . $searchHash,
             fn() => $this->workRepo->countByTitleSearch($q, $filters), 900);
         $pages = (int) ceil($total / $perPage);
+        // Each page is cached separately for instant pagination
         $works = $this->cachedSearch('imslp.search.' . $searchHash . '.' . $page,
             fn() => $this->workRepo->findByTitleSearch($q, $filters, $page, $perPage), 3600);
 

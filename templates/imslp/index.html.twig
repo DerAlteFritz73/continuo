@@ -889,5 +889,12 @@ document.getElementById('search-form').addEventListener('submit', function () {
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
 })();
+
+// Register service worker for offline support + asset caching
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {
+        // Silently fail if SW registration fails (older browsers, offline, etc.)
+    });
+}
 </script>
 {% endblock %}

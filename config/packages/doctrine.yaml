@@ -1,13 +1,30 @@
 doctrine:
     dbal:
-        url: '%env(resolve:DATABASE_URL)%'
+        # Primary connection (writes)
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+                profiling_collect_backtrace: false
+                use_savepoints: true
+                # Connection pooling: reuse connections instead of creating new ones
+                # When using PgBouncer or MariaDB proxy, enable connection pooling
+                # max_lifetime: 600  # Max seconds before connection recycled
+                # initial_pool_size: 5
+            # Read replica configuration (optional)
+            # To enable read replicas:
+            # 1. Set up read-only replica database server
+            # 2. Uncomment replica connection below
+            # 3. Configure QueryBuilder to use replica for SELECT queries
+            # replica:
+            #     url: 'mysql://user:pass@replica-host:3306/continuo'
+            #     profiling_collect_backtrace: false
+            #     use_savepoints: true
+            #     readonly: true
 
         # IMPORTANT: You MUST configure your server version,
         # either here or in the DATABASE_URL env var (see .env file)
         #server_version: '16'
-
-        profiling_collect_backtrace: false
-        use_savepoints: true
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
