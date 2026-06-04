@@ -115,11 +115,11 @@ class ImslpService
     public function extractRismId(string $text): ?string
     {
         if ($text === '') return null;
-        // opac.rism.info URL: ?...Content=1234567890
+        // Pattern 1: opac.rism.info URL with Content= parameter (7+ digits) — IMSLP edition notes format
         if (preg_match('/opac\.rism\.info[^?]*\?[^"\'>\s]*Content=(\d{7,})/i', $text, $m)) return $m[1];
-        // rism.info/sources/1234567890 or rism.online/sources/...
+        // Pattern 2: Direct RISM Online source path (rism.info/sources/ID or rism.online/sources/ID)
         if (preg_match('/rism\.(?:info|online)\/sources\/(\d{7,})/i', $text, $m)) return $m[1];
-        // Plain "RISM: 1234567890" or "RISM 1234567890"
+        // Pattern 3: Plain text reference like "RISM: 1234567890" or "RISM 1234567890" with optional # prefix
         if (preg_match('/\bRISM[:\s#]*(\d{7,})\b/i', $text, $m)) return $m[1];
         return null;
     }

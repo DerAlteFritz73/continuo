@@ -23,6 +23,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 class ImslpController extends AbstractController
 {
     private const STYLES = ['Ancient', 'Baroque', 'Classical', 'Medieval', 'Modern', 'Renaissance', 'Romantic', 'Traditional'];
+    private const RISM_SEARCH_ROWS = 20;  // RISM Online API pagination limit
 
     public function __construct(
         private readonly ImslpWorkRepository    $workRepo,
@@ -406,12 +407,11 @@ class ImslpController extends AbstractController
             $catNum = $this->extractCatalogueNumber($work->getTitle());
             if ($catNum === null) return [];
 
-            // Search RISM — remove colons/dots so "QV 2:Anh.28" → "QV 2 Anh 28"
-            $q    = preg_replace('/[:.\/]/', ' ', $catNum);
-            $q    = preg_replace('/\s+/', ' ', $q);
+            // Search RISM — normalize separators: "QV 2:Anh.28" → "QV 2 Anh 28"
+            $q = trim(preg_replace('/[:.\/\s]+/', ' ', $catNum));
             $rismHeaders = ['Accept: application/json'];
             $body = $this->curlGet('https://rism.online/search?'
-                . http_build_query(['q' => $q, 'mode' => 'sources', 'rows' => 20]),
+                . http_build_query(['q' => $q, 'mode' => 'sources', 'rows' => self::RISM_SEARCH_ROWS]),
                 null, $rismHeaders);
             if ($body === null) return [];
 
@@ -452,7 +452,7 @@ class ImslpController extends AbstractController
                     if (!$svg) continue;
                     $labelArr = $inc['label'] ?? [];
                     $lv = !empty($labelArr) ? reset($labelArr) : null;
-                    $incipits[] = ['svg' => $svg, 'label' => is_array($lv) ? (reset($lv) ?: null) : ($lv ?: null)];
+                    $incipits[] = ['svg' => $this->sanitizeSvg($svg), 'label' => is_array($lv) ? (reset($lv) ?: null) : ($lv ?: null)];
                 }
                 if (empty($incipits)) continue;
 
@@ -468,8 +468,9 @@ class ImslpController extends AbstractController
     /** Extract a standard musicological catalogue number from an IMSLP work title. */
     private function extractCatalogueNumber(string $title): ?string
     {
-        // Patterns: "BWV 1087", "QV 2:Anh.28", "HWV 6", "TWV 40:2-13", "K. 331",
-        // "RV 297", "Op. 5 No. 2", "WoO 57", "D 960", "Hob. XVI:52"
+        // Matches common musicological prefixes (BWV, QV, HWV, RV, K., etc.) followed by
+        // digits and optional qualifiers (colons, dots, dashes, "Anh" for Anhang/appendix).
+        // Examples: BWV 1087, QV 2:Anh.28, HWV 6, K. 331, Hob. XVI:52, Op. 5 No. 2
         if (preg_match(
             '/\b(BWV|QV|HWV|TWV|RV|WoO|Hob\.?|K\.?|D\.?|Op\.?|L\.?|Z\.?|H\.?|CT|TH|P\.?|Wq)\s*[\d][\d:.\-\/Anh ]{0,20}/i',
             $title,
@@ -514,7 +515,7 @@ class ImslpController extends AbstractController
                 $label    = !empty($labelArr) ? reset($labelArr) : null;
                 if (is_array($label)) $label = reset($label) ?: null;
                 if ($svg || $pae) {
-                    $incipits[] = ['label' => $label, 'svg' => $svg, 'pae' => $pae];
+                    $incipits[] = ['label' => $label, 'svg' => $svg ? $this->sanitizeSvg($svg) : null, 'pae' => $pae];
                 }
             }
             return $incipits;
@@ -1010,5 +1011,14 @@ class ImslpController extends AbstractController
             }
         }
         return false;
+    }
+
+    /** Sanitize SVG by removing script/event handlers. RISM is trusted but defense-in-depth. */
+    private function sanitizeSvg(string $svg): string
+    {
+        // Remove <script> tags and on* event handlers
+        $svg = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $svg);
+        $svg = preg_replace('/\s+on\w+\s*=\s*["\']?[^"\'\s>]+["\']?/i', '', $svg);
+        return $svg;
     }
 }

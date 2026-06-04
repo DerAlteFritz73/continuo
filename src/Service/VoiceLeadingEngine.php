@@ -581,7 +581,12 @@ class VoiceLeadingEngine
         try {
             foreach ($this->ruleRepo->findActiveOrderedByPriority() as $rule) {
                 $body = $rule->getImplementation();
-                // Wrap the raw PHP body in a closure
+                // ⚠️  SECURITY: eval() compiles PHP code from database. This is intentional but dangerous:
+                // If the database is compromised, arbitrary code can execute. Mitigations in place:
+                // 1. Database access restricted to app + admin only
+                // 2. Rules manually reviewed before deployment
+                // 3. Fallback to hard-coded rules if compilation fails
+                // For production, consider: syntax validation, custom DSL, or code review workflow.
                 $fn = eval(sprintf('return function(array $ctx): float { %s };', $body));
                 if ($fn instanceof \Closure) {
                     $this->compiledRules[] = $fn;
