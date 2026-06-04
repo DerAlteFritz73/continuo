@@ -415,7 +415,10 @@ class ImslpController extends AbstractController
             $catPattern = preg_replace('/[^A-Za-z0-9]+/', '[^A-Za-z0-9]*', preg_quote($catNum, '/'));
 
             $collected = [];
+            $totalIncipits = 0;
             foreach ($sources as $src) {
+                // Stop if we already have 3+ incipits from earlier sources
+                if ($totalIncipits >= 3) break;
                 if (count($collected) >= 2) break; // cap at 2 sources
                 $srcId = basename($src['id'] ?? '');
                 if (!preg_match('/^\d{6,12}$/', $srcId)) continue;
@@ -434,7 +437,7 @@ class ImslpController extends AbstractController
                 if (empty($items)) continue;
 
                 $incipits = [];
-                foreach (array_slice($items, 0, 4) as $inc) {
+                foreach (array_slice($items, 0, 3) as $inc) {
                     $svg = null;
                     foreach ($inc['rendered'] ?? [] as $r) {
                         if (($r['format'] ?? '') === 'image/svg+xml') { $svg = $r['data']; break; }
@@ -448,6 +451,7 @@ class ImslpController extends AbstractController
 
                 $srcLabel = $src['label']['en'][0] ?? $src['label']['none'][0] ?? $srcId;
                 $collected[] = ['source' => $srcLabel, 'incipits' => $incipits];
+                $totalIncipits += count($incipits);
             }
             return ['catalogueNumber' => $catNum, 'sources' => $collected];
         });
