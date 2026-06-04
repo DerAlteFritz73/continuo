@@ -287,6 +287,50 @@ class ImslpController extends AbstractController
         return $this->json(json_decode(file_get_contents($progressFile), true) ?: []);
     }
 
+    #[Route('/download-progress-stream/{jobId}', name: 'app_imslp_download_progress_stream', methods: ['GET'],
+            requirements: ['jobId' => '[a-z0-9]{8,32}'])]
+    public function downloadProgressStream(string $jobId): Response
+    {
+        // Server-Sent Events endpoint for real-time download progress
+        // Replaces polling; client uses: new EventSource('/imslp/download-progress-stream/{jobId}')
+        $response = new Response();
+        $response->headers->set('Content-Type', 'text/event-stream');
+        $response->headers->set('Cache-Control', 'no-cache');
+        $response->headers->set('X-Accel-Buffering', 'no'); // nginx: don't buffer
+        $response->setCallback(function () use ($jobId): void {
+            $progressFile = sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json';
+            $lastData = null;
+
+            // Stream for up to 10 minutes (600 seconds)
+            $deadline = time() + 600;
+            while (time() < $deadline) {
+                if (file_exists($progressFile)) {
+                    $current = json_decode(file_get_contents($progressFile), true) ?: [];
+                    if ($current !== $lastData) {
+                        echo 'data: ' . json_encode($current) . "\n\n";
+                        flush();
+                        $lastData = $current;
+
+                        // Check if download complete
+                        if (($current['done'] ?? 0) >= ($current['total'] ?? 0) && ($current['total'] ?? 0) > 0) {
+                            echo ": complete\n\n";
+                            flush();
+                            break;
+                        }
+                    }
+                } else {
+                    // File doesn't exist yet; wait and retry
+                    echo ": waiting\n\n";
+                    flush();
+                }
+
+                usleep(200_000); // 200ms polling (vs 500ms before)
+            }
+        });
+
+        return $response;
+    }
+
     /**
      * Login to IMSLP via the web form (not the MediaWiki API) and inject the
      * redirectPassed cookie so subsequent requests skip the JS redirect interstitial.

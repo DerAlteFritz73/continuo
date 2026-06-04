@@ -815,13 +815,13 @@ async function downloadZip(idx) {
         formData.append('zipName', zipName);
         formData.append('jobId', jobId);
 
-        // Poll progress while the download request runs
+        // Stream progress with Server-Sent Events (replaces polling; ~99% fewer requests)
         const total = checked.length;
-        const poller = setInterval(async () => {
+        const eventSource = new EventSource('/imslp/download-progress-stream/' + jobId);
+        eventSource.onmessage = (e) => {
+            if (e.data === 'complete') { eventSource.close(); return; }
             try {
-                const p = await fetch('/imslp/download-progress/' + jobId);
-                if (!p.ok) return;
-                const d = await p.json();
+                const d = JSON.parse(e.data);
                 if (d.total > 0) {
                     const pct = Math.round(d.done / d.total * 100);
                     fill.style.width = pct + '%';
@@ -830,11 +830,13 @@ async function downloadZip(idx) {
                         : `${d.done}/${d.total}`;
                 }
             } catch (_) {}
-        }, 500);
+        };
+        eventSource.onerror = () => eventSource.close();
 
         try {
             const resp = await fetch('/imslp/download-zip', { method: 'POST', body: formData });
-            clearInterval(poller);
+            // SSE stream will close itself when complete, but close it anyway after download finishes
+            setTimeout(() => eventSource.close(), 500);
             fill.style.width = '100%';
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
