@@ -331,8 +331,8 @@ class ImslpService
                 // Process all responses
                 foreach ($handles as $key => $ch) {
                     [$work, $url, $cacheKey] = $workMap[$key];
-                    $body = curl_exec($ch);
                     $error = curl_error($ch);
+                    $body = curl_multi_getcontent($ch);
                     curl_multi_remove_handle($mh, $ch);
                     curl_close($ch);
 
