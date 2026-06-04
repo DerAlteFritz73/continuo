@@ -289,7 +289,7 @@ how_it_works:
     algo_intro: >
         The realizer implements the decision tree described by Wead & Knopke (ICMC 2007),
         drawing on two primary Baroque treatises:
-    algo_gasparini: "L'Armonico Pratico al Cimbalo (3rd ed., 1729, Venice)"
+    algo_gasparini: "L'Armonico Pratico al Cimbalo (3rd edition, 1729, Venice)"
     algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin (1724, Paris)"
     pipeline_heading: "Processing Pipeline"
     step1: "Parse — MusicXML is read; the lowest-pitched part is selected as the bass line."
@@ -465,7 +465,7 @@ imslp:
     work_files_editions_plural: "%editions% editions"
     work_files_count: "%count% file"
     work_files_count_plural: "%count% files"
-    work_edition_ed: "Ed."
+    work_edition_ed: "Editor"
     work_edition_arr: "Arr."
     work_edition_for: "For"
     work_edition_anonymous: "Anonymous edition"

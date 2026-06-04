@@ -298,7 +298,7 @@ how_it_works:
     algo_intro: >
         Le réalisateur implémente l'arbre de décision décrit par Wead & Knopke (ICMC 2007),
         s'appuyant sur des traités baroques :
-    algo_gasparini: "L'Armonico Pratico al Cimbalo, Gasparini (3e éd., 1729, Venise)"
+    algo_gasparini: "L'Armonico Pratico al Cimbalo, Gasparini (3e édition, 1729, Venise)"
     algo_delair: "Traité d'Accompagnement pour le Théorbe et le Clavecin, Delair (1690/1724, Paris)"
     pipeline_heading: "Pipeline de traitement"
     step1: "Analyse — Le MusicXML est lu ; la partie la plus grave est sélectionnée comme basse."
@@ -476,7 +476,7 @@ imslp:
     work_files_editions_plural: "%editions% éditions"
     work_files_count: "%count% fichier"
     work_files_count_plural: "%count% fichiers"
-    work_edition_ed: "Éd."
+    work_edition_ed: "Éditeur"
     work_edition_arr: "Arr."
     work_edition_for: "Pour"
     work_edition_anonymous: "Édition anonyme"

@@ -656,7 +656,7 @@ body {
             <div class="edition-header" style="cursor:default">
                 <div class="edition-header-content">
                     <div class="edition-meta">
-                        {% if file.editor is defined and file.editor %}<span>Ed. {{ file.editor }}</span>{% endif %}
+                        {% if file.editor is defined and file.editor %}<span>{{ 'imslp.work_edition_ed'|trans }}: {{ file.editor }}</span>{% endif %}
                         {% if file.publisher is defined and file.publisher %}<span>{{ file.publisher }}</span>{% endif %}
                         {% if file.copyright is defined and file.copyright %}<span class="copyright">{{ file.copyright }}</span>{% endif %}
                     </div>
