@@ -54,6 +54,10 @@ class ImslpWorkRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('w');
         $this->applyTitleFilter($qb, $q);
         $this->applyFilters($qb, $f);
+        // Use DISTINCT when joining editions to avoid duplicate work rows
+        if (!$f->includeManuscripts) {
+            $qb->distinct(true);
+        }
         $qb->orderBy('w.composer')->addOrderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -63,7 +67,7 @@ class ImslpWorkRepository extends ServiceEntityRepository
 
     public function countByTitleSearch(string $q, WorkFilters $f): int
     {
-        $qb = $this->createQueryBuilder('w')->select('COUNT(w.id)');
+        $qb = $this->createQueryBuilder('w')->select('COUNT(DISTINCT w.id)');
         $this->applyTitleFilter($qb, $q);
         $this->applyFilters($qb, $f);
 
@@ -80,6 +84,10 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->where('w.composer = :composer')
             ->setParameter('composer', $composer);
         $this->applyFilters($qb, $f);
+        // Use DISTINCT when joining editions to avoid duplicate work rows
+        if (!$f->includeManuscripts) {
+            $qb->distinct(true);
+        }
         $qb->orderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -90,7 +98,7 @@ class ImslpWorkRepository extends ServiceEntityRepository
     public function countByComposer(string $composer, WorkFilters $f): int
     {
         $qb = $this->createQueryBuilder('w')
-            ->select('COUNT(w.id)')
+            ->select('COUNT(DISTINCT w.id)')
             ->where('w.composer = :composer')
             ->setParameter('composer', $composer);
         $this->applyFilters($qb, $f);
@@ -106,6 +114,10 @@ class ImslpWorkRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('w');
         $this->applyFilters($qb, $f);
+        // Use DISTINCT when joining editions to avoid duplicate work rows
+        if (!$f->includeManuscripts) {
+            $qb->distinct(true);
+        }
         $qb->orderBy('w.composer')->addOrderBy('w.title')
            ->setFirstResult(($page - 1) * $perPage)
            ->setMaxResults($perPage);
@@ -115,7 +127,7 @@ class ImslpWorkRepository extends ServiceEntityRepository
 
     public function countByFilters(WorkFilters $f): int
     {
-        $qb = $this->createQueryBuilder('w')->select('COUNT(w.id)');
+        $qb = $this->createQueryBuilder('w')->select('COUNT(DISTINCT w.id)');
         $this->applyFilters($qb, $f);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
