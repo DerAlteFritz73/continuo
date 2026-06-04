@@ -557,8 +557,7 @@ class ImslpWorkRepository extends ServiceEntityRepository
         // exclude manuscripts if not included
         if (!$f->includeManuscripts) {
             $qb->innerJoin('App\Entity\ImslpEdition', 'e', 'WITH', 'e.workId = w.id AND e.imageType != :manuscript')
-               ->setParameter('manuscript', 'Manuscript')
-               ->groupBy('w.id');
+               ->setParameter('manuscript', 'Manuscript');
         }
     }
 }
