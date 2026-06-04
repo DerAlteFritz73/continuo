@@ -535,3 +535,11 @@ imslp:
     sync_log_no_output: "(aucune sortie pour l'instant)"
     sync_log_unavailable: "(journal non disponible)"
     sync_last_sync: "Dernière sync :"
+
+    # Sync status login page
+    sync_login_title: "État de la synchronisation IMSLP"
+    sync_login_subtitle: "Mot de passe requis pour accéder à l'état d'importation"
+    sync_login_password_label: "Mot de passe"
+    sync_login_submit: "Accéder"
+    sync_login_back: "Retour au navigateur"
+    sync_login_invalid_password: "Mot de passe invalide. Veuillez réessayer."

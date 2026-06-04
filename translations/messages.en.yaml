@@ -524,3 +524,11 @@ imslp:
     sync_log_no_output: "(no output yet)"
     sync_log_unavailable: "(log not available)"
     sync_last_sync: "Last sync:"
+
+    # Sync status login page
+    sync_login_title: "IMSLP Sync Status"
+    sync_login_subtitle: "Password required to access the import status"
+    sync_login_password_label: "Password"
+    sync_login_submit: "Access"
+    sync_login_back: "Back to browser"
+    sync_login_invalid_password: "Invalid password. Please try again."

@@ -563,6 +563,11 @@ class ImslpController extends AbstractController
     #[Route('/sync-status', name: 'app_imslp_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request): Response
     {
+        // Check password protection
+        if (!$this->isSyncStatusAuthenticated($request)) {
+            return $this->redirectToRoute('app_imslp_sync_login');
+        }
+
         // Both HTML and JSON share the same short-lived cache entry so that
         // concurrent poll requests don't each trigger expensive COUNT queries
         // while a fetch process is actively writing to the same tables.
@@ -578,6 +583,28 @@ class ImslpController extends AbstractController
         }
 
         return $this->render('imslp/sync_status.html.twig', $data);
+    }
+
+    #[Route('/sync-status/login', name: 'app_imslp_sync_login', methods: ['GET', 'POST'])]
+    public function syncLogin(Request $request): Response
+    {
+        // Already authenticated — redirect to sync status
+        if ($this->isSyncStatusAuthenticated($request)) {
+            return $this->redirectToRoute('app_imslp_sync_status');
+        }
+
+        $error = '';
+        if ($request->isMethod('POST')) {
+            $password = $request->request->getString('password', '');
+            if ($this->authenticateSyncStatus($request, $password)) {
+                return $this->redirectToRoute('app_imslp_sync_status');
+            }
+            $error = 'imslp.sync_login_invalid_password';
+        }
+
+        return $this->render('imslp/sync_login.html.twig', [
+            'error' => $error,
+        ]);
     }
 
     #[Route('/fetch-details/start', name: 'app_imslp_fetch_start', methods: ['POST'])]
@@ -1078,5 +1105,24 @@ class ImslpController extends AbstractController
             $item->expiresAfter($ttl);
             return $query();
         });
+    }
+
+    private function isSyncStatusAuthenticated(Request $request): bool
+    {
+        return $request->getSession()->get('imslp_sync_authenticated', false) === true;
+    }
+
+    private function authenticateSyncStatus(Request $request, string $password): bool
+    {
+        $correctPassword = getenv('IMSLP_SYNC_PASSWORD');
+        if ($correctPassword === false || $correctPassword === '') {
+            // No password configured — allow access
+            return true;
+        }
+        if (hash_equals($correctPassword, $password)) {
+            $request->getSession()->set('imslp_sync_authenticated', true);
+            return true;
+        }
+        return false;
     }
 }

@@ -1,0 +1,154 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'imslp.sync_login_title'|trans }} — IMSLP{% endblock %}
+
+{% block head %}
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #1a1a1a;
+    color: #e8e0d4;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 320px;
+    padding: 2rem;
+}
+
+.login-card {
+    background: #252525;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+.login-card h1 {
+    font-size: 1.5rem;
+    color: #f0e6c8;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.login-card p {
+    font-size: 0.85rem;
+    color: #8a8070;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.2rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: #a89880;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #e8e0d4;
+    font-size: 15px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #c8a96e;
+}
+
+.form-group button {
+    width: 100%;
+    padding: 0.75rem;
+    background: #3a3a3a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #e8e0d4;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.form-group button:hover {
+    background: #4a4a4a;
+    border-color: #c8a96e;
+}
+
+.form-group button:active {
+    background: #3a3a3a;
+}
+
+.error-message {
+    display: block;
+    background: #4a2a2a;
+    border: 1px solid #6a4a4a;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    color: #ff8888;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+}
+
+.back-link a {
+    color: #c8a96e;
+    text-decoration: none;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-container">
+    <div class="login-card">
+        <h1>{{ 'imslp.sync_login_title'|trans }}</h1>
+        <p>{{ 'imslp.sync_login_subtitle'|trans }}</p>
+
+        {% if error %}
+        <span class="error-message">{{ error|trans }}</span>
+        {% endif %}
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="password">{{ 'imslp.sync_login_password_label'|trans }}</label>
+                <input type="password" id="password" name="password" required autofocus>
+            </div>
+            <div class="form-group">
+                <button type="submit">{{ 'imslp.sync_login_submit'|trans }}</button>
+            </div>
+        </form>
+
+        <div class="back-link">
+            <a href="{{ path('app_imslp') }}">← {{ 'imslp.sync_login_back'|trans }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
