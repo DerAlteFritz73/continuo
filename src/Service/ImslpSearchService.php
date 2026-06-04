@@ -105,8 +105,10 @@ class ImslpSearchService
     {
         return (int) $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): int {
             $item->expiresAfter($ttl);
-            // Tag with 'imslp.counts' so all counts can be invalidated together
-            $item->tag('imslp.counts');
+            // Tag with 'imslp.counts' only if cache supports tags
+            if ($this->cache instanceof \Symfony\Component\Cache\Adapter\TagAwareAdapterInterface) {
+                $item->tag('imslp.counts');
+            }
             return $query();
         });
     }
@@ -118,8 +120,10 @@ class ImslpSearchService
     {
         return $this->cache->get($key, function (ItemInterface $item) use ($query, $ttl): array {
             $item->expiresAfter($ttl);
-            // Tag with 'imslp.searches' so all searches can be invalidated together
-            $item->tag('imslp.searches');
+            // Tag with 'imslp.searches' only if cache supports tags
+            if ($this->cache instanceof \Symfony\Component\Cache\Adapter\TagAwareAdapterInterface) {
+                $item->tag('imslp.searches');
+            }
             return $query();
         });
     }
