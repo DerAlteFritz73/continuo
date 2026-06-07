@@ -35,8 +35,6 @@ class ImslpController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly Connection             $db,
         private readonly CacheInterface         $cache,
-        #[Autowire('%env(IMSLP_SYNC_PASSWORD)%')]
-        private readonly string                 $syncPassword = '',
     ) {}
 
     #[Route('', name: 'app_imslp', methods: ['GET'])]
@@ -565,11 +563,6 @@ class ImslpController extends AbstractController
     #[Route('/sync-status', name: 'app_imslp_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request): Response
     {
-        // Check password protection
-        if (!$this->isSyncStatusAuthenticated($request)) {
-            return $this->redirectToRoute('app_imslp_sync_login');
-        }
-
         // Both HTML and JSON share the same short-lived cache entry so that
         // concurrent poll requests don't each trigger expensive COUNT queries
         // while a fetch process is actively writing to the same tables.
@@ -585,29 +578,6 @@ class ImslpController extends AbstractController
         }
 
         return $this->render('imslp/sync_status.html.twig', $data);
-    }
-
-    #[Route('/sync-status/login', name: 'app_imslp_sync_login', methods: ['GET', 'POST'])]
-    public function syncLogin(Request $request): Response
-    {
-        // Already authenticated — redirect to sync status
-        if ($this->isSyncStatusAuthenticated($request)) {
-            return $this->redirectToRoute('app_imslp_sync_status');
-        }
-
-        $error = '';
-        if ($request->isMethod('POST')) {
-            $password = $request->request->getString('password', '');
-            if ($this->authenticateSyncStatus($request, $password)) {
-                // Redirect with SET auth session flag (will be checked on next request)
-                return $this->redirectToRoute('app_imslp_sync_status');
-            }
-            $error = 'imslp.sync_login_invalid_password';
-        }
-
-        return $this->render('imslp/sync_login.html.twig', [
-            'error' => $error,
-        ]);
     }
 
     #[Route('/fetch-details/start', name: 'app_imslp_fetch_start', methods: ['POST'])]
@@ -1102,26 +1072,4 @@ class ImslpController extends AbstractController
         });
     }
 
-    private function isSyncStatusAuthenticated(Request $request): bool
-    {
-        if ($this->syncPassword === '') {
-            // No password configured — allow access
-            return true;
-        }
-        // Check session flag set during login
-        return $request->getSession()->get('imslp_sync_authenticated', false) === true;
-    }
-
-    private function authenticateSyncStatus(Request $request, string $password): bool
-    {
-        if ($this->syncPassword === '') {
-            // No password configured — allow access
-            return true;
-        }
-        if (hash_equals($this->syncPassword, $password)) {
-            $request->getSession()->set('imslp_sync_authenticated', true);
-            return true;
-        }
-        return false;
-    }
 }
