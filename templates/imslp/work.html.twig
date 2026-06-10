@@ -643,7 +643,8 @@ body {
                                class="file-cb"
                                data-edition="{{ edIdx }}"
                                data-filename="{{ file.filename }}"
-                               onchange="onFileCheck({{ edIdx }})">
+                               onchange="onFileCheck({{ edIdx }})"
+                               {% if ed.files|length == 1 %}checked{% endif %}>
                         <label for="f-{{ edIdx }}-{{ fileIdx }}">
                             <span class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</span>
                             {% if file.description is defined and file.description %}
@@ -901,6 +902,18 @@ async function downloadZip(idx) {
     });
     panel.style.display = 'block';
 }
+
+// ── Initialize download button states on page load ──
+(function () {
+    const editions = document.querySelectorAll('[id^="edition-"]');
+    editions.forEach(card => {
+        const match = card.id.match(/\d+$/);
+        if (match) {
+            const edIdx = match[0];
+            onFileCheck(edIdx);
+        }
+    });
+})();
 
 // ── Stagger-animate sections on page load ──
 (function () {
