@@ -518,11 +518,11 @@ body {
     </dl>
     {% endif %}
 
-    {# Collect unique RISM source IDs from editions for work-level display #}
+    {# Collect unique RISM source IDs from non-manuscript editions for work-level display #}
     {% set editionRismSources = [] %}
     {% set seenRismIds = [] %}
     {% for ed in work.filesJson ?? [] %}
-        {% if ed.rismSourceId is defined and ed.rismSourceId and ed.rismSourceId not in seenRismIds %}
+        {% if not (ed.imageType is defined and 'manuscript' in ed.imageType|lower) and ed.rismSourceId is defined and ed.rismSourceId and ed.rismSourceId not in seenRismIds %}
             {% set seenRismIds = seenRismIds|merge([ed.rismSourceId]) %}
             {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher
                 : (ed.editor is defined and ed.editor ? ed.editor
@@ -550,12 +550,20 @@ body {
     {% set isEditionFormat = work.filesJson[0] is defined and work.filesJson[0].files is defined %}
 
     {% if isEditionFormat %}
-        {% set edCount = work.filesJson|length %}
+        {% set printedEditions = [] %}
+        {% for ed in work.filesJson %}
+            {% if not (ed.imageType is defined and 'manuscript' in ed.imageType|lower) %}
+                {% set printedEditions = printedEditions|merge([ed]) %}
+            {% endif %}
+        {% endfor %}
+        {% set edCount = printedEditions|length %}
         <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} — {{ edCount != 1 ? 'imslp.work_files_editions_plural'|trans({'%editions%': edCount}) : 'imslp.work_files_editions'|trans({'%editions%': edCount}) }}</h2>
 
         {% for ed in work.filesJson %}
         {% set edIdx = loop.index %}
         {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher : (ed.editor is defined and ed.editor ? ed.editor : (ed.arranger is defined and ed.arranger ? ed.arranger : 'Anonymous')) %}
+        {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
+        {% if not isManuscript %}
         <div class="edition-card" id="edition-{{ edIdx }}"
              data-zipname="{{ (work.composer ~ ' - ' ~ work.title ~ ' - ' ~ edLabel)|e('html_attr') }}">
             <div class="edition-header" onclick="toggleEdition({{ edIdx }})">
@@ -567,7 +575,6 @@ body {
                             <span style="color:#6a6058;font-style:italic">{{ 'imslp.work_edition_anonymous'|trans }}</span>
                         {% endif %}
                         <span style="color:#6a6058;font-weight:400;font-size:.82rem;margin-left:.5rem">({{ ed.files|length }} {{ ed.files|length != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': ''}) : 'imslp.work_files_count'|trans({'%count%': ''}) |trim }})</span>
-                        {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
                         {% if not isManuscript %}
                             {% if ed.arranger is defined and ed.arranger %}
                                 {# For arrangements: show what the piece is arranged for, then the arranger #}
@@ -646,6 +653,7 @@ body {
                 </div>
             </div></div>{# /edition-body-inner /edition-body #}
         </div>
+        {% endif %}{# not isManuscript #}
         {% endfor %}
 
     {% else %}
