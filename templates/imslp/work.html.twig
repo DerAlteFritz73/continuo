@@ -608,10 +608,12 @@ body {
             </div>
             <div class="edition-body"><div class="edition-body-inner">
                 <div class="edition-actions">
+                    {% if ed.files|length > 1 %}
                     <label class="select-all-label">
                         <input type="checkbox" class="select-all-cb" id="selAll-{{ edIdx }}" onchange="toggleSelectAll({{ edIdx }}, this.checked)">
                         <span id="selAllLabel-{{ edIdx }}">{{ 'imslp.work_edition_select_all'|trans }}</span>
                     </label>
+                    {% endif %}
                     <button class="download-btn" id="dlBtn-{{ edIdx }}" onclick="downloadZip({{ edIdx }})"
                             data-label-none="{{ 'imslp.work_edition_download_none'|trans }}"
                             data-label-selected="{{ 'imslp.work_edition_download_selected'|trans({'%count%': '__N__'}) }}"
