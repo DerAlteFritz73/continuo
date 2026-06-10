@@ -782,8 +782,10 @@ function onFileCheck(idx) {
     const n       = checked.length;
 
     const selAllCb = document.getElementById('selAll-' + idx);
-    selAllCb.indeterminate = n > 0 && n < all.length;
-    selAllCb.checked = n === all.length && all.length > 0;
+    if (selAllCb) {
+        selAllCb.indeterminate = n > 0 && n < all.length;
+        selAllCb.checked = n === all.length && all.length > 0;
+    }
 
     const btn = document.getElementById('dlBtn-' + idx);
     btn.disabled = n === 0;
