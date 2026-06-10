@@ -16,8 +16,15 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: 22
+          script_stop: true
           script: |
+            set -e
+            echo "Starting deployment..."
             cd /var/www/continuo
+            echo "Pulling latest code..."
             git pull origin main
+            echo "Restarting Docker containers..."
             docker compose down
             docker compose up -d
+            echo "Deployment complete!"
