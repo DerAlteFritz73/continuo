@@ -857,16 +857,20 @@ async function downloadZip(idx) {
             }
             label.textContent = 'Preparing ZIP…';
             const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
             const a = Object.assign(document.createElement('a'), {
-                href: URL.createObjectURL(blob),
+                href: blobUrl,
                 download: zipName + '.zip',
             });
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
+            // Wait a bit before cleaning up to ensure download starts
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 100);
         } catch (err) {
-            clearInterval(poller);
+            eventSource.close();
             alert('Download failed: ' + err.message);
         }
 
