@@ -374,6 +374,11 @@ body {
     color: #6a6058;
     margin-left: .3rem;
 }
+.composer-browse-header h2 .composer-dates {
+    font-size: .65em;
+    display: inline;
+    margin-left: .4em;
+}
 .work-title {
     display: flex;
     align-items: baseline;
@@ -633,8 +638,14 @@ body {
         <a class="back-link" href="{{ path('app_imslp', {q: q}) }}">{{ 'imslp.back_to_results'|trans({'%q%': q}) }}</a>
         {% endif %}
 
+        {% set cBrowseDates = composerDates[composer] ?? null %}
         <div class="composer-browse-header">
-            <h2>{{ composer }}</h2>
+            <h2>
+                {{ composer }}
+                {% if cBrowseDates %}
+                <span class="composer-dates">({{ cBrowseDates.born ?: '?' }}–{{ cBrowseDates.died ?: '?' }})</span>
+                {% endif %}
+            </h2>
             <span class="work-count">
                 {{ total|number_format }} {{ total != 1 ? 'imslp.work_count_plural'|trans : 'imslp.work_count_singular'|trans }}
                 {% if not filters.isEmpty() %} {{ 'imslp.matching_filter'|trans }}{% endif %}
@@ -665,9 +676,15 @@ body {
             <p class="section-label">{{ 'imslp.section_composers'|trans }} <strong>({{ composerMatches|length }})</strong></p>
             <div class="composer-cards">
                 {% for c in composerMatches %}
+                {% set cDates = composerDates[c.name] ?? null %}
                 <a class="composer-card"
                    href="{{ path('app_imslp', {composer: c.name, q: q ?: null}|merge(fp)) }}">
-                    <span class="cname">{{ c.name }}</span>
+                    <span class="cname">
+                        {{ c.name }}
+                        {% if cDates %}
+                        <span class="composer-dates">({{ cDates.born ?: '?' }}–{{ cDates.died ?: '?' }})</span>
+                        {% endif %}
+                    </span>
                     <span class="ccount">{{ c.work_count|number_format }} {{ 'imslp.work_count_plural'|trans }}</span>
                 </a>
                 {% endfor %}
@@ -842,6 +859,7 @@ document.getElementById('search-form').addEventListener('submit', function () {
     }
 
     function fillForm(filters) {
+        // Clear all filter fields first to ensure old params don't persist
         const map = {
             instrumentation: 'f-instrumentation',
             style:           'f-style',
@@ -850,6 +868,20 @@ document.getElementById('search-form').addEventListener('submit', function () {
             year_from:       'f-year-from',
             year_to:         'f-year-to',
         };
+        for (const elId of Object.values(map)) {
+            const el = document.getElementById(elId);
+            if (el) {
+                el.value = '';
+                el.classList.remove('ai-filled');
+            }
+        }
+        // Also clear the include_manuscripts checkbox
+        const chkInclude = document.getElementById('f-include-manuscripts');
+        if (chkInclude) {
+            chkInclude.checked = false;
+        }
+
+        // Now fill in only the values that came from AI
         for (const [key, elId] of Object.entries(map)) {
             if (filters[key]) {
                 const el = document.getElementById(elId);
