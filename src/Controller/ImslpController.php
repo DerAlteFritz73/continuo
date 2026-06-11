@@ -171,7 +171,8 @@ class ImslpController extends AbstractController
     #[Route('/download-zip', name: 'app_imslp_download_zip', methods: ['POST'])]
     public function downloadZip(Request $request): Response
     {
-        set_time_limit(300);
+        set_time_limit(600);
+        ini_set('memory_limit', '512M');
 
         // Release the session lock (if a session is active) so the progress-poll
         // endpoint can respond concurrently without being blocked.
@@ -180,64 +181,81 @@ class ImslpController extends AbstractController
             $session->save();
         }
 
-        $filenames = $request->request->all('files');
-        $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
-        $folder    = mb_substr(trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. '), 0, 80) ?: 'imslp-download';
-        $jobId     = preg_replace('/[^a-z0-9]/', '', strtolower($request->request->getString('jobId')));
+        try {
+            $filenames = $request->request->all('files');
+            $zipName   = trim($request->request->getString('zipName', 'imslp-download'));
+            $folder    = mb_substr(trim(preg_replace('/[\/\\\:*?"<>|]+/', '-', $zipName), '. '), 0, 80) ?: 'imslp-download';
+            $jobId     = preg_replace('/[^a-z0-9]/', '', strtolower($request->request->getString('jobId')));
 
-        $progressFile = $jobId !== '' ? sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json' : null;
+            $progressFile = $jobId !== '' ? sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json' : null;
 
-        // Collect valid filenames up front so we know the total for progress
-        $valid = array_values(array_filter(
-            array_map(fn($f) => basename((string) $f), $filenames),
-            fn($f) => (bool) preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $f)
-        ));
-        $total = count($valid);
+            // Collect valid filenames up front so we know the total for progress
+            $valid = array_values(array_filter(
+                array_map(fn($f) => basename((string) $f), $filenames),
+                fn($f) => (bool) preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $f)
+            ));
+            $total = count($valid);
 
-        $writeProgress = function (int $done, string $current = '') use ($progressFile, $total): void {
-            if ($progressFile === null) return;
-            file_put_contents($progressFile, json_encode([
-                'done' => $done, 'total' => $total, 'current' => $current,
-            ]));
-        };
+            if ($total === 0) {
+                return $this->json(['error' => 'No valid files selected. Check filename format.'], 400);
+            }
 
-        $cookieJar = $this->imslpLogin();
-        if ($cookieJar === null) {
+            $writeProgress = function (int $done, string $current = '') use ($progressFile, $total): void {
+                if ($progressFile === null) return;
+                @file_put_contents($progressFile, json_encode([
+                    'done' => $done, 'total' => $total, 'current' => $current,
+                ]));
+            };
+
+            $cookieJar = $this->imslpLogin();
+            if ($cookieJar === null) {
+                if ($progressFile) @unlink($progressFile);
+                return $this->json(['error' => 'IMSLP login failed. Check IMSLP_USER / IMSLP_PASS in .env.local.'], 502);
+            }
+
+            $tmpFile = tempnam(sys_get_temp_dir(), 'imslp_zip_');
+            if ($tmpFile === false) {
+                return $this->json(['error' => 'Failed to create temporary file.'], 500);
+            }
+
+            $zip = new \ZipArchive();
+            $openResult = $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($openResult !== true) {
+                @unlink($tmpFile);
+                return $this->json(['error' => 'Failed to create zip archive: ' . $openResult], 500);
+            }
+
+            $added = 0;
+            foreach ($valid as $i => $filename) {
+                $writeProgress($i, $filename);
+                $content = $this->fetchImslpFile($filename, $cookieJar);
+                if ($content === null) continue;
+
+                $zip->addFromString($folder . '/' . $filename, $content);
+                $added++;
+            }
+
+            $writeProgress($total);
             if ($progressFile) @unlink($progressFile);
-            return $this->json(['error' => 'IMSLP login failed. Check IMSLP_USER / IMSLP_PASS in .env.local.'], 502);
+
+            @unlink($cookieJar);
+            $zip->close();
+
+            if ($added === 0) {
+                @unlink($tmpFile);
+                return $this->json(['error' => 'No files could be downloaded. They may require a paid IMSLP membership.'], 502);
+            }
+
+            $response = new BinaryFileResponse($tmpFile);
+            $response->headers->set('Content-Type', 'application/zip');
+            $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $folder . '.zip');
+            $response->deleteFileAfterSend(true);
+
+            return $response;
+        } catch (\Throwable $e) {
+            if ($progressFile ?? null) @unlink($progressFile);
+            return $this->json(['error' => 'Download failed: ' . $e->getMessage()], 500);
         }
-
-        $tmpFile = tempnam(sys_get_temp_dir(), 'imslp_zip_');
-        $zip     = new \ZipArchive();
-        $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-        $added   = 0;
-
-        foreach ($valid as $i => $filename) {
-            $writeProgress($i, $filename);
-            $content = $this->fetchImslpFile($filename, $cookieJar);
-            if ($content === null) continue;
-
-            $zip->addFromString($folder . '/' . $filename, $content);
-            $added++;
-        }
-
-        $writeProgress($total);
-        if ($progressFile) @unlink($progressFile);
-
-        @unlink($cookieJar);
-        $zip->close();
-
-        if ($added === 0) {
-            @unlink($tmpFile);
-            return $this->json(['error' => 'No files could be downloaded. They may require a paid IMSLP membership.'], 502);
-        }
-
-        $response = new BinaryFileResponse($tmpFile);
-        $response->headers->set('Content-Type', 'application/zip');
-        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $folder . '.zip');
-        $response->deleteFileAfterSend(true);
-
-        return $response;
     }
 
     #[Route('/download-progress/{jobId}', name: 'app_imslp_download_progress', methods: ['GET'],
