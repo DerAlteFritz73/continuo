@@ -16,8 +16,8 @@
                 {% else %}
                 <span>{{ work.composer }}</span>
                 {% endif %}
-                {% if dates and (dates.born or dates.died) %}
-                <span class="composer-dates">({{ dates.born ?: '?' }}–{{ dates.died ?: '' }})</span>
+                {% if dates %}
+                <span class="composer-dates">({{ dates.born ?: '?' }}–{{ dates.died ?: '?' }})</span>
                 {% endif %}
             </div>
 
