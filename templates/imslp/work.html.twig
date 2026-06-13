@@ -564,8 +564,14 @@ body {
         {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher : (ed.editor is defined and ed.editor ? ed.editor : (ed.arranger is defined and ed.arranger ? ed.arranger : 'Anonymous')) %}
         {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
         {% if not isManuscript %}
+        {# Generate compact filename: Composer-Title-Key-Catalog #}
+        {% set composerLast = work.composer|split(' ')|last %}
+        {% set titleShort = work.title|replace({' - ': '-', ',': '', '(': '', ')': ''})|replace({' ': ''})|slice(0, 15) %}
+        {% set keyShort = work.workKey ? work.workKey|replace({' major': 'maj', ' minor': 'min', ' ': ''})|slice(0, 5) : '' %}
+        {% set catalogClean = work.catalogNumber|replace({' ': '', ':': ''})|slice(0, 10) %}
+        {% set zipBaseName = composerLast ~ '-' ~ titleShort ~ (keyShort ? '-' ~ keyShort : '') ~ (catalogClean ? '-' ~ catalogClean : '') %}
         <div class="edition-card" id="edition-{{ edIdx }}"
-             data-zipname="{{ (work.composer ~ ' - ' ~ work.title ~ ' - ' ~ edLabel)|e('html_attr') }}">
+             data-zipname="{{ zipBaseName|e('html_attr') }}">
             <div class="edition-header" onclick="toggleEdition({{ edIdx }})">
                 <div class="edition-header-content">
                     <div class="edition-title">
