@@ -545,7 +545,7 @@ body {
 
         <hr class="search-divider">
 
-        <form method="get" action="{{ path('app_imslp') }}" id="search-form">
+        <form method="post" action="{{ path('app_imslp') }}" id="search-form">
             {# Reset page to 1 on new searches; don't carry over composer param #}
             <input type="hidden" name="page" value="1">
             {# Row 1: title/composer + instrumentation + style + search button #}
@@ -796,10 +796,19 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
 
-// ── Search form: strip empty params + loading animation ──
+// ── Search form: reinitialize all params before each submission ──
 document.getElementById('search-form').addEventListener('submit', function () {
+    // Disable empty fields so they don't get sent
     this.querySelectorAll('input, select').forEach(el => {
-        if (el.value === '' || el.value === null) el.disabled = true;
+        if (!el.name) return;
+        if (el.type === 'checkbox') {
+            // Reset checkbox to default if empty
+            if (!el.checked) el.disabled = true;
+        } else if (el.value === '' || el.value === null) {
+            el.disabled = true;
+        } else {
+            el.disabled = false;
+        }
     });
 
     // Activate loading state

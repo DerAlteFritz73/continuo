@@ -37,23 +37,24 @@ class ImslpController extends AbstractController
         private readonly CacheInterface         $cache,
     ) {}
 
-    #[Route('', name: 'app_imslp', methods: ['GET'])]
+    #[Route('', name: 'app_imslp', methods: ['GET', 'POST'])]
     public function index(Request $request): Response
     {
-        $q        = trim($request->query->getString('q'));
-        $composer = trim($request->query->getString('composer'));
-        $page     = max(1, $request->query->getInt('page', 1));
-        $perPage  = 30;
+        $params  = $request->isMethod('POST') ? $request->request : $request->query;
+        $q       = trim($params->getString('q'));
+        $composer = trim($params->getString('composer'));
+        $page    = max(1, $params->getInt('page', 1));
+        $perPage = 30;
 
         $filters = new WorkFilters(
-            instrumentation: trim($request->query->getString('instrumentation')),
-            style:           trim($request->query->getString('style')),
-            genre:           trim($request->query->getString('genre')),
-            key:             trim($request->query->getString('key')),
-            language:        trim($request->query->getString('language')),
-            includeManuscripts: $request->query->getString('include_manuscripts', '1') === '1',
-            yearFrom:        ($v = trim($request->query->getString('year_from'))) !== '' ? (int) $v : null,
-            yearTo:          ($v = trim($request->query->getString('year_to')))   !== '' ? (int) $v : null,
+            instrumentation: trim($params->getString('instrumentation')),
+            style:           trim($params->getString('style')),
+            genre:           trim($params->getString('genre')),
+            key:             trim($params->getString('key')),
+            language:        trim($params->getString('language')),
+            includeManuscripts: $params->getString('include_manuscripts', '1') === '1',
+            yearFrom:        ($v = trim($params->getString('year_from'))) !== '' ? (int) $v : null,
+            yearTo:          ($v = trim($params->getString('year_to')))   !== '' ? (int) $v : null,
         );
 
         // Use ImslpSearchService to delegate search/filter logic and caching
