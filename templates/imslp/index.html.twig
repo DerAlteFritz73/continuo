@@ -706,12 +706,17 @@ textarea.ai-input { line-height: 1.5; }
         <div>
             <p class="section-label">
                 {% if not filters.isEmpty() %}
-                    {{ 'imslp.section_works_matching_search'|trans({'%q%': q}) }}
+                    {% set filterParts = [] %}
+                    {% if q %}{% set filterParts = filterParts|merge([q]) %}{% endif %}
+                    {% if filters.instrumentation %}{% set filterParts = filterParts|merge(['instrumentation=' ~ filters.instrumentation]) %}{% endif %}
+                    {% if filters.genre %}{% set filterParts = filterParts|merge(['genre=' ~ filters.genre]) %}{% endif %}
+                    {% if filters.key %}{% set filterParts = filterParts|merge(['key=' ~ filters.key]) %}{% endif %}
+                    {% if filters.style %}{% set filterParts = filterParts|merge(['period=' ~ filters.style]) %}{% endif %}
+                    {{ 'imslp.section_works_matching_search'|trans({'%q%': filterParts|join(', ')}) }}
                 {% else %}
                     {{ 'imslp.section_works_with_title'|trans({'%q%': q}) }}
                 {% endif %}
                 {% if total > 0 %}<strong>({{ total|number_format }})</strong>{% endif %}
-                {% if not filters.isEmpty() %} · {{ 'imslp.section_filtered'|trans }}{% endif %}
             </p>
 
             {% if works is not empty %}
