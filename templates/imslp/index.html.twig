@@ -196,9 +196,11 @@ body {
     padding: .55rem .8rem;
     outline: none;
     transition: border-color .2s;
+    resize: vertical;
 }
 .ai-input:focus { border-color: #c8a96e; }
 .ai-input::placeholder { color: #5a524a; }
+textarea.ai-input { line-height: 1.5; }
 .btn-ai {
     display: inline-flex;
     align-items: center;
@@ -531,8 +533,8 @@ body {
         {# AI search #}
         <div class="ai-section">
             <div class="ai-row">
-                <input type="text" id="ai-query" class="ai-input"
-                       placeholder="{{ 'imslp.ai_placeholder'|trans }}">
+                <textarea id="ai-query" class="ai-input" rows="3"
+                          placeholder="{{ 'imslp.ai_placeholder'|trans }}"></textarea>
                 <button type="button" id="ai-btn" class="btn-ai">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/>
