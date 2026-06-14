@@ -6,11 +6,11 @@
     <title>{% block title %}Basso Continuo Realizer{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%2296%22>𝄢</text></svg>">
     <style>
-    .lang-switcher{position:fixed;top:.9rem;right:1.2rem;display:flex;gap:.2rem;z-index:500;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 2.4rem)}
+    .lang-switcher{position:fixed;top:.9rem;right:1.2rem;display:flex;gap:.2rem;z-index:500;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 2.4rem)}
     .lang-pill{font-size:.7rem;font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;color:#6a7a92;text-decoration:none;border:1px solid #2a3244;padding:.17rem .48rem;border-radius:4px;transition:color .15s,border-color .15s,background .15s;white-space:nowrap}
     .lang-pill:hover{color:#c8a96e;border-color:#c8a96e}
     .lang-pill.active{color:#c8a96e;border-color:#c8a96e;background:rgba(200,169,110,.12)}
-    @media(max-width:540px){.lang-switcher{top:.55rem;right:.3rem;gap:.1rem;max-width:calc(100vw - .6rem)}.lang-pill{font-size:.6rem;padding:.1rem .25rem}}
+    @media(max-width:540px){.lang-switcher{top:.55rem;right:.2rem;gap:.1rem;max-width:calc(100% - .4rem)}.lang-pill{font-size:.6rem;padding:.1rem .25rem}}
     </style>
     {% block head %}{% endblock %}
 </head>
