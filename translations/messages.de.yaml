@@ -387,6 +387,7 @@ imslp:
     # Section labels
     section_composers: "Komponisten"
     section_works_with_title: 'Werke mit „%q" im Titel'
+    section_works_matching_search: 'Ergebnisse für „%q"'
     section_filtered: "gefiltert"
     no_title_matches: "Keine Titelübereinstimmungen gefunden."
 

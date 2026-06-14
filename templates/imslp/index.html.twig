@@ -705,7 +705,11 @@ textarea.ai-input { line-height: 1.5; }
         {% if total > 0 or composerMatches is empty %}
         <div>
             <p class="section-label">
-                {{ 'imslp.section_works_with_title'|trans({'%q%': q}) }}
+                {% if not filters.isEmpty() %}
+                    {{ 'imslp.section_works_matching_search'|trans({'%q%': q}) }}
+                {% else %}
+                    {{ 'imslp.section_works_with_title'|trans({'%q%': q}) }}
+                {% endif %}
                 {% if total > 0 %}<strong>({{ total|number_format }})</strong>{% endif %}
                 {% if not filters.isEmpty() %} · {{ 'imslp.section_filtered'|trans }}{% endif %}
             </p>

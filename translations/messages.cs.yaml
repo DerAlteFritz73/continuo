@@ -384,6 +384,7 @@ imslp:
     # Section labels
     section_composers: "Skladatelé"
     section_works_with_title: 'Díla s „%q" v názvu'
+    section_works_matching_search: 'Výsledky pro „%q"'
     section_filtered: "filtrováno"
     no_title_matches: "Žádné shody v názvech."
 

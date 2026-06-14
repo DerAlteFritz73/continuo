@@ -394,6 +394,7 @@ imslp:
     # Section labels
     section_composers: "Composers"
     section_works_with_title: "Works with \"%q\" in title"
+    section_works_matching_search: "Results matching \"%q\""
     section_filtered: "filtered"
     no_title_matches: "No title matches found."
 

@@ -405,6 +405,7 @@ imslp:
     # Section labels
     section_composers: "Compositeurs"
     section_works_with_title: "Œuvres avec « %q » dans le titre"
+    section_works_matching_search: "Résultats correspondant à « %q »"
     section_filtered: "filtré"
     no_title_matches: "Aucun titre correspondant."
 
