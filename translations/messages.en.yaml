@@ -360,6 +360,7 @@ imslp:
     search_year_from_label: "Year from"
     search_year_to_label: "to"
     search_btn: "Search"
+    search_data_accuracy_note: "depends on the exactitude of the data on imslp"
 
     # AI search
     ai_placeholder: "Describe what you're looking for… e.g. Baroque trio sonatas for two violins and basso continuo"

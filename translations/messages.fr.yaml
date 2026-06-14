@@ -371,6 +371,7 @@ imslp:
     search_year_from_label: "Année de"
     search_year_to_label: "à"
     search_btn: "Rechercher"
+    search_data_accuracy_note: "dépend de l'exactitude des données sur imslp"
 
     # AI search
     ai_placeholder: "Décrivez ce que vous cherchez… ex. trios baroques pour deux violons et basse continue"

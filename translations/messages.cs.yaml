@@ -350,6 +350,7 @@ imslp:
     search_year_from_label: "Rok od"
     search_year_to_label: "do"
     search_btn: "Hledat"
+    search_data_accuracy_note: "závisí na přesnosti dat na imslp"
 
     # AI search
     ai_placeholder: "Popište, co hledáte… např. barokní triové sonáty pro dvě housle a basso continuo"

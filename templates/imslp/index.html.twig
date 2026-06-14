@@ -548,7 +548,7 @@ body {
         <form method="post" action="{{ path('app_imslp') }}" id="search-form">
             {# Reset page to 1 on new searches; don't carry over composer param #}
             <input type="hidden" name="page" value="1">
-            {# Row 1: title/composer + instrumentation + style + search button #}
+            {# Row 1: title/composer + instrumentation + style #}
             <div class="search-row" style="margin-bottom:.6rem">
                 <div class="search-field">
                     <label for="q">{{ 'imslp.search_composer_title_label'|trans }}</label>
@@ -571,15 +571,11 @@ body {
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit" class="btn-search" id="btn-search">
-                    <span class="btn-spinner" aria-hidden="true"></span>
-                    <span class="btn-label">{{ 'imslp.search_btn'|trans }}</span>
-                </button>
             </div>
             {# Row 2: advanced filters #}
             <div class="search-row">
                 <div class="search-field">
-                    <label for="f-genre">{{ 'imslp.search_genre_label'|trans }}</label>
+                    <label for="f-genre">{{ 'imslp.search_genre_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
                     <input type="text" id="f-genre" name="genre"
                            value="{{ filters.genre }}" placeholder="{{ 'imslp.search_genre_placeholder'|trans }}"
                            list="genre-list" autocomplete="off">
@@ -588,7 +584,7 @@ body {
                     </datalist>
                 </div>
                 <div class="search-field medium">
-                    <label for="f-key">{{ 'imslp.search_key_label'|trans }}</label>
+                    <label for="f-key">{{ 'imslp.search_key_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
                     <input type="text" id="f-key" name="key"
                            value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
@@ -611,6 +607,16 @@ body {
                     <input type="number" id="f-year-to" name="year_to"
                            value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
                 </div>
+            </div>
+            {# Search button at the end #}
+            <div style="display:flex;align-items:center;gap:1rem;margin-top:.8rem">
+                <button type="submit" class="btn-search" id="btn-search">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-label">{{ 'imslp.search_btn'|trans }}</span>
+                </button>
+                <p style="font-size:.75rem;color:#6a6058;margin:0">
+                    <span style="color:#c8a96e">*</span> {{ 'imslp.search_data_accuracy_note'|trans }}
+                </p>
             </div>
         </form>
 

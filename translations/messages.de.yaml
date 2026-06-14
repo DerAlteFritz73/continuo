@@ -353,6 +353,7 @@ imslp:
     search_year_from_label: "Jahr von"
     search_year_to_label: "bis"
     search_btn: "Suchen"
+    search_data_accuracy_note: "hängt von der Genauigkeit der Daten auf imslp ab"
 
     # AI search
     ai_placeholder: "Beschreiben Sie, was Sie suchen… z. B. Barocke Triosonaten für zwei Violinen und Basso continuo"
