@@ -402,6 +402,7 @@ imslp:
     empty_no_filter_match_title: "Keine Werke entsprechen diesem Filter"
     empty_no_filter_match_hint: "Versuchen Sie, den Besetzungs- oder Epochenfilter zu entfernen."
     empty_no_results_title: 'Keine Ergebnisse für „%q"'
+    empty_no_results_with_filters: "Keine Ergebnisse für %search%"
     empty_no_results_hint: "Versuchen Sie eine andere Schreibweise oder einen allgemeineren Suchbegriff."
     empty_no_filter_works_title: "Keine Werke gefunden"
     empty_no_filter_works_hint: "Versuchen Sie andere Abkürzungen. Der Besetzungsfilter gilt nur für synchronisierte Werke."

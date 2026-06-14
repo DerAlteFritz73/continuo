@@ -729,7 +729,17 @@ textarea.ai-input { line-height: 1.5; }
         {% if composerMatches is empty and works is empty %}
         <div class="empty-state">
             <div class="icon">♩</div>
-            <h2>{{ 'imslp.empty_no_results_title'|trans({'%q%': q}) }}</h2>
+            {% if not filters.isEmpty() %}
+                {% set filterParts = [] %}
+                {% if q %}{% set filterParts = filterParts|merge([q]) %}{% endif %}
+                {% if filters.instrumentation %}{% set filterParts = filterParts|merge(['instrumentation=' ~ filters.instrumentation]) %}{% endif %}
+                {% if filters.genre %}{% set filterParts = filterParts|merge(['genre=' ~ filters.genre]) %}{% endif %}
+                {% if filters.key %}{% set filterParts = filterParts|merge(['key=' ~ filters.key]) %}{% endif %}
+                {% if filters.style %}{% set filterParts = filterParts|merge(['period=' ~ filters.style]) %}{% endif %}
+                <h2>{{ 'imslp.empty_no_results_with_filters'|trans({'%search%': filterParts|join(', ')}) }}</h2>
+            {% else %}
+                <h2>{{ 'imslp.empty_no_results_title'|trans({'%q%': q}) }}</h2>
+            {% endif %}
             <p>{{ 'imslp.empty_no_results_hint'|trans }}</p>
         </div>
         {% endif %}

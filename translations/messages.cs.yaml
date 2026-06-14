@@ -399,6 +399,7 @@ imslp:
     empty_no_filter_match_title: "Žádná díla neodpovídají tomuto filtru"
     empty_no_filter_match_hint: "Zkuste odebrat filtr obsazení nebo období."
     empty_no_results_title: 'Žádné výsledky pro „%q"'
+    empty_no_results_with_filters: "Žádné výsledky pro %search%"
     empty_no_results_hint: "Zkuste jiný pravopis nebo obecnější hledaný výraz."
     empty_no_filter_works_title: "Žádná díla nenalezena"
     empty_no_filter_works_hint: "Zkuste jiné zkratky. Filtr obsazení platí pouze pro synchronizovaná díla."

@@ -420,6 +420,7 @@ imslp:
     empty_no_filter_match_title: "Aucune œuvre ne correspond à ce filtre"
     empty_no_filter_match_hint: "Essayez de supprimer le filtre d'instrumentation ou de période."
     empty_no_results_title: "Aucun résultat pour « %q »"
+    empty_no_results_with_filters: "Aucun résultat pour %search%"
     empty_no_results_hint: "Essayez une orthographe différente ou un terme de recherche plus large."
     empty_no_filter_works_title: "Aucune œuvre trouvée"
     empty_no_filter_works_hint: "Essayez d'autres abréviations. Le filtre d'instrumentation ne s'applique qu'aux œuvres synchronisées."

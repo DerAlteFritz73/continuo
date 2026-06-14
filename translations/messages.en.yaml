@@ -409,6 +409,7 @@ imslp:
     empty_no_filter_match_title: "No works match this filter"
     empty_no_filter_match_hint: "Try removing the instrumentation or style filter."
     empty_no_results_title: "No results for \"%q\""
+    empty_no_results_with_filters: "No results for %search%"
     empty_no_results_hint: "Try a different spelling or a broader search term."
     empty_no_filter_works_title: "No works found"
     empty_no_filter_works_hint: "Try different abbreviations. Instrumentation filter only applies to detail-synced works."
