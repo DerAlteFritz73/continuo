@@ -28,6 +28,7 @@ class ContinuoRealizer
         private readonly FiguredBassInterpreter $interpreter,
         private readonly HarmonyAnalyzer        $analyzer,
         private readonly VoiceLeadingEngine     $voiceLeading,
+        private readonly FigureInference        $figureInference,
     ) {}
 
     public function realize(Score $score, int $numVoices = 4): Score
@@ -63,23 +64,36 @@ class ContinuoRealizer
                 // Scale degree of current bass note
                 $scaleDeg = $this->analyzer->scaleDegree($bassNote, $keyFifths, $keyMode);
 
-                // Get raw figures (from file or from decision tree)
+                // Get raw figures (from file, from melody, or from decision tree)
                 $rawFigures   = $bassNote->figuredBass;
                 $decisionSteps = [];
                 $figuresSource = 'file';
 
                 if (empty($rawFigures)) {
-                    // Unfigured bass → run decision tree
-                    $figuresSource  = 'computed';
-                    $decisionResult = $this->interpreter->unfiguredDecision(
-                        scaleDegree: $scaleDeg,
-                        motion: $currMotion['type'],
-                        nextMotion: $nextMotion['type'],
-                        mode: $keyMode,
-                        leapSize: $this->analyzer->genericInterval($currMotion['size']),
-                    );
-                    $rawFigures    = $decisionResult['figures'];
-                    $decisionSteps = $decisionResult['trace'];
+                    // Try to infer figures from melody notes (if available)
+                    $melodyNotesAtBeat = $this->getMelodyNotesAtBeat($measure->melodyNotes, $bassOffset);
+                    if (!empty($melodyNotesAtBeat)) {
+                        $inferredFigures = $this->figureInference->inferFromMelody($bassNote, $melodyNotesAtBeat, $keyFifths, $keyMode);
+                        if (!empty($inferredFigures)) {
+                            $rawFigures    = $inferredFigures;
+                            $figuresSource = 'melody';
+                            $decisionSteps = []; // Melody-inferred figures don't have decision trace
+                        }
+                    }
+
+                    // If still no figures, run the unfigured bass decision tree
+                    if (empty($rawFigures)) {
+                        $figuresSource  = 'computed';
+                        $decisionResult = $this->interpreter->unfiguredDecision(
+                            scaleDegree: $scaleDeg,
+                            motion: $currMotion['type'],
+                            nextMotion: $nextMotion['type'],
+                            mode: $keyMode,
+                            leapSize: $this->analyzer->genericInterval($currMotion['size']),
+                        );
+                        $rawFigures    = $decisionResult['figures'];
+                        $decisionSteps = $decisionResult['trace'];
+                    }
                 }
 
                 // Expand figures to interval list
@@ -155,6 +169,28 @@ class ContinuoRealizer
             }
         }
         return null;
+    }
+
+    /**
+     * Get all melody Note objects sounding at $beatOffset quarters into the measure.
+     * Returns array of Note objects (which may contain multiple notes if there are
+     * overlapping or simultaneous melody notes).
+     *
+     * @param array<array{offset:float,duration:float,note:Note}> $melodyNotes
+     * @return Note[]
+     */
+    private function getMelodyNotesAtBeat(array $melodyNotes, float $beatOffset): array
+    {
+        $notes = [];
+        foreach ($melodyNotes as $mn) {
+            if ($mn['offset'] <= $beatOffset + 0.001
+                && $beatOffset  <  $mn['offset'] + $mn['duration'] - 0.001) {
+                if (isset($mn['note']) && $mn['note'] instanceof Note) {
+                    $notes[] = $mn['note'];
+                }
+            }
+        }
+        return $notes;
     }
 
     /**

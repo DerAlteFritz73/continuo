@@ -232,6 +232,9 @@ class MusicXmlParser
         // --- Second pass: annotate measures with melody notes (if available) ---
         if ($melodyPart !== null && !empty($score->measures)) {
             $this->parseMelodyIntoMeasures($melodyPart, $score->measures);
+        } elseif ($numStaves > 1 && !empty($score->measures)) {
+            // For grand-staff single-part (no separate melody part), extract from staff 1 (treble)
+            $this->parseSopranoFromGrandStaff($bassPart, $score->measures, $numStaves);
         }
 
         // --- Mode-detection pass ---
@@ -496,13 +499,26 @@ class MusicXmlParser
                     if ($voice === 1 && !isset($child->{'rest'}) && $measure !== null) {
                         $pitch = $child->{'pitch'};
                         $step  = (string) ($pitch->{'step'}   ?? 'C');
+                        $oct   = (int) ($pitch->{'octave'} ?? 4);
                         $alter = (int) round((float) ($pitch->{'alter'} ?? 0));
                         $pc    = (($pcMap[$step] ?? 0) + $alter + 12) % 12;
+
+                        // Create Note object for figure inference
+                        $noteObj = new Note(
+                            step: $step,
+                            octave: $oct,
+                            duration: $dq,
+                            alter: $alter,
+                            type: (string) ($child->{'type'} ?? 'quarter'),
+                            isRest: false,
+                            voice: 1,
+                        );
 
                         $measure->melodyNotes[] = [
                             'offset'   => $beatOffset,
                             'duration' => $dq,
                             'pc'       => $pc,
+                            'note'     => $noteObj,
                         ];
                     }
 
@@ -526,6 +542,95 @@ class MusicXmlParser
      * Detect how many staves a part uses (from its first <staves> attribute element).
      * Returns 1 for single-staff parts, 2 for grand-staff keyboard parts, etc.
      */
+    /**
+     * Extract soprano (treble clef) notes from staff 1 of a grand-staff keyboard part.
+     * Used when there's no separate melody part but the score has 2 staves.
+     */
+    private function parseSopranoFromGrandStaff(SimpleXMLElement $bassPart, array $measures, int $numStaves): void
+    {
+        if ($numStaves <= 1) {
+            return;
+        }
+
+        $measureMap = [];
+        foreach ($measures as $m) {
+            $measureMap[$m->number] = $m;
+        }
+
+        $pcMap            = ['C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11];
+        $currentDivisions = 1;
+
+        foreach ($bassPart->{'measure'} as $measureXml) {
+            $measureNum = (int) $measureXml['number'];
+            $measure    = $measureMap[$measureNum] ?? null;
+            if (!$measure) {
+                continue;
+            }
+
+            foreach ($measureXml->{'attributes'} as $attr) {
+                if ($attr->{'divisions'}) {
+                    $currentDivisions = (int) $attr->{'divisions'};
+                }
+            }
+
+            $beatOffset = 0.0;
+
+            foreach ($measureXml->children() as $child) {
+                $name = $child->getName();
+
+                if ($name === 'note') {
+                    $isChord = isset($child->{'chord'});
+                    $dur     = (int) ($child->{'duration'} ?? 0);
+                    $dq      = $currentDivisions > 0 ? round($dur / $currentDivisions, 6) : 1.0;
+
+                    if ($isChord) {
+                        continue;
+                    }
+
+                    $staff = (int) ($child->{'staff'} ?? 1);
+                    $voice = (int) ($child->{'voice'} ?? 1);
+
+                    if ($staff === 1 && $voice === 1 && !isset($child->{'rest'})) {
+                        $pitch = $child->{'pitch'};
+                        $step  = (string) ($pitch->{'step'} ?? 'C');
+                        $oct   = (int) ($pitch->{'octave'} ?? 4);
+                        $alter = (int) round((float) ($pitch->{'alter'} ?? 0));
+                        $pc    = (($pcMap[$step] ?? 0) + $alter + 12) % 12;
+
+                        $noteObj = new Note(
+                            step: $step,
+                            octave: $oct,
+                            duration: $dq,
+                            alter: $alter,
+                            type: (string) ($child->{'type'} ?? 'quarter'),
+                            isRest: false,
+                            voice: 1,
+                        );
+
+                        $measure->melodyNotes[] = [
+                            'offset'   => $beatOffset,
+                            'duration' => $dq,
+                            'pc'       => $pc,
+                            'note'     => $noteObj,
+                        ];
+                    }
+
+                    $beatOffset += $dq;
+
+                } elseif ($name === 'backup') {
+                    $dur     = (int) ($child->{'duration'} ?? 0);
+                    $dq      = $currentDivisions > 0 ? $dur / $currentDivisions : 0.0;
+                    $beatOffset = max(0.0, $beatOffset - $dq);
+
+                } elseif ($name === 'forward') {
+                    $dur     = (int) ($child->{'duration'} ?? 0);
+                    $dq      = $currentDivisions > 0 ? $dur / $currentDivisions : 0.0;
+                    $beatOffset += $dq;
+                }
+            }
+        }
+    }
+
     private function detectNumStaves(SimpleXMLElement $part): int
     {
         $staves = $part->xpath('.//attributes/staves');
