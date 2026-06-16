@@ -167,6 +167,36 @@ function showResult(data) {
         `<div class="summary-item"><span class="val">${i.val}</span><span class="lbl">${i.lbl}</span></div>`
     ).join('');
 
+    // Passages panel
+    const passages = data.passages || [];
+    const passagesPanel = document.getElementById('passages-panel');
+    const passagesList = document.getElementById('passages-list');
+    if (passages.length > 0) {
+        passagesList.innerHTML = passages.map((p, idx) => {
+            const keyName = keyFifthsToName(p.key.fifths, p.key.mode);
+            const confClass = 'conf-' + p.confidence;
+            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-radius:3px;background:var(--bg);display:flex;justify-content:space-between;align-items:center">
+                <div style="flex:1">
+                    <strong>Measures ${p.start_measure}–${p.end_measure}</strong>
+                    <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
+                    <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
+                </div>
+                <button class="passage-edit-btn" data-idx="${idx}" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:var(--accent);color:white;border:none;border-radius:2px;cursor:pointer">Edit</button>
+            </div>`;
+        }).join('');
+        passagesPanel.style.display = '';
+    } else {
+        passagesPanel.style.display = 'none';
+    }
+
+    // Passages edit button handlers
+    document.querySelectorAll('.passage-edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.idx);
+            editPassageKey(passages[idx], idx);
+        });
+    });
+
     // Chord pills
     const topChords = s.topChords || {};
     const chordKeys = Object.keys(topChords);
@@ -219,6 +249,33 @@ document.querySelectorAll('details.accordion').forEach(details => {
         }
     });
 });
+
+// ── Passages helper functions ──────────────────────────────────────────────
+const KEY_NAMES = {
+    '-7': 'Cb', '-6': 'Gb', '-5': 'Db', '-4': 'Ab', '-3': 'Eb', '-2': 'Bb', '-1': 'F',
+    '0': 'C', '1': 'G', '2': 'D', '3': 'A', '4': 'E', '5': 'B', '6': 'F#', '7': 'C#'
+};
+
+function keyFifthsToName(fifths, mode) {
+    const root = KEY_NAMES[fifths] || 'C';
+    return mode === 'minor' ? root + 'm' : root;
+}
+
+function editPassageKey(passage, idx) {
+    const currentKey = keyFifthsToName(passage.key.fifths, passage.key.mode);
+    const options = [
+        'C major', 'G major', 'D major', 'A major', 'E major', 'B major', 'F# major', 'C# major',
+        'F major', 'Bb major', 'Eb major', 'Ab major', 'Db major', 'Gb major', 'Cb major',
+        'A minor', 'E minor', 'B minor', 'F# minor', 'C# minor', 'G# minor', 'D# minor',
+        'D minor', 'G minor', 'C minor', 'F minor', 'Bb minor', 'Eb minor', 'Ab minor',
+    ];
+
+    const newKey = prompt(`Change key for passage ${passage.start_measure}–${passage.end_measure}?\nCurrent: ${currentKey}\n\nEnter new key:`, currentKey);
+    if (newKey) {
+        // User changed key - in a full implementation, would re-send to server
+        alert(`Key changed to ${newKey}. (Note: This is a preview. To persist, re-upload after making changes in notation software.)`);
+    }
+}
 
 // ── Input card tab switching ──────────────────────────────────────────────
 document.querySelectorAll('#input-tabs .input-tab').forEach(tab => {

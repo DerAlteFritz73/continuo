@@ -6,6 +6,7 @@ use App\Repository\VoiceLeadingRuleRepository;
 use App\Service\ContinuoRealizer;
 use App\Service\MusicXmlParser;
 use App\Service\MusicXmlSerializer;
+use App\Service\PassageDetector;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,7 @@ class ContinuoController extends AbstractController
         private readonly MusicXmlSerializer         $serializer,
         private readonly TranslatorInterface        $translator,
         private readonly VoiceLeadingRuleRepository $ruleRepository,
+        private readonly PassageDetector            $passageDetector,
     ) {}
 
     #[Route('/language/{locale}', name: 'app_language', requirements: ['locale' => 'en|fr|de|cs'])]
@@ -69,10 +71,16 @@ class ContinuoController extends AbstractController
         }
 
         try {
-            $xmlContent = file_get_contents($file->getPathname());
+            $xmlContent = $this->extractXmlContent($file);
 
             // Parse
             $score = $this->parser->parse($xmlContent);
+
+            // Detect passages and keys
+            $score->passages = $this->passageDetector->detectPassages($score);
+
+            // Apply detected passages to measures (updates key signatures at boundaries)
+            $this->applyPassagesToScore($score);
 
             // Realize
             $score = $this->realizer->realize($score);
@@ -106,6 +114,7 @@ class ContinuoController extends AbstractController
                     'filename'   => $outputName,
                     'summary'    => $summary,
                     'chordData'  => $this->buildChordDataArray($score),
+                    'passages'   => $score->passages,
                 ]);
             }
 
@@ -128,10 +137,17 @@ class ContinuoController extends AbstractController
         }
 
         try {
-            $xmlContent = file_get_contents($file->getPathname());
+            $xmlContent = $this->extractXmlContent($file);
             $numVoices  = (int) $request->request->get('voices', 4);
             $numVoices  = in_array($numVoices, [3, 4], true) ? $numVoices : 4;
             $score      = $this->parser->parse($xmlContent);
+
+            // Detect passages and keys
+            $score->passages = $this->passageDetector->detectPassages($score);
+
+            // Apply detected passages to measures (updates key signatures at boundaries)
+            $this->applyPassagesToScore($score);
+
             $score      = $this->realizer->realize($score, $numVoices);
             $output     = $this->serializer->serialize($score);
             $summary    = $this->buildSummary($score);
@@ -145,6 +161,7 @@ class ContinuoController extends AbstractController
                 'filename'  => $originalName . '_continuo_realization.xml',
                 'summary'   => $summary,
                 'chordData' => $this->buildChordDataArray($score),
+                'passages'  => $score->passages,
             ]);
         } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], 500);
@@ -282,5 +299,66 @@ class ContinuoController extends AbstractController
             'totalNotes'  => $totalNotes,
             'topChords'   => array_slice($chordCounts, 0, 10, true),
         ];
+    }
+
+    private function applyPassagesToScore(\App\Model\Score $score): void
+    {
+        foreach ($score->passages as $passage) {
+            // Set the detected key at the start of each passage
+            foreach ($score->measures as $measure) {
+                if ($measure->number === $passage['start_measure']) {
+                    $measure->keySignature = $passage['key'];
+                    break;
+                }
+            }
+        }
+    }
+
+    private function extractXmlContent(\Symfony\Component\HttpFoundation\File\UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        // If it's an MXL file (ZIP archive), extract the main MusicXML
+        if ($extension === 'mxl') {
+            $zip = new \ZipArchive();
+            if ($zip->open($file->getPathname()) !== true) {
+                throw new \RuntimeException('Failed to open MXL file');
+            }
+
+            // Read container.xml to find the root file path
+            $containerXml = $zip->getFromName('META-INF/container.xml');
+            if (!$containerXml) {
+                $zip->close();
+                throw new \RuntimeException('META-INF/container.xml not found in MXL file');
+            }
+
+            $container = new \SimpleXMLElement($containerXml);
+
+            // Try with namespace first, then fallback to local name matching
+            $rootFiles = $container->xpath('//rootfile') ?: $container->xpath('//*[local-name()="rootfile"]');
+
+            if (empty($rootFiles)) {
+                $zip->close();
+                throw new \RuntimeException('No rootfile found in container.xml');
+            }
+
+            $rootPath = (string) $rootFiles[0]['full-path'];
+            if (!$rootPath) {
+                $zip->close();
+                throw new \RuntimeException('No full-path attribute found in rootfile');
+            }
+
+            $xmlContent = $zip->getFromName($rootPath);
+            $zip->close();
+
+            if (!$xmlContent) {
+                throw new \RuntimeException("Failed to extract MusicXML from MXL file at path: $rootPath");
+            }
+
+            return $xmlContent;
+        }
+
+        // For regular XML/MusicXML files, read directly
+        return file_get_contents($file->getPathname());
     }
 }

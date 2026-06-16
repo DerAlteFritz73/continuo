@@ -7,6 +7,9 @@ class Score
     /** @var Measure[] */
     public array $measures = [];
 
+    /** @var array<array{start_measure: int, end_measure: int, key: array, confidence: string}> */
+    public array $passages = [];
+
     public ?string $title = null;
     public ?string $composer = null;
 
