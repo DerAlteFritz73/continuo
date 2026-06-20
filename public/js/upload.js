@@ -27,8 +27,8 @@ const chordPills  = document.getElementById('chord-pills');
 const form        = document.getElementById('upload-form');
 const sampleHint  = document.getElementById('sample-hint');
 
-const SAMPLE_URL  = '/sample/aria_bassline.xml';
-const SAMPLE_NAME = 'aria_bassline.xml';
+const SAMPLE_URL  = '/sample/' + encodeURIComponent('BWV 1034 - flûte mi-min.xml');
+const SAMPLE_NAME = 'BWV 1034 - flûte mi-min.xml';
 
 // ── Load sample on page load ──────────────────────────────
 async function loadSample() {
