@@ -23,6 +23,7 @@ class MusicXmlParser
     public function parse(string $xmlContent): Score
     {
         $xml = new SimpleXMLElement($xmlContent);
+        $this->normalizeAccidentals($xml);
         $score = new Score();
 
         // --- Metadata ---
@@ -118,7 +119,9 @@ class MusicXmlParser
             //   (a) <figured-bass> elements appearing after the note (MusicXML standard)
             //   (b) <lyric> text using the Figurato font encoding (Finale exports)
 
-            $lastNoteIdx = null;
+            $lastNoteIdx        = null;
+            $pendingRestFigures = null; // figure written over a rest, awaiting its bass note
+            $pendingRestPrevIdx = null; // index of the sounding note just before that rest
 
             foreach ($measureXml->children() as $child) {
                 $name = $child->getName();
@@ -180,16 +183,39 @@ class MusicXmlParser
                     }
 
                     // --- Figurato lyric figured bass (Finale exports) ---
-                    // When the file uses the Figurato font, <lyric> elements on bass
-                    // notes carry the figured bass in Figurato encoding.
-                    if ($isFigurato && !$isRest) {
+                    // When the file uses the Figurato font, <lyric> elements carry the
+                    // figured bass in Figurato encoding.
+                    if ($isFigurato) {
                         $lyricText = $this->extractLyricText($child);
-                        if ($lyricText !== '') {
-                            $figures = $this->parseFiguratoString($lyricText);
-                            if (!empty($figures)) {
+                        $figures   = $lyricText !== '' ? $this->parseFiguratoString($lyricText) : [];
+
+                        if (!empty($figures)) {
+                            if (!$isRest) {
                                 $note = $note->withFiguredBass($figures);
+                            } else {
+                                // A figure written over a rest is a real chord that belongs
+                                // to a sounding bass note — "frequently the note that follows,
+                                // sometimes the preceding" (Telemann, quoted in Christensen,
+                                // 18th-Century Continuo Playing, §II.11, p. 92). Defer it to
+                                // the next sounding note; fall back to the preceding one below.
+                                $pendingRestFigures = $figures;
+                                $pendingRestPrevIdx = null;
+                                for ($k = count($measure->bassNotes) - 1; $k >= 0; $k--) {
+                                    if (!$measure->bassNotes[$k]->isRest()) {
+                                        $pendingRestPrevIdx = $k;
+                                        break;
+                                    }
+                                }
                             }
                         }
+                    }
+
+                    // Attach a deferred rest-figure to this (following) sounding note,
+                    // unless it already carries a figure of its own.
+                    if (!$isRest && $pendingRestFigures !== null && empty($note->figuredBass)) {
+                        $note               = $note->withFiguredBass($pendingRestFigures);
+                        $pendingRestFigures = null;
+                        $pendingRestPrevIdx = null;
                     }
 
                     $lastNoteIdx = count($measure->bassNotes);
@@ -223,6 +249,17 @@ class MusicXmlParser
                     }
                 }
             }
+
+            // A rest-figure that never reached a following sounding note falls back to the
+            // note immediately before the rest (Telemann's "preceding" case), provided that
+            // note carries no figure of its own.
+            if ($pendingRestFigures !== null && $pendingRestPrevIdx !== null
+                && empty($measure->bassNotes[$pendingRestPrevIdx]->figuredBass)) {
+                $measure->bassNotes[$pendingRestPrevIdx] =
+                    $measure->bassNotes[$pendingRestPrevIdx]->withFiguredBass($pendingRestFigures);
+            }
+            $pendingRestFigures = null;
+            $pendingRestPrevIdx = null;
 
             if (!empty($measure->bassNotes)) {
                 $score->measures[] = $measure;
@@ -279,6 +316,72 @@ class MusicXmlParser
             }
         }
         return '';
+    }
+
+    /**
+     * Correct a common engraving/export error in accidental handling.
+     *
+     * Notation rule: a printed accidental holds for the rest of the measure, on its
+     * staff, for that exact pitch (step + octave) — across ALL voices. Some exporters
+     * (notably Finale) only repeat the resulting <alter> within the same voice, so the
+     * same pitch in another voice arrives a semitone wrong (e.g. BWV 1034, m. 3: the
+     * keyboard's voice-1 D#4 is not carried to the voice-2 D4 later in the bar).
+     *
+     * Here each explicit accidental is propagated across its measure+staff to later
+     * same-pitch notes that carry no accidental of their own; the missing <alter> is
+     * inserted so every downstream read sees the correct pitch. A later explicit
+     * accidental (including a natural) overrides. Key-signature alterations are left
+     * untouched — they are already encoded per note and never establish a carry-over.
+     */
+    private function normalizeAccidentals(SimpleXMLElement $xml): void
+    {
+        $accToAlter = [
+            'flat-flat' => -2, 'double-flat' => -2, 'flat' => -1, 'natural' => 0,
+            'sharp' => 1, 'double-sharp' => 2, 'sharp-sharp' => 2,
+        ];
+
+        foreach ($xml->xpath('//part') as $part) {
+            foreach ($part->{'measure'} as $measure) {
+                $active = []; // "staff|STEP|OCT" => alter, set only by explicit accidentals
+
+                foreach ($measure->{'note'} as $note) {
+                    if (!isset($note->{'pitch'})) {
+                        continue; // rests and the like carry no pitch
+                    }
+
+                    $staff = (string) ($note->{'staff'} ?? '1');
+                    $step  = (string) $note->{'pitch'}->{'step'};
+                    $oct   = (string) $note->{'pitch'}->{'octave'};
+                    $key   = $staff . '|' . $step . '|' . $oct;
+
+                    $hasAccidental = isset($note->{'accidental'})
+                        && trim((string) $note->{'accidental'}) !== '';
+
+                    if ($hasAccidental) {
+                        // An explicit accidental sets the state for the rest of the measure.
+                        $active[$key] = isset($note->{'pitch'}->{'alter'})
+                            ? (int) round((float) $note->{'pitch'}->{'alter'})
+                            : ($accToAlter[strtolower(trim((string) $note->{'accidental'}))] ?? 0);
+                        continue;
+                    }
+
+                    // No accidental of its own: inherit any accidental still active for
+                    // this pitch on this staff, inserting the <alter> the exporter omitted.
+                    if (array_key_exists($key, $active)) {
+                        $current = isset($note->{'pitch'}->{'alter'})
+                            ? (int) round((float) $note->{'pitch'}->{'alter'})
+                            : 0;
+                        if ($current !== $active[$key]) {
+                            if (isset($note->{'pitch'}->{'alter'})) {
+                                $note->{'pitch'}->{'alter'} = (string) $active[$key];
+                            } else {
+                                $note->{'pitch'}->addChild('alter', (string) $active[$key]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

@@ -12,6 +12,33 @@ When you import a MusicXML file (.xml, .musicxml, or .mxl):
 - Extracts the melody/soprano voice if present (especially useful for keyboard parts)
 - Reads the key signature and time signature from the file
 
+#### Cross-voice accidentals
+
+A printed accidental holds for the rest of the measure, on its staff, for that exact
+pitch (step + octave) — **across all voices**. Some exporters (notably Finale) only
+repeat the resulting `<alter>` within the *same* voice, so the same pitch in another
+voice arrives a semitone wrong (e.g. BWV 1034, m. 3: the keyboard's voice‑1 `D♯4` is not
+carried to the voice‑2 `D4` later in the bar). On import the parser propagates each
+explicit accidental across its measure + staff to later same-pitch notes that carry no
+accidental of their own, inserting the missing alteration so every read path sees the
+correct pitch. A later explicit accidental (including a natural) overrides; key-signature
+alterations are left untouched.
+
+#### Figures written over a rest
+
+A figure is occasionally engraved over a **rest** in the bass rather than a note (common
+in Finale/Figurato exports). Such a figure is a real chord that belongs to a *sounding*
+bass note, so the parser does not discard it — it attaches the figure to the **next
+sounding bass note**, falling back to the **immediately preceding** one when no following
+note remains in the measure (and never overwriting a note's own figure).
+
+This follows historical practice: a chord may be played on a rest, and the figure
+"frequently belongs to the harmony of the note that follows, [but] sometimes the note
+that precedes" — Telemann, quoted in Jesper Bøje Christensen, *18th-Century Continuo
+Playing*, §II.11 ("When Should Chords Be Repeated?"), p. 92 (drawing also on Heinichen
+and Mattheson). Over a pedal/repeated bass — where the surrounding notes share the same
+pitch — the assignment is unambiguous.
+
 ### 2. Passage Detection & Key Inference
 
 The system automatically divides the piece into **passages** and detects the correct key for each:
