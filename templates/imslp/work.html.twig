@@ -553,7 +553,11 @@ body {
         {% set printedEditions = [] %}
         {% for ed in work.filesJson %}
             {% if not (ed.imageType is defined and 'manuscript' in ed.imageType|lower) %}
-                {% set printedEditions = printedEditions|merge([ed]) %}
+                {# Only PDF and MP3 files are shown; skip editions with none. #}
+                {% set edDisplayable = (ed.files ?? [])|filter(f => (f.filename|lower ends with '.pdf') or (f.filename|lower ends with '.mp3')) %}
+                {% if edDisplayable|length > 0 %}
+                    {% set printedEditions = printedEditions|merge([ed]) %}
+                {% endif %}
             {% endif %}
         {% endfor %}
         {% set edCount = printedEditions|length %}
@@ -563,7 +567,9 @@ body {
         {% set edIdx = loop.index %}
         {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher : (ed.editor is defined and ed.editor ? ed.editor : (ed.arranger is defined and ed.arranger ? ed.arranger : 'Anonymous')) %}
         {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
-        {% if not isManuscript %}
+        {# Only PDF and MP3 files are displayed/downloadable. #}
+        {% set edFiles = (ed.files ?? [])|filter(f => (f.filename|lower ends with '.pdf') or (f.filename|lower ends with '.mp3')) %}
+        {% if not isManuscript and edFiles|length > 0 %}
         {# Generate compact filename: Composer-Title-Key-Catalog #}
         {% set composerLast = work.composer|split(' ')|last %}
         {% set titleShort = work.title|replace({' - ': '-', ',': '', '(': '', ')': ''})|replace({' ': ''})|slice(0, 15) %}
@@ -580,7 +586,7 @@ body {
                         {% else %}
                             <span style="color:#6a6058;font-style:italic">{{ 'imslp.work_edition_anonymous'|trans }}</span>
                         {% endif %}
-                        <span style="color:#6a6058;font-weight:400;font-size:.82rem;margin-left:.5rem">({{ ed.files|length }} {{ ed.files|length != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': ''}) : 'imslp.work_files_count'|trans({'%count%': ''}) |trim }})</span>
+                        <span style="color:#6a6058;font-weight:400;font-size:.82rem;margin-left:.5rem">({{ edFiles|length }} {{ edFiles|length != 1 ? 'imslp.work_files_count_plural'|trans({'%count%': ''}) : 'imslp.work_files_count'|trans({'%count%': ''}) |trim }})</span>
                         {% if not isManuscript %}
                             {% if ed.arranger is defined and ed.arranger %}
                                 {# For arrangements: show what the piece is arranged for, then the arranger #}
@@ -614,7 +620,7 @@ body {
             </div>
             <div class="edition-body"><div class="edition-body-inner">
                 <div class="edition-actions">
-                    {% if ed.files|length > 1 %}
+                    {% if edFiles|length > 1 %}
                     <label class="select-all-label">
                         <input type="checkbox" class="select-all-cb" id="selAll-{{ edIdx }}" onchange="toggleSelectAll({{ edIdx }}, this.checked)">
                         <span id="selAllLabel-{{ edIdx }}">{{ 'imslp.work_edition_select_all'|trans }}</span>
@@ -642,7 +648,7 @@ body {
                     <ul class="files-open-list" id="open-panel-list-{{ edIdx }}"></ul>
                 </div>
                 <div class="edition-files" id="files-{{ edIdx }}">
-                    {% for file in ed.files %}
+                    {% for file in edFiles %}
                     {% set fileIdx = loop.index %}
                     <div class="file-row">
                         <input type="checkbox" id="f-{{ edIdx }}-{{ fileIdx }}"
@@ -650,7 +656,7 @@ body {
                                data-edition="{{ edIdx }}"
                                data-filename="{{ file.filename }}"
                                onchange="onFileCheck({{ edIdx }})"
-                               {% if ed.files|length == 1 %}checked{% endif %}>
+                               {% if edFiles|length == 1 %}checked{% endif %}>
                         <label for="f-{{ edIdx }}-{{ fileIdx }}">
                             <span class="file-desc">{{ file.description is defined and file.description ? file.description : file.filename }}</span>
                             {% if file.description is defined and file.description %}
@@ -666,9 +672,10 @@ body {
         {% endfor %}
 
     {% else %}
-        {# Legacy flat format #}
-        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} ({{ work.filesJson|length }})</h2>
-        {% for file in work.filesJson %}
+        {# Legacy flat format — only PDF and MP3 files are shown. #}
+        {% set flatFiles = work.filesJson|filter(f => (f.filename|lower ends with '.pdf') or (f.filename|lower ends with '.mp3')) %}
+        <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} ({{ flatFiles|length }})</h2>
+        {% for file in flatFiles %}
         <div class="edition-card">
             <div class="edition-header" style="cursor:default">
                 <div class="edition-header-content">

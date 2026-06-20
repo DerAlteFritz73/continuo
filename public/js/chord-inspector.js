@@ -404,10 +404,11 @@ async function applyFigureEdit() {
         currentInputXml = modifiedXml;
         currentXml      = data.xml;
         chordDataStore  = data.chordData || [];
+        passageStore    = data.passages  || [];
         buildFbComputedFlags();
 
-        initScore('orig', modifiedXml);
-        initScore('real', data.xml);
+        initScore('orig', modifiedXml, true);
+        initScore('real', data.xml, true);
 
         downloadBtn.onclick = () => {
             const dlBlob = new Blob([data.xml], { type: 'application/vnd.recordare.musicxml+xml' });

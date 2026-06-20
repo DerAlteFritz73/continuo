@@ -152,13 +152,22 @@ class FigureInference
     private function inferAlter(Note $bass, Note $melody, int $interval, array $scale): int
     {
         // Get the expected pitch class for this interval in the scale
+        // getGenericInterval() returns 0 when it cannot place the note in the
+        // scale; with no determinable interval there is no expected pitch to
+        // compare against, so report no alteration.
+        if ($interval < 1) {
+            return $melody->alter;
+        }
+
         $bassPc = $bass->pitchClass();
         $basePos = array_search($bassPc, $scale);
         if ($basePos === false) {
             $basePos = $this->closestScaleDegreeIndex($bassPc, $scale);
         }
 
-        $targetIdx = ($basePos + $interval - 1) % 7;
+        // Normalise into 0..6 — PHP's % keeps the sign of the operand, which can
+        // yield a negative index for low base positions.
+        $targetIdx = (($basePos + $interval - 1) % 7 + 7) % 7;
         $expectedPc = $scale[$targetIdx];
 
         $melodyPc = $melody->pitchClass();

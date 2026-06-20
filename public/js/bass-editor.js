@@ -519,6 +519,7 @@
             currentXml      = data.xml;
             currentInputXml = data.inputXml || null;
             chordDataStore  = data.chordData || [];
+            passageStore    = data.passages  || [];
             buildFbComputedFlags();
             showResult(data);
         } catch (err) {

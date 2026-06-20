@@ -24,6 +24,13 @@ document.querySelectorAll('.score-tab').forEach(tab => {
         tab.classList.add('active');
         const pane = document.getElementById(tab.dataset.pane);
         if (pane) pane.classList.add('active');
+
+        // The realization SVG has no usable geometry while hidden, so the phrase
+        // labels can only be placed once its pane becomes visible.
+        if (tab.dataset.pane === 'pane-real') {
+            const svgEl = document.querySelector('#wrap-real svg');
+            if (svgEl) requestAnimationFrame(() => drawPassageKeyLabels(svgEl));
+        }
     });
 });
 
@@ -127,9 +134,12 @@ function scoreWrapWidth() {
     return el ? Math.max(el.clientWidth - 32, 600) : 800;
 }
 
-async function initScore(key, xml) {
+async function initScore(key, xml, preservePage = false) {
     const s    = scores[key];
     const wrap = document.getElementById('wrap-' + key);
+    // When re-rendering after an edit, remember the page the user was viewing so
+    // we can return to it once the new score is loaded (clamped to its length).
+    const prevPage = preservePage ? s.page : 1;
     s.tk    = null;
     s.page  = 1;
     s.total = 0;
@@ -164,7 +174,7 @@ async function initScore(key, xml) {
 
         s.tk    = tk;
         s.total = tk.getPageCount();
-        s.page  = 1;
+        s.page  = Math.min(Math.max(prevPage, 1), s.total || 1);
 
         // Pre-compute figured-bass offsets per page for the realization pane.
         if (key === 'real') {
@@ -206,64 +216,202 @@ function launchScoreViewer(origXml, realXml) {
     initScore('real', realXml);
 }
 
+// ── Phrase key labels (detected tonality / mode per passage) ──
+
+const PASSAGE_KEY_NAMES = {
+    '-7': 'C♭', '-6': 'G♭', '-5': 'D♭', '-4': 'A♭', '-3': 'E♭',
+    '-2': 'B♭', '-1': 'F', '0': 'C', '1': 'G', '2': 'D', '3': 'A', '4': 'E',
+    '5': 'B', '6': 'F♯', '7': 'C♯',
+};
+
+// The same key signature names its relative minor when the mode is minor.
+const PASSAGE_KEY_NAMES_MINOR = {
+    '-7': 'A♭', '-6': 'E♭', '-5': 'B♭', '-4': 'F', '-3': 'C', '-2': 'G',
+    '-1': 'D', '0': 'A', '1': 'E', '2': 'B', '3': 'F♯', '4': 'C♯', '5': 'G♯',
+    '6': 'D♯', '7': 'A♯',
+};
+
+function passageKeyLabel(p) {
+    const f = String(p.key.fifths);
+    if (p.key.mode === 'minor') return (PASSAGE_KEY_NAMES_MINOR[f] || '?') + ' min';
+    return (PASSAGE_KEY_NAMES[f] || '?') + ' maj';
+}
+
+// Element bbox expressed in the SVG root's user-coordinate space.
+function svgBBoxInRoot(svgEl, el) {
+    const bb     = el.getBBox();
+    const elCTM  = el.getScreenCTM();
+    const svgCTM = svgEl.getScreenCTM();
+    if (!elCTM || !svgCTM) return { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+    const m   = svgCTM.inverse().multiply(elCTM);
+    const pt1 = svgEl.createSVGPoint(); pt1.x = bb.x;            pt1.y = bb.y;
+    const pt2 = svgEl.createSVGPoint(); pt2.x = bb.x + bb.width; pt2.y = bb.y + bb.height;
+    const tp1 = pt1.matrixTransform(m);
+    const tp2 = pt2.matrixTransform(m);
+    return {
+        x: Math.min(tp1.x, tp2.x),
+        y: Math.min(tp1.y, tp2.y),
+        w: Math.abs(tp2.x - tp1.x),
+        h: Math.abs(tp2.y - tp1.y),
+    };
+}
+
+// Verovio reports element times in milliseconds at its own default playback
+// tempo, which is NOT guaranteed to be 120 bpm — current builds use 60 bpm
+// (1000 ms per quarter). A hard-coded constant silently breaks when that default
+// changes, which mis-maps every clicked chord. Instead derive the factor from
+// the data: every note time equals scorePosition × k, so the k shared by the
+// most notes is the right one. (Notes at scorePosition 0 carry no information.)
+function deriveMsPerQuarter(noteTimes) {
+    const positions = chordDataStore.map(cd => cd.scorePosition).filter(p => p > 0);
+    if (!positions.length) return 1000;
+
+    const votes = new Map();
+    for (const t of noteTimes) {
+        if (t <= 0) continue;
+        for (const s of positions) {
+            const k = Math.round((t / s) * 10) / 10;
+            votes.set(k, (votes.get(k) || 0) + 1);
+        }
+    }
+
+    let best = 1000, bestVotes = -1;
+    for (const [k, n] of votes) if (n > bestVotes) { bestVotes = n; best = k; }
+    return best || 1000;
+}
+
+// Map chordDataStore index → its .note SVG elements on the current page.
+function buildChordElementMap(svgEl, tk) {
+    if (!chordDataStore.length) return {};
+
+    // Collect every note element Verovio can time, then derive the tempo factor.
+    const noteEls = [];
+    svgEl.querySelectorAll('.note').forEach(el => {
+        if (!el.id) return;
+        let timeMs;
+        try { timeMs = tk.getTimeForElement(el.id); } catch (e) { return; }
+        if (timeMs == null) return;
+        noteEls.push({ el, timeMs });
+    });
+    if (!noteEls.length) return {};
+
+    const msPerQuarter = deriveMsPerQuarter(noteEls.map(n => n.timeMs));
+
+    const chordTimeMap = {};
+    chordDataStore.forEach((cd, idx) => { chordTimeMap[Math.round(cd.scorePosition * msPerQuarter)] = idx; });
+
+    // Exact key first, then a small tolerance (scaled to the tempo) to absorb
+    // floating-point rounding between Verovio's clock and our derived factor.
+    const tol = Math.max(5, Math.round(msPerQuarter * 0.02));
+    const lookupTime = (ms) => {
+        const t = Math.round(ms);
+        if (t in chordTimeMap) return chordTimeMap[t];
+        for (let d = 1; d <= tol; d++) {
+            if ((t - d) in chordTimeMap) return chordTimeMap[t - d];
+            if ((t + d) in chordTimeMap) return chordTimeMap[t + d];
+        }
+        return null;
+    };
+
+    const idxToEls = {};
+    noteEls.forEach(({ el, timeMs }) => {
+        const idx = lookupTime(timeMs);
+        if (idx === null) return;
+        (idxToEls[idx] ||= []).push(el);
+    });
+    return idxToEls;
+}
+
+// Draw a small bracket + key label above the first rendered measure of each
+// detected phrase. Confidence drives colour/opacity. Display-only — the output
+// MusicXML armature is never modified. Self-contained so it can be re-run when
+// the realization tab is first shown (geometry is unavailable while hidden).
+function drawPassageKeyLabels(svgEl) {
+    const tk = scores['real'].tk;
+    if (!tk || !passageStore.length || !chordDataStore.length) return;
+
+    // Geometry is meaningless while the pane is display:none — getScreenCTM is
+    // null in that case. Bail; the tab-switch handler redraws once visible.
+    if (!svgEl.getScreenCTM()) return;
+
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    const old = svgEl.querySelector('.passage-key-layer');
+    if (old) old.remove();
+
+    // Calibrate the font in ROOT/screen units (the space svgBBoxInRoot returns),
+    // using a notehead/figure as a size reference. Mixing Verovio's internal
+    // getBBox units with root coordinates would make the text wildly oversized.
+    let baseFont = 0;
+    const ref = svgEl.querySelector('.notehead') || svgEl.querySelector('.harm') || svgEl.querySelector('.note');
+    if (ref) { const b = svgBBoxInRoot(svgEl, ref); if (b.h) baseFont = b.h * 1.8; }
+    if (!baseFont || baseFont < 6) baseFont = 16;
+
+    const idxToEls = buildChordElementMap(svgEl, tk);
+    if (!Object.keys(idxToEls).length) return;
+
+    const layer = document.createElementNS(SVGNS, 'g');
+    layer.setAttribute('class', 'passage-key-layer');
+    svgEl.appendChild(layer); // draw on top
+
+    passageStore.forEach(p => {
+        // First chord of this passage that is actually rendered on this page.
+        let idx = -1;
+        for (let i = 0; i < chordDataStore.length; i++) {
+            if (chordDataStore[i].measureNum === p.start_measure && idxToEls[i]) { idx = i; break; }
+        }
+        if (idx < 0) return;
+
+        const boxes = idxToEls[idx].map(el => svgBBoxInRoot(svgEl, el));
+        const left  = Math.min(...boxes.map(b => b.x));
+
+        // Anchor to the top of the staff/system so labels in a row line up,
+        // rather than to each note (whose height varies with pitch and stem).
+        const staffEl  = idxToEls[idx][0].closest('.staff') || idxToEls[idx][0].closest('.system');
+        const staffTop = staffEl ? svgBBoxInRoot(svgEl, staffEl).y : Math.min(...boxes.map(b => b.y));
+
+        // Keep the label inside the page; clamp so the first system isn't clipped.
+        const baseline = Math.max(staffTop - baseFont * 0.6, baseFont);
+
+        const colour = p.confidence === 'high'   ? '#3a7d44'
+                     : p.confidence === 'medium' ? '#9a7d2e'
+                     : '#888';
+        const opacity = p.confidence === 'low' ? '0.6' : '0.95';
+
+        const tick = document.createElementNS(SVGNS, 'line');
+        tick.setAttribute('x1', left);
+        tick.setAttribute('x2', left);
+        tick.setAttribute('y1', baseline - baseFont * 0.85);
+        tick.setAttribute('y2', staffTop);
+        tick.setAttribute('stroke', colour);
+        tick.setAttribute('stroke-width', String(Math.max(baseFont * 0.07, 0.8)));
+        tick.setAttribute('opacity', opacity);
+        layer.appendChild(tick);
+
+        const text = document.createElementNS(SVGNS, 'text');
+        text.setAttribute('x', left + baseFont * 0.3);
+        text.setAttribute('y', baseline);
+        text.setAttribute('fill', colour);
+        text.setAttribute('font-size', String(baseFont));
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('font-family', 'system-ui, -apple-system, sans-serif');
+        text.setAttribute('opacity', opacity);
+        text.textContent = passageKeyLabel(p);
+        layer.appendChild(text);
+    });
+}
+
 // ── Chord click handlers ──────────────────────────────────
 
 function attachChordClickHandlers(svgEl) {
     const tk = scores['real'].tk;
     if (!tk || !chordDataStore.length) return;
 
-    // Build timeMs → chordDataStore index map.
-    const chordTimeMap = {};
-    chordDataStore.forEach((cd, idx) => {
-        const t = Math.round(cd.scorePosition * 500);
-        chordTimeMap[t] = idx;
-    });
-
-    // Tolerance lookup: try exact first, then ±5 ms to absorb rounding.
-    function lookupTime(ms) {
-        const t = Math.round(ms);
-        if (t in chordTimeMap) return chordTimeMap[t];
-        for (let d = 1; d <= 5; d++) {
-            if ((t - d) in chordTimeMap) return chordTimeMap[t - d];
-            if ((t + d) in chordTimeMap) return chordTimeMap[t + d];
-        }
-        return null;
-    }
-
-    // Returns element bbox in SVG root coordinate space using screen CTM.
-    function svgBBoxInRoot(el) {
-        const bb     = el.getBBox();
-        const elCTM  = el.getScreenCTM();
-        const svgCTM = svgEl.getScreenCTM();
-        if (!elCTM || !svgCTM) return { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
-        const m   = svgCTM.inverse().multiply(elCTM);
-        const pt1 = svgEl.createSVGPoint(); pt1.x = bb.x;            pt1.y = bb.y;
-        const pt2 = svgEl.createSVGPoint(); pt2.x = bb.x + bb.width; pt2.y = bb.y + bb.height;
-        const tp1 = pt1.matrixTransform(m);
-        const tp2 = pt2.matrixTransform(m);
-        return {
-            x: Math.min(tp1.x, tp2.x),
-            y: Math.min(tp1.y, tp2.y),
-            w: Math.abs(tp2.x - tp1.x),
-            h: Math.abs(tp2.y - tp1.y),
-        };
-    }
-
-    // Group .note elements by chordDataStore index using getTimeForElement.
-    const idxToEls = {};
-
-    svgEl.querySelectorAll('.note').forEach(el => {
-        if (!el.id) return;
-        let timeMs;
-        try { timeMs = tk.getTimeForElement(el.id); } catch (e) { return; }
-        if (timeMs == null) return;
-        const idx = lookupTime(timeMs);
-        if (idx === null) return;
-        if (!idxToEls[idx]) idxToEls[idx] = [];
-        idxToEls[idx].push(el);
-    });
-
+    const idxToEls = buildChordElementMap(svgEl, tk);
     if (!Object.keys(idxToEls).length) return;
+
+    // Graphical phrase-key labels (detected tonality per passage). No-ops while
+    // the pane is hidden; the score-tab handler redraws once it is shown.
+    drawPassageKeyLabels(svgEl);
 
     // Hover-rect layer inserted behind all notes
     const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -277,7 +425,7 @@ function attachChordClickHandlers(svgEl) {
         // Lazily build the rect on first hover
         const ensureRect = () => {
             if (rect) return rect;
-            const boxes  = els.map(svgBBoxInRoot);
+            const boxes  = els.map(el => svgBBoxInRoot(svgEl, el));
             const PAD_X  = 20;
             const PAD_Y  = 40;
             const left   = Math.min(...boxes.map(b => b.x))       - PAD_X;

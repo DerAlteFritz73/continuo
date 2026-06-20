@@ -134,6 +134,7 @@ form.addEventListener('submit', async ev => {
         currentXml      = data.xml;
         currentInputXml = data.inputXml || null;
         chordDataStore  = data.chordData || [];
+        passageStore    = data.passages  || [];
         buildFbComputedFlags();
         showResult(data);
     } catch (err) {
@@ -175,11 +176,15 @@ function showResult(data) {
         passagesList.innerHTML = passages.map((p, idx) => {
             const keyName = keyFifthsToName(p.key.fifths, p.key.mode);
             const confClass = 'conf-' + p.confidence;
+            const cadence = p.cadence
+                ? `<span class="passage-cadence" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">⟂ ${escapeHtml(p.cadence)}</span>`
+                : '';
             return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-radius:3px;background:var(--bg);display:flex;justify-content:space-between;align-items:center">
                 <div style="flex:1">
                     <strong>Measures ${p.start_measure}–${p.end_measure}</strong>
                     <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
                     <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
+                    ${cadence}
                 </div>
                 <button class="passage-edit-btn" data-idx="${idx}" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:var(--accent);color:white;border:none;border-radius:2px;cursor:pointer">Edit</button>
             </div>`;
@@ -256,9 +261,15 @@ const KEY_NAMES = {
     '0': 'C', '1': 'G', '2': 'D', '3': 'A', '4': 'E', '5': 'B', '6': 'F#', '7': 'C#'
 };
 
+// A given signature names a different tonic in minor (its relative minor).
+const KEY_NAMES_MINOR = {
+    '-7': 'Ab', '-6': 'Eb', '-5': 'Bb', '-4': 'F', '-3': 'C', '-2': 'G', '-1': 'D',
+    '0': 'A', '1': 'E', '2': 'B', '3': 'F#', '4': 'C#', '5': 'G#', '6': 'D#', '7': 'A#'
+};
+
 function keyFifthsToName(fifths, mode) {
-    const root = KEY_NAMES[fifths] || 'C';
-    return mode === 'minor' ? root + 'm' : root;
+    if (mode === 'minor') return (KEY_NAMES_MINOR[fifths] || 'A') + 'm';
+    return KEY_NAMES[fifths] || 'C';
 }
 
 function editPassageKey(passage, idx) {

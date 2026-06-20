@@ -79,7 +79,7 @@ class ContinuoController extends AbstractController
             // Detect passages and keys
             $score->passages = $this->passageDetector->detectPassages($score);
 
-            // Apply detected passages to measures (updates key signatures at boundaries)
+            // Attach detected local keys to measures (context hint + display only)
             $this->applyPassagesToScore($score);
 
             // Realize
@@ -145,7 +145,7 @@ class ContinuoController extends AbstractController
             // Detect passages and keys
             $score->passages = $this->passageDetector->detectPassages($score);
 
-            // Apply detected passages to measures (updates key signatures at boundaries)
+            // Attach detected local keys to measures (context hint + display only)
             $this->applyPassagesToScore($score);
 
             $score      = $this->realizer->realize($score, $numVoices);
@@ -301,14 +301,20 @@ class ContinuoController extends AbstractController
         ];
     }
 
+    /**
+     * Attach each detected phrase key to its measures as `detectedKey`. This is
+     * a context hint for realization and the source for the graphical phrase
+     * labels — it is deliberately NOT written to `keySignature`, so the output
+     * MusicXML armature stays exactly as the source had it (no spurious key
+     * changes at every passage boundary).
+     */
     private function applyPassagesToScore(\App\Model\Score $score): void
     {
         foreach ($score->passages as $passage) {
-            // Set the detected key at the start of each passage
             foreach ($score->measures as $measure) {
-                if ($measure->number === $passage['start_measure']) {
-                    $measure->keySignature = $passage['key'];
-                    break;
+                if ($measure->number >= $passage['start_measure']
+                    && $measure->number <= $passage['end_measure']) {
+                    $measure->detectedKey = $passage['key'];
                 }
             }
         }

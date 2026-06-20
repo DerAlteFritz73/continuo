@@ -20,8 +20,16 @@ class Measure
      */
     public array $melodyNotes = [];
 
-    public ?array $keySignature  = null;   // ['fifths' => int, 'mode' => string]
+    public ?array $keySignature  = null;   // ['fifths' => int, 'mode' => string] — from the source, drives the output armature
     public ?array $timeSignature = null;   // ['beats' => int, 'beatType' => int]
+
+    /**
+     * Auto-detected local key for this measure's phrase. Used as a harmonic
+     * context for realization but deliberately NOT serialized to the output
+     * armature (it would rewrite the key signature mid-piece). Display-only +
+     * realization hint. ['fifths' => int, 'mode' => string]
+     */
+    public ?array $detectedKey = null;
 
     public function __construct(
         public readonly int $number,

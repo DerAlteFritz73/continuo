@@ -190,10 +190,15 @@ class ImslpController extends AbstractController
 
             $progressFile = $jobId !== '' ? sys_get_temp_dir() . '/imslp_dl_' . $jobId . '.json' : null;
 
-            // Collect valid filenames up front so we know the total for progress
+            // Collect valid filenames up front so we know the total for progress.
+            // IMSLP filenames are wiki page titles and routinely contain spaces,
+            // commas, apostrophes, parentheses and accented (UTF-8) characters,
+            // e.g. "PMLP923356-...Messe_brève_No._7_'aux_chapelles'.pdf".
+            // Only require a known extension and reject path-traversal sequences.
             $valid = array_values(array_filter(
                 array_map(fn($f) => basename((string) $f), $filenames),
-                fn($f) => (bool) preg_match('/^[A-Za-z0-9][A-Za-z0-9_\-\.]+\.(pdf|jpg|png|midi?|xml|mxl|mp3|ogg|flac)$/i', $f)
+                fn($f) => !str_contains($f, '..')
+                    && (bool) preg_match('/^[^\/\\\\]+\.(pdf|jpe?g|png|midi?|xml|mxl|mp3|ogg|flac)$/iu', $f)
             ));
             $total = count($valid);
 
@@ -401,12 +406,24 @@ class ImslpController extends AbstractController
             CURLOPT_COOKIEJAR      => $cookieJar,
         ]);
         curl_setopt($ch, CURLOPT_COOKIELIST, 'Set-Cookie: redirectPassed=1; path=/; Domain=.imslp.org');
-        $html     = curl_exec($ch);
-        $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $html      = curl_exec($ch);
+        $finalUrl  = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $finalType = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         curl_close($ch);
 
         if ($html === null || $html === false) return null;
         $html = (string) $html;
+
+        // Path 0: curl followed the redirect chain straight to the file on a CDN
+        // mirror (e.g. https://vmirror.imslp.org/files/imglnks/...pdf). The body
+        // IS the file — no HTML handler page to scrape. Detect via the file path
+        // or a non-HTML content type and return it directly.
+        $landedOnFile = str_contains($finalUrl, '/files/imglnks/')
+            || (preg_match('#^(?:application|image|audio)/#i', $finalType)
+                && !str_contains(strtolower($finalType), 'html'));
+        if ($landedOnFile && $html !== '' && !str_starts_with(ltrim($html), '<!')) {
+            return $html;
+        }
 
         // Path A: landed on IMSLPImageHandler — extract the CDN URL from data-id
         if (preg_match('/data-id="([^"]+)"/', $html, $m)) {

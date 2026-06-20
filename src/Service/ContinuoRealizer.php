@@ -41,8 +41,12 @@ class ContinuoRealizer
         $noteIndex = 0;
 
         foreach ($score->measures as $measure) {
-            $keyFifths  = $measure->keySignature['fifths'] ?? $score->keyFifths;
-            $keyMode    = $measure->keySignature['mode']   ?? $score->keyMode;
+            // Prefer an explicit source key signature; fall back to the
+            // auto-detected local key (display-only, never serialized), then the
+            // global key. This lets modulating pieces realize against the right
+            // scale without altering the output armature.
+            $keyFifths  = $measure->keySignature['fifths'] ?? $measure->detectedKey['fifths'] ?? $score->keyFifths;
+            $keyMode    = $measure->keySignature['mode']   ?? $measure->detectedKey['mode']   ?? $score->keyMode;
             $bassOffset = 0.0; // cumulative quarter-note offset within this measure
 
             foreach ($measure->bassNotes as $i => $bassNote) {
