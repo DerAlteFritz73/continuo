@@ -179,14 +179,17 @@ function showResult(data) {
             const cadence = p.cadence
                 ? `<span class="passage-cadence" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">⟂ ${escapeHtml(p.cadence)}</span>`
                 : '';
-            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-radius:3px;background:var(--bg);display:flex;justify-content:space-between;align-items:center">
-                <div style="flex:1">
-                    <strong>Measures ${p.start_measure}–${p.end_measure}</strong>
-                    <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
-                    <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
-                    ${cadence}
+            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-radius:3px;background:var(--bg)">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="flex:1">
+                        <strong>Measures ${p.start_measure}–${p.end_measure}</strong>
+                        <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
+                        <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
+                        ${cadence}
+                    </div>
+                    <button class="passage-edit-btn" data-idx="${idx}" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:var(--accent);color:white;border:none;border-radius:2px;cursor:pointer">Edit</button>
                 </div>
-                <button class="passage-edit-btn" data-idx="${idx}" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:var(--accent);color:white;border:none;border-radius:2px;cursor:pointer">Edit</button>
+                ${passageTraceHtml(p)}
             </div>`;
         }).join('');
         passagesPanel.style.display = '';
@@ -270,6 +273,44 @@ const KEY_NAMES_MINOR = {
 function keyFifthsToName(fifths, mode) {
     if (mode === 'minor') return (KEY_NAMES_MINOR[fifths] || 'A') + 'm';
     return KEY_NAMES[fifths] || 'C';
+}
+
+const PC_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+
+// Expandable "why this key?" decision trace for a detected passage: the phrase
+// boundary, the weighted pitch-class evidence, the ranked Krumhansl–Schmuckler
+// candidate correlations, and the confidence reasoning.
+function passageTraceHtml(p) {
+    const t = p.key_trace;
+    if (!t || !t.candidates || !t.candidates.length) return '';
+
+    const boundary = p.boundary === 'cadence'
+        ? 'cadence' + (p.cadence ? ' (' + escapeHtml(p.cadence) + ')' : '')
+        : p.boundary === 'key-change'  ? 'explicit key change'
+        : p.boundary === 'end-of-piece' ? 'end of piece'
+        : '—';
+
+    const profile = (t.profile || [])
+        .map(e => (PC_NAMES[e.pc] || '?') + ' ' + e.pct + '%')
+        .join('   ');
+
+    const cands = t.candidates.map(c => {
+        const name = keyFifthsToName(c.fifths, c.mode);
+        const style = c.winner ? 'font-weight:700;color:var(--accent)' : 'opacity:0.7';
+        return `<li style="${style}">${escapeHtml(name)} — r=${c.correlation.toFixed(3)}${c.winner ? ' ✓' : ''}</li>`;
+    }).join('');
+
+    return `<details class="passage-trace" style="margin-top:0.45rem">
+        <summary style="cursor:pointer;font-size:0.78rem;opacity:0.75">Why this key?</summary>
+        <div style="margin-top:0.4rem;font-size:0.78rem;line-height:1.55">
+            <div><strong>Phrase boundary:</strong> ${boundary}</div>
+            <div><strong>Weighted pitch-class profile:</strong> <span style="font-family:monospace">${escapeHtml(profile)}</span></div>
+            <div style="margin-top:0.3rem"><strong>Krumhansl–Schmuckler correlation:</strong></div>
+            <ul style="margin:0.2rem 0 0.25rem 1.1rem;padding:0;font-family:monospace;list-style:none">${cands}</ul>
+            <div><strong>Margin over runner-up:</strong> ${(t.margin ?? 0).toFixed(3)}</div>
+            <div><strong>Confidence:</strong> ${escapeHtml(t.confidence || '')}</div>
+        </div>
+    </details>`;
 }
 
 function editPassageKey(passage, idx) {

@@ -28,7 +28,8 @@ class PassageDetector
 
     /**
      * @return list<array{start_measure:int, end_measure:int, key:array{fifths:int,mode:string},
-     *                    confidence:string, correlation:float, cadence:?string}>
+     *                    confidence:string, correlation:float, cadence:?string, boundary:string,
+     *                    key_trace:array}>
      */
     public function detectPassages(Score $score): array
     {
@@ -62,7 +63,9 @@ class PassageDetector
             $keyChangeNext = $i < $lastIndex && $this->isExplicitKeyChange($measures[$i + 1], $measure);
 
             if ($cadenceHere !== null || $keyChangeNext || $i === $lastIndex) {
-                $passages[] = $this->makePassage($segment, $cadenceHere, $divisions);
+                $boundary = $cadenceHere !== null ? 'cadence'
+                    : ($keyChangeNext ? 'key-change' : 'end-of-piece');
+                $passages[] = $this->makePassage($segment, $cadenceHere, $divisions, $boundary);
                 $segment    = [];
             }
         }
@@ -73,8 +76,9 @@ class PassageDetector
     /**
      * @param Measure[] $segment
      * @param array{type:string}|null $cadence
+     * @param string $boundary what closed the phrase: cadence|key-change|end-of-piece
      */
-    private function makePassage(array $segment, ?array $cadence, int $divisions): array
+    private function makePassage(array $segment, ?array $cadence, int $divisions, string $boundary): array
     {
         $estimate = $this->keyEstimator->estimateFromHistogram(
             $this->histogramForRange($segment, $divisions)
@@ -90,6 +94,8 @@ class PassageDetector
             'confidence'    => $estimate['confidence'],
             'correlation'   => round($estimate['correlation'], 3),
             'cadence'       => $cadence['type'] ?? null,
+            'boundary'      => $boundary,
+            'key_trace'     => $estimate['trace'] ?? [],
         ];
     }
 
@@ -148,6 +154,8 @@ class PassageDetector
                 $prev['confidence']    = $passage['confidence'];
                 $prev['correlation']   = $passage['correlation'];
                 $prev['cadence']       = $passage['cadence'];
+                $prev['boundary']      = $passage['boundary'];
+                $prev['key_trace']     = $passage['key_trace'];
                 $merged[]              = $prev;
             } else {
                 $merged[] = $passage;

@@ -38,6 +38,9 @@ class LocalKeyEstimator
         6 => 6, 7 => 1, 8 => -4, 9 => 3, 10 => -2, 11 => 5,
     ];
 
+    /** Neutral (sharp) pitch-class names for the histogram trace. */
+    private const PC_NAMES = ['C', "C\u{266F}", 'D', "D\u{266F}", 'E', 'F', "F\u{266F}", 'G', "G\u{266F}", 'A', "A\u{266F}", 'B'];
+
     /**
      * Estimate the key from a duration-weighted pitch-class histogram.
      *
@@ -56,6 +59,7 @@ class LocalKeyEstimator
                 'correlation'  => 0.0,
                 'confidence'   => 'low',
                 'alternatives' => [],
+                'trace'        => [],
             ];
         }
 
@@ -70,6 +74,7 @@ class LocalKeyEstimator
         $best                 = $scored[0];
         $best['confidence']   = $this->confidence($best['correlation'], $scored[1]['correlation'] ?? 0.0);
         $best['alternatives'] = array_slice($scored, 1, 3);
+        $best['trace']        = $this->buildTrace($histogram, $scored);
 
         return $best;
     }
@@ -158,19 +163,97 @@ class LocalKeyEstimator
         return $den > 0.0 ? $num / $den : 0.0;
     }
 
+    /** Correlation / margin thresholds for the low/medium/high confidence bands. */
+    private const HIGH_CORR   = 0.70;
+    private const HIGH_MARGIN = 0.04;
+    private const MED_CORR    = 0.50;
+
     /**
      * Map the winning correlation (and its margin over the runner-up) onto the
      * coarse low/medium/high scale the UI already understands.
      */
     private function confidence(float $best, float $second): string
     {
-        if ($best >= 0.70 && ($best - $second) >= 0.04) {
+        if ($best >= self::HIGH_CORR && ($best - $second) >= self::HIGH_MARGIN) {
             return 'high';
         }
-        if ($best >= 0.50) {
+        if ($best >= self::MED_CORR) {
             return 'medium';
         }
 
         return 'low';
+    }
+
+    /**
+     * A human-readable explanation of how the algorithm reached this key: the
+     * pitch-class evidence, the ranked candidate correlations, the margin over
+     * the runner-up and the confidence reasoning. Display-only; mirrors the
+     * decision-trace shown for individual chords.
+     *
+     * @param float[] $histogram
+     * @param list<array{fifths:int,mode:string,tonicPc:int,correlation:float}> $scored ranked best-first
+     *
+     * @return array{profile:list<array{pc:int,pct:int}>,
+     *               candidates:list<array{fifths:int,mode:string,correlation:float,winner:bool}>,
+     *               margin:float, confidence:string}
+     */
+    private function buildTrace(array $histogram, array $scored): array
+    {
+        $total = array_sum($histogram);
+
+        // The evidence: the heaviest pitch classes, as a share of total weight.
+        $weights = [];
+        foreach ($histogram as $pc => $w) {
+            if ($w > 0.0) {
+                $weights[$pc] = $w;
+            }
+        }
+        arsort($weights);
+
+        $profile = [];
+        foreach (array_slice($weights, 0, 7, true) as $pc => $w) {
+            $profile[] = ['pc' => $pc, 'pct' => (int) round(100 * $w / $total)];
+        }
+
+        // The comparison: the top candidate keys with their correlations.
+        $candidates = [];
+        foreach (array_slice($scored, 0, 4) as $rank => $cand) {
+            $candidates[] = [
+                'fifths'      => $cand['fifths'],
+                'mode'        => $cand['mode'],
+                'correlation' => round($cand['correlation'], 3),
+                'winner'      => $rank === 0,
+            ];
+        }
+
+        $best   = $scored[0]['correlation'];
+        $second = $scored[1]['correlation'] ?? 0.0;
+
+        return [
+            'profile'    => $profile,
+            'candidates' => $candidates,
+            'margin'     => round($best - $second, 3),
+            'confidence' => $this->confidenceReason($best, $second),
+        ];
+    }
+
+    /** Spell out which confidence band fired, with the actual numbers. */
+    private function confidenceReason(float $best, float $second): string
+    {
+        $margin = $best - $second;
+        if ($best >= self::HIGH_CORR && $margin >= self::HIGH_MARGIN) {
+            return sprintf(
+                "high \u{2014} correlation %.2f \u{2265} %.2f and margin %.2f \u{2265} %.2f",
+                $best, self::HIGH_CORR, $margin, self::HIGH_MARGIN
+            );
+        }
+        if ($best >= self::MED_CORR) {
+            return sprintf(
+                "medium \u{2014} correlation %.2f \u{2265} %.2f but margin %.2f below %.2f",
+                $best, self::MED_CORR, $margin, self::HIGH_MARGIN
+            );
+        }
+
+        return sprintf("low \u{2014} correlation %.2f below %.2f", $best, self::MED_CORR);
     }
 }
