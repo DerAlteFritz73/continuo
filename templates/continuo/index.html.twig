@@ -127,7 +127,9 @@
                 </div>
                 {% endif %}
 
-                <form id="upload-form" action="{{ path('app_realize_preview') }}" method="post" enctype="multipart/form-data">
+                <form id="upload-form" action="{{ path('app_realize_preview') }}" method="post" enctype="multipart/form-data"
+                      data-sample-url="/sample/{{ 'BWV_1034 - flûte mi-m.musicxml'|url_encode }}"
+                      data-sample-name="BWV_1034 - flûte mi-m.musicxml">
                     <div class="drop-zone" id="drop-zone">
                         <input type="file" name="musicxml" id="file-input" accept=".xml,.musicxml,.mxl">
                         <span class="icon">𝄞</span>
