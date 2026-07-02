@@ -343,8 +343,8 @@ function drawPassageKeyLabels(svgEl) {
     // getBBox units with root coordinates would make the text wildly oversized.
     let baseFont = 0;
     const ref = svgEl.querySelector('.notehead') || svgEl.querySelector('.harm') || svgEl.querySelector('.note');
-    if (ref) { const b = svgBBoxInRoot(svgEl, ref); if (b.h) baseFont = b.h * 1.8; }
-    if (!baseFont || baseFont < 6) baseFont = 16;
+    if (ref) { const b = svgBBoxInRoot(svgEl, ref); if (b.h) baseFont = b.h * 1.05; }
+    if (!baseFont || baseFont < 5) baseFont = 10;
 
     const idxToEls = buildChordElementMap(svgEl, tk);
     if (!Object.keys(idxToEls).length) return;
@@ -353,7 +353,7 @@ function drawPassageKeyLabels(svgEl) {
     layer.setAttribute('class', 'passage-key-layer');
     svgEl.appendChild(layer); // draw on top
 
-    passageStore.forEach(p => {
+    passageStore.forEach((p, pIdx) => {
         // First chord of this passage that is actually rendered on this page.
         let idx = -1;
         for (let i = 0; i < chordDataStore.length; i++) {
@@ -372,10 +372,10 @@ function drawPassageKeyLabels(svgEl) {
         // Keep the label inside the page; clamp so the first system isn't clipped.
         const baseline = Math.max(staffTop - baseFont * 0.6, baseFont);
 
-        const colour = p.confidence === 'high'   ? '#3a7d44'
-                     : p.confidence === 'medium' ? '#9a7d2e'
-                     : '#888';
-        const opacity = p.confidence === 'low' ? '0.6' : '0.95';
+        // Colour identifies which phrase this is (matches the panel legend);
+        // confidence is conveyed by opacity so both signals survive.
+        const colour  = passageColor(pIdx);
+        const opacity = p.confidence === 'low' ? '0.65' : p.confidence === 'medium' ? '0.85' : '1';
 
         const tick = document.createElementNS(SVGNS, 'line');
         tick.setAttribute('x1', left);
@@ -383,7 +383,7 @@ function drawPassageKeyLabels(svgEl) {
         tick.setAttribute('y1', baseline - baseFont * 0.85);
         tick.setAttribute('y2', staffTop);
         tick.setAttribute('stroke', colour);
-        tick.setAttribute('stroke-width', String(Math.max(baseFont * 0.07, 0.8)));
+        tick.setAttribute('stroke-width', String(Math.max(baseFont * 0.08, 0.8)));
         tick.setAttribute('opacity', opacity);
         layer.appendChild(tick);
 
@@ -392,7 +392,7 @@ function drawPassageKeyLabels(svgEl) {
         text.setAttribute('y', baseline);
         text.setAttribute('fill', colour);
         text.setAttribute('font-size', String(baseFont));
-        text.setAttribute('font-weight', '700');
+        text.setAttribute('font-weight', '600');
         text.setAttribute('font-family', 'system-ui, -apple-system, sans-serif');
         text.setAttribute('opacity', opacity);
         text.textContent = passageKeyLabel(p);

@@ -179,9 +179,11 @@ function showResult(data) {
             const cadence = p.cadence
                 ? `<span class="passage-cadence" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">⟂ ${escapeHtml(p.cadence)}</span>`
                 : '';
-            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-radius:3px;background:var(--bg)">
+            const colour = passageColor(idx);
+            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-left:3px solid ${colour};border-radius:3px;background:var(--bg)">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                     <div style="flex:1">
+                        <span class="passage-swatch" style="display:inline-block;width:0.7rem;height:0.7rem;border-radius:2px;background:${colour};vertical-align:middle;margin-right:0.4rem"></span>
                         <strong>Measures ${p.start_measure}–${p.end_measure}</strong>
                         <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
                         <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
