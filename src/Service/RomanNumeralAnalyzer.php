@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Model\Measure;
+use App\Model\Score;
 
 /**
  * Turns a figured bass line into a phrase-level Roman-numeral progression.
@@ -95,6 +96,51 @@ class RomanNumeralAnalyzer
         }
 
         return $progression;
+    }
+
+    /**
+     * Roman numeral for every structural chord of a realized score, keyed by
+     * "measureNumber:noteIndex" so the front-end can place each numeral under its
+     * bass note. Each measure is read in its own local key (source signature →
+     * detected key → global), so the labels match the on-score phrase keys and
+     * the panel progression. Applied dominants are resolved across the whole
+     * chord stream; passing (non-structural) notes get no label.
+     *
+     * @return array<string,string> "measureNum:noteIndex" → rendered Roman numeral
+     */
+    public function analyzePerChord(Score $score): array
+    {
+        $divisions = max(1, $score->divisions);
+        $chords    = [];
+
+        foreach ($score->measures as $measure) {
+            $fifths = $measure->keySignature['fifths'] ?? $measure->detectedKey['fifths'] ?? $score->keyFifths;
+            $mode   = $measure->keySignature['mode']   ?? $measure->detectedKey['mode']   ?? $score->keyMode;
+            $scale  = PitchHelper::buildScale($fifths, $mode);
+
+            $offsetQn = 0.0;
+            foreach ($measure->bassNotes as $i => $note) {
+                $durationQn = $note->duration / $divisions;
+                if (!$note->isRest()
+                    && isset($measure->realizedChords[$i])
+                    && $this->isStructural($note, $offsetQn, $durationQn)
+                ) {
+                    $chord              = $this->readChord($note, $measure->number, $fifths, $mode, $scale);
+                    $chord['noteIndex'] = $i;
+                    $chords[]           = $chord;
+                }
+                $offsetQn += $durationQn;
+            }
+        }
+
+        $this->markAppliedDominants($chords, []);
+
+        $map = [];
+        foreach ($chords as $c) {
+            $map[$c['measure'] . ':' . $c['noteIndex']] = $this->render($c);
+        }
+
+        return $map;
     }
 
     /**

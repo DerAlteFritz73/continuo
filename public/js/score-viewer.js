@@ -32,6 +32,7 @@ document.querySelectorAll('.score-tab').forEach(tab => {
             if (svgEl) requestAnimationFrame(() => {
                 drawPhraseBackgrounds(svgEl);
                 drawPassageKeyLabels(svgEl);
+                drawRomanNumerals(svgEl);
             });
         }
     });
@@ -420,6 +421,73 @@ function drawPassageKeyLabels(svgEl) {
     });
 }
 
+// Write the detected Roman numeral for each structural chord beneath the bass
+// line's figures. Numerals come from chordDataStore[idx].roman (computed per
+// chord in the phrase's local key). Placed just below the lowest figured-bass
+// (`.harm`) element of each system so they sit under the figures, aligned to the
+// chord's horizontal position; consecutive repeats of the same numeral within a
+// system are collapsed. Redrawn per page (geometry needs the pane visible).
+function drawRomanNumerals(svgEl) {
+    const tk = scores['real'].tk;
+    if (!tk || !chordDataStore.length) return;
+    if (!svgEl.getScreenCTM()) return;
+
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    svgEl.querySelector('.roman-layer')?.remove();
+
+    let baseFont = 0;
+    const ref = svgEl.querySelector('.notehead') || svgEl.querySelector('.note');
+    if (ref) { const b = svgBBoxInRoot(svgEl, ref); if (b.h) baseFont = b.h * 0.95; }
+    if (!baseFont || baseFont < 5) baseFont = 9;
+
+    const idxToEls = buildChordElementMap(svgEl, tk);
+    if (!Object.keys(idxToEls).length) return;
+
+    const layer = document.createElementNS(SVGNS, 'g');
+    layer.setAttribute('class', 'roman-layer');
+    svgEl.appendChild(layer);
+
+    // Baseline for each system = just under its lowest figure (`.harm`), falling
+    // back to the system's bottom edge when a system carries no figures.
+    const systemBaseline = new Map();
+    const baselineFor = (sys) => {
+        if (systemBaseline.has(sys)) return systemBaseline.get(sys);
+        let y = 0;
+        sys.querySelectorAll('.harm').forEach(h => {
+            const b = svgBBoxInRoot(svgEl, h);
+            if (b.y + b.h > y) y = b.y + b.h;
+        });
+        if (!y) { const b = svgBBoxInRoot(svgEl, sys); y = b.y + b.h; }
+        systemBaseline.set(sys, y + baseFont * 1.25);
+        return systemBaseline.get(sys);
+    };
+
+    let lastRoman = null;
+    let lastSys   = null;
+    Object.keys(idxToEls).map(Number).sort((a, b) => a - b).forEach(idx => {
+        const roman = (chordDataStore[idx] || {}).roman;
+        if (!roman) return;
+
+        const boxes = idxToEls[idx].map(el => svgBBoxInRoot(svgEl, el));
+        const cx    = (Math.min(...boxes.map(b => b.x)) + Math.max(...boxes.map(b => b.x + b.w))) / 2;
+        const sys   = idxToEls[idx][0].closest('.system') || svgEl;
+
+        // Collapse a repeated numeral within the same system.
+        if (roman === lastRoman && sys === lastSys) return;
+        lastRoman = roman; lastSys = sys;
+
+        const text = document.createElementNS(SVGNS, 'text');
+        text.setAttribute('x', cx);
+        text.setAttribute('y', baselineFor(sys));
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', '#c9a24b');
+        text.setAttribute('font-size', String(baseFont * 1.05));
+        text.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
+        text.textContent = roman;
+        layer.appendChild(text);
+    });
+}
+
 // Scroll the passages panel to a given phrase, open its decision trail, and
 // flash it — the target of a click on the on-score tonality label.
 function focusPassageAnalysis(pIdx) {
@@ -516,6 +584,7 @@ function attachChordClickHandlers(svgEl) {
     // Graphical phrase-key labels (detected tonality per passage). No-ops while
     // the pane is hidden; the score-tab handler redraws once it is shown.
     drawPassageKeyLabels(svgEl);
+    drawRomanNumerals(svgEl);
 
     // Hover-rect layer inserted behind all notes
     const hoverLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');

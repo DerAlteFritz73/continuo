@@ -8,6 +8,7 @@ use App\Service\ContinuoRealizer;
 use App\Service\MusicXmlParser;
 use App\Service\MusicXmlSerializer;
 use App\Service\PassageDetector;
+use App\Service\RomanNumeralAnalyzer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +26,7 @@ class ContinuoController extends AbstractController
         private readonly VoiceLeadingRuleRepository $ruleRepository,
         private readonly PassageDetector            $passageDetector,
         private readonly AudioKeyDetector           $audioKeyDetector,
+        private readonly RomanNumeralAnalyzer       $romanAnalyzer,
     ) {}
 
     #[Route('/language/{locale}', name: 'app_language', requirements: ['locale' => 'en|fr|de|cs'])]
@@ -90,6 +92,11 @@ class ContinuoController extends AbstractController
             // Refine cadences against the realized voices (leading-tone signal)
             $this->passageDetector->refineWithRealization($score);
 
+            // Per-chord Roman numerals (on-score labels + panel progressions,
+            // from one source so they always agree)
+            $romanMap = $this->romanAnalyzer->analyzePerChord($score);
+            $this->rebuildPassageProgressions($score, $romanMap);
+
             // Serialize
             $output = $this->serializer->serialize($score);
 
@@ -118,7 +125,7 @@ class ContinuoController extends AbstractController
                     'inputXml'   => $this->serializer->serializeBassLine($score),
                     'filename'   => $outputName,
                     'summary'    => $summary,
-                    'chordData'  => $this->buildChordDataArray($score),
+                    'chordData'  => $this->buildChordDataArray($score, $romanMap),
                     'passages'   => $score->passages,
                 ]);
             }
@@ -155,6 +162,10 @@ class ContinuoController extends AbstractController
 
             $score      = $this->realizer->realize($score, $numVoices);
             $this->passageDetector->refineWithRealization($score);
+
+            $romanMap = $this->romanAnalyzer->analyzePerChord($score);
+            $this->rebuildPassageProgressions($score, $romanMap);
+
             $output     = $this->serializer->serialize($score);
             $summary    = $this->buildSummary($score);
 
@@ -166,7 +177,7 @@ class ContinuoController extends AbstractController
                 'inputXml'  => $this->serializer->serializeBassLine($score),
                 'filename'  => $originalName . '_continuo_realization.xml',
                 'summary'   => $summary,
-                'chordData' => $this->buildChordDataArray($score),
+                'chordData' => $this->buildChordDataArray($score, $romanMap),
                 'passages'  => $score->passages,
             ]);
         } catch (\Throwable $e) {
@@ -252,7 +263,38 @@ class ContinuoController extends AbstractController
         ];
     }
 
-    private function buildChordDataArray(\App\Model\Score $score): array
+    /**
+     * Rebuild each passage's panel progression from the per-chord Roman numeral
+     * map so the panel matches the on-score numerals exactly (and is complete —
+     * mergeShortPassages otherwise keeps only a folded fragment's progression).
+     *
+     * @param array<string,string> $romanMap "measureNum:noteIndex" → Roman numeral
+     */
+    private function rebuildPassageProgressions(\App\Model\Score $score, array $romanMap): void
+    {
+        foreach ($score->passages as &$passage) {
+            $seq  = [];
+            $last = null;
+            foreach ($score->measures as $measure) {
+                if ($measure->number < $passage['start_measure'] || $measure->number > $passage['end_measure']) {
+                    continue;
+                }
+                foreach ($measure->bassNotes as $i => $bassNote) {
+                    $roman = $romanMap[$measure->number . ':' . $i] ?? '';
+                    if ($roman === '' || $roman === $last) {
+                        continue;   // skip passing notes and collapse repeats
+                    }
+                    $seq[] = ['measure' => $measure->number, 'roman' => $roman];
+                    $last  = $roman;
+                }
+            }
+            $passage['progression'] = $seq;
+        }
+        unset($passage);
+    }
+
+    /** @param array<string,string> $romanMap "measureNum:noteIndex" → Roman numeral */
+    private function buildChordDataArray(\App\Model\Score $score, array $romanMap): array
     {
         $data      = [];
         $cumQN     = 0.0;
@@ -280,6 +322,7 @@ class ContinuoController extends AbstractController
                         'measureNum'       => $measure->number,
                         'noteIndex'        => $i,
                         'chordSymbol'      => $chord->chordSymbol,
+                        'roman'            => $romanMap[$measure->number . ':' . $i] ?? '',
                         'figures'          => $this->figureString($chord->figures),
                         'notes'            => $notes,
                         'scaleDegree'      => $dt['scaleDegree'] ?? null,
