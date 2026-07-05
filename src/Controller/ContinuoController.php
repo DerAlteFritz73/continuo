@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Repository\VoiceLeadingRuleRepository;
+use App\Service\AudioKeyDetector;
 use App\Service\ContinuoRealizer;
 use App\Service\MusicXmlParser;
 use App\Service\MusicXmlSerializer;
@@ -23,6 +24,7 @@ class ContinuoController extends AbstractController
         private readonly TranslatorInterface        $translator,
         private readonly VoiceLeadingRuleRepository $ruleRepository,
         private readonly PassageDetector            $passageDetector,
+        private readonly AudioKeyDetector           $audioKeyDetector,
     ) {}
 
     #[Route('/language/{locale}', name: 'app_language', requirements: ['locale' => 'en|fr|de|cs'])]
@@ -84,6 +86,9 @@ class ContinuoController extends AbstractController
 
             // Realize
             $score = $this->realizer->realize($score);
+
+            // Refine cadences against the realized voices (leading-tone signal)
+            $this->passageDetector->refineWithRealization($score);
 
             // Serialize
             $output = $this->serializer->serialize($score);
@@ -149,6 +154,7 @@ class ContinuoController extends AbstractController
             $this->applyPassagesToScore($score);
 
             $score      = $this->realizer->realize($score, $numVoices);
+            $this->passageDetector->refineWithRealization($score);
             $output     = $this->serializer->serialize($score);
             $summary    = $this->buildSummary($score);
 
@@ -166,6 +172,84 @@ class ContinuoController extends AbstractController
         } catch (\Throwable $e) {
             return $this->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Detect tonality/mode directly from an uploaded audio file, using the
+     * loudness-based-chromagram detector (Ni et al. 2012). Returns a global key
+     * plus a local-key timeline. Symbolic (MusicXML) key detection lives in the
+     * realize/preview path; this is the audio-domain counterpart.
+     */
+    #[Route('/detect-audio-key', name: 'app_detect_audio_key', methods: ['POST'])]
+    public function detectAudioKey(Request $request): Response
+    {
+        $file = $request->files->get('audio');
+        if (!$file) {
+            return $this->json(['error' => $this->translator->trans('audio.error.no_file')], 400);
+        }
+
+        $maxSize = 30 * 1024 * 1024; // 30 MB
+        if ($file->getSize() > $maxSize) {
+            return $this->json(['error' => $this->translator->trans('audio.error.too_large')], 400);
+        }
+
+        // The sidecar reads from disk; move the upload to a temp file that keeps
+        // its extension so ffmpeg/librosa can sniff the format reliably.
+        $ext  = strtolower($file->getClientOriginalExtension() ?: 'audio');
+        $tmp  = sprintf('%s/continuo_audio_%s.%s', sys_get_temp_dir(), bin2hex(random_bytes(8)), $ext);
+
+        try {
+            $file->move(\dirname($tmp), basename($tmp));
+            $result = $this->audioKeyDetector->detect($tmp);
+
+            return $this->json([
+                'success'  => true,
+                'filename' => $file->getClientOriginalName(),
+                'duration' => $result['duration'],
+                'global'   => $this->formatAudioKey($result['global']),
+                'timeline' => array_map(
+                    fn(array $seg): array => [
+                        'start' => $seg['start'],
+                        'end'   => $seg['end'],
+                        'key'   => $this->formatAudioKey($seg['key']),
+                    ],
+                    $result['timeline'],
+                ),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->json(['error' => $e->getMessage()], 500);
+        } finally {
+            if (is_file($tmp)) {
+                @unlink($tmp);
+            }
+        }
+    }
+
+    /** Sharp-spelled pitch-class names, index = pitch class (C = 0). */
+    private const PITCH_CLASS_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+
+    /**
+     * Shape a LocalKeyEstimator result for the UI: a display label plus the raw
+     * fields the front end colours/sorts by.
+     *
+     * @param array{tonicPc:int, mode:string, fifths:int, correlation:float, confidence:string} $key
+     *
+     * @return array{label:string, tonicPc:int, mode:string, fifths:int, correlation:float, confidence:string}
+     */
+    private function formatAudioKey(array $key): array
+    {
+        return [
+            'label'       => sprintf(
+                '%s %s',
+                self::PITCH_CLASS_NAMES[$key['tonicPc']],
+                $this->translator->trans('audio.mode.' . $key['mode']),
+            ),
+            'tonicPc'     => $key['tonicPc'],
+            'mode'        => $key['mode'],
+            'fifths'      => $key['fifths'],
+            'correlation' => round($key['correlation'], 3),
+            'confidence'  => $key['confidence'],
+        ];
     }
 
     private function buildChordDataArray(\App\Model\Score $score): array

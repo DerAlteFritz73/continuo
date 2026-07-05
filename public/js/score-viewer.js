@@ -29,7 +29,10 @@ document.querySelectorAll('.score-tab').forEach(tab => {
         // labels can only be placed once its pane becomes visible.
         if (tab.dataset.pane === 'pane-real') {
             const svgEl = document.querySelector('#wrap-real svg');
-            if (svgEl) requestAnimationFrame(() => drawPassageKeyLabels(svgEl));
+            if (svgEl) requestAnimationFrame(() => {
+                drawPhraseBackgrounds(svgEl);
+                drawPassageKeyLabels(svgEl);
+            });
         }
     });
 });
@@ -77,6 +80,8 @@ function renderScorePage(key) {
         const svgEl = wrap.querySelector('svg');
         if (svgEl) {
             attachChordClickHandlers(svgEl);
+            colorFluteByPhrase(svgEl);
+            drawPhraseBackgrounds(svgEl);
 
             // Colour computed figured-bass elements (muted indigo).
             const fbOffset  = (s.fbPageOffsets || [])[s.page - 1] || 0;
@@ -288,6 +293,10 @@ function buildChordElementMap(svgEl, tk) {
     const noteEls = [];
     svgEl.querySelectorAll('.note').forEach(el => {
         if (!el.id) return;
+        // Melody (flute) notes live in their own top staff and are not part of
+        // the realized continuo — keep them out of chord mapping, hover, click,
+        // and the tempo-factor vote.
+        if (el.id.startsWith('flute-')) return;
         let timeMs;
         try { timeMs = tk.getTimeForElement(el.id); } catch (e) { return; }
         if (timeMs == null) return;
@@ -397,6 +406,101 @@ function drawPassageKeyLabels(svgEl) {
         text.setAttribute('opacity', opacity);
         text.textContent = passageKeyLabel(p);
         layer.appendChild(text);
+
+        // Clicking the on-score key label jumps to that phrase's analysis card
+        // and opens its "Why this key?" decision trail.
+        const title = document.createElementNS(SVGNS, 'title');
+        title.textContent = 'Why this key? →';
+        [tick, text].forEach(el => {
+            el.style.cursor = 'pointer';
+            el.setAttribute('pointer-events', 'all');
+            el.appendChild(title.cloneNode(true));
+            el.addEventListener('click', ev => { ev.stopPropagation(); focusPassageAnalysis(pIdx); });
+        });
+    });
+}
+
+// Scroll the passages panel to a given phrase, open its decision trail, and
+// flash it — the target of a click on the on-score tonality label.
+function focusPassageAnalysis(pIdx) {
+    const item = document.getElementById('passage-item-' + pIdx);
+    if (!item) return;
+
+    const trace = item.querySelector('details.passage-trace');
+    if (trace) trace.open = true;
+
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    item.style.transition = 'box-shadow 0.25s ease';
+    item.style.boxShadow  = '0 0 0 2px var(--accent)';
+    setTimeout(() => { item.style.boxShadow = ''; }, 1600);
+}
+
+// Measure number → phrase colour (phrases are contiguous measure ranges).
+function phraseColorByMeasure() {
+    const mColor = {};
+    passageStore.forEach((p, idx) => {
+        const c = passageColor(idx);
+        for (let m = p.start_measure; m <= p.end_measure; m++) mColor[m] = c;
+    });
+    return mColor;
+}
+
+// Draw a translucent background band behind each measure in the colour of the
+// phrase it belongs to. Bands span the full system height so consecutive
+// same-phrase measures read as one continuous band (and wrapped phrases work
+// system-by-system automatically). Needs geometry, so it no-ops while the pane
+// is hidden; the tab-switch handler redraws once visible.
+function drawPhraseBackgrounds(svgEl) {
+    if (!passageStore.length) return;
+    if (!svgEl.getScreenCTM()) return;
+
+    const old = svgEl.querySelector('.phrase-bg-layer');
+    if (old) old.remove();
+
+    const mColor = phraseColorByMeasure();
+    const SVGNS  = 'http://www.w3.org/2000/svg';
+    const layer  = document.createElementNS(SVGNS, 'g');
+    layer.setAttribute('class', 'phrase-bg-layer');
+    svgEl.insertBefore(layer, svgEl.firstChild); // behind the notes
+
+    svgEl.querySelectorAll('.measure[id^="meas-"]').forEach(measEl => {
+        const m = parseInt(measEl.id.slice(5), 10);
+        const c = mColor[m];
+        if (!c) return;
+
+        const sysEl = measEl.closest('.system') || measEl;
+        const mb = svgBBoxInRoot(svgEl, measEl);
+        const sb = svgBBoxInRoot(svgEl, sysEl);
+        if (!mb.w || !sb.h) return;
+
+        const PAD  = sb.h * 0.08;
+        const rect = document.createElementNS(SVGNS, 'rect');
+        rect.setAttribute('x',      mb.x);
+        rect.setAttribute('y',      sb.y - PAD);
+        rect.setAttribute('width',  mb.w);
+        rect.setAttribute('height', sb.h + PAD * 2);
+        rect.setAttribute('fill',   c);
+        rect.setAttribute('opacity', '0.12');
+        layer.appendChild(rect);
+    });
+}
+
+// Tint each melody (flute) note with the colour of the phrase it belongs to,
+// matching the passage-key labels and the panel legend. Flute notes carry an
+// SVG id "flute-{measureNumber}-{i}" (Verovio preserves the MusicXML note id).
+// Purely visual; runs per rendered page so it works with pagination too.
+function colorFluteByPhrase(svgEl) {
+    if (!passageStore.length) return;
+
+    const mColor = phraseColorByMeasure();
+    svgEl.querySelectorAll('[id^="flute-"]').forEach(el => {
+        const m = parseInt(el.id.split('-')[1], 10);
+        const c = mColor[m];
+        if (!c) return;
+        // fill covers noteheads, accidentals and flags; stems are stroked.
+        el.setAttribute('fill', c);
+        el.querySelectorAll('.stem path, .stem rect').forEach(s => s.setAttribute('stroke', c));
     });
 }
 

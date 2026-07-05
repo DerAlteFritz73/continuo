@@ -128,6 +128,13 @@ class ContinuoRealizer
                 // Find melody pitch class sounding at this beat (if any)
                 $melodyPc = $this->findMelodyPc($measure->melodyNotes, $bassOffset);
 
+                // Highest melody (solo) pitch sounding across this chord's span — the
+                // realization's top voice is kept at or below it (the keyboard right
+                // hand stays under the soloist).
+                $melodyCeiling = $this->findMelodyCeiling(
+                    $measure->melodyNotes, $bassOffset, $bassNote->duration
+                );
+
                 // Realize upper voices
                 $chord = $this->voiceLeading->realize(
                     chord: $chord,
@@ -138,6 +145,7 @@ class ContinuoRealizer
                     isLeadingTone7th: $isLeadingTone,
                     melodyPc: $melodyPc,
                     numVoices: $numVoices,
+                    melodyCeiling: $melodyCeiling,
                 );
 
                 // Append voice-leading trace to decision steps (works for both
@@ -173,6 +181,32 @@ class ContinuoRealizer
             }
         }
         return null;
+    }
+
+    /**
+     * Highest melody MIDI sounding anywhere within the bass note's span
+     * [$beatOffset, $beatOffset + $durQuarters). The fast solo line often climbs
+     * above its onset pitch during a single bass note, so the ceiling is the peak
+     * over the whole span, not the pitch at the downbeat. Returns null when no
+     * melody note overlaps (e.g. the soloist rests) — leaving the top voice free.
+     *
+     * @param array<array{offset:float,duration:float,note:Note}> $melodyNotes
+     */
+    private function findMelodyCeiling(array $melodyNotes, float $beatOffset, float $durQuarters): ?int
+    {
+        $end     = $beatOffset + $durQuarters;
+        $ceiling = null;
+        foreach ($melodyNotes as $mn) {
+            if (!isset($mn['note']) || !$mn['note'] instanceof Note) {
+                continue;
+            }
+            // Overlap of [offset, offset+duration) with [beatOffset, end).
+            if ($mn['offset'] < $end - 0.001 && $mn['offset'] + $mn['duration'] > $beatOffset + 0.001) {
+                $midi    = $mn['note']->midiPitch();
+                $ceiling = $ceiling === null ? $midi : max($ceiling, $midi);
+            }
+        }
+        return $ceiling;
     }
 
     /**

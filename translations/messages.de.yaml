@@ -24,6 +24,26 @@ upload:
     sample_hint: "Beispieldatei laden"
     progress: "Basslinie wird analysiert und Harmonie realisiert…"
 
+# ── Tonart-Erkennung aus Audio ───────────────────────────────────────────────
+audio:
+    title: "Tonart aus Audio erkennen"
+    drop_label: "Audiodatei hier ablegen"
+    drop_hint: "oder klicken zum Auswählen — .mp3 / .wav / .flac / .ogg, max. 30 MB"
+    detect_btn: "Tonart erkennen"
+    progress: "Audio wird dekodiert und Tonalität analysiert…"
+    global_label: "Gesamttonart"
+    timeline_label: "Verlauf der lokalen Tonarten"
+    col_time: "Zeit (s)"
+    col_key: "Tonart"
+    col_corr: "Korr."
+    col_conf: "Konfidenz"
+    mode:
+        major: "Dur"
+        minor: "Moll"
+    error:
+        no_file: "Bitte laden Sie eine Audiodatei hoch."
+        too_large: "Audiodatei zu groß (max. 30 MB)."
+
 # ── Errors ───────────────────────────────────────────────────────────────────
 error:
     no_file: "Bitte laden Sie eine MusicXML-Datei hoch."

@@ -24,6 +24,26 @@ upload:
     sample_hint: "načíst ukázkový soubor"
     progress: "Analyzuji basovou linku a realizuji harmonii…"
 
+# ── Detekce tóniny z audia ───────────────────────────────────────────────────
+audio:
+    title: "Detekovat tóninu z audia"
+    drop_label: "Sem přetáhněte zvukový soubor"
+    drop_hint: "nebo klikněte pro výběr — .mp3 / .wav / .flac / .ogg, max. 30 MB"
+    detect_btn: "Detekovat tóninu"
+    progress: "Dekóduji audio a analyzuji tonalitu…"
+    global_label: "Celková tónina"
+    timeline_label: "Časová osa lokálních tónin"
+    col_time: "Čas (s)"
+    col_key: "Tónina"
+    col_corr: "Kor."
+    col_conf: "Spolehlivost"
+    mode:
+        major: "dur"
+        minor: "moll"
+    error:
+        no_file: "Nahrajte prosím zvukový soubor."
+        too_large: "Zvukový soubor je příliš velký (max. 30 MB)."
+
 # ── Errors ───────────────────────────────────────────────────────────────────
 error:
     no_file: "Prosím nahrajte soubor MusicXML."

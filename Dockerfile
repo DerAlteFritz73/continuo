@@ -23,14 +23,30 @@ COPY assets/ ./assets/
 RUN npm run build
 
 # ─── Stage 3: Production image ───────────────────────────────────────────────
-FROM php:8.2-fpm-alpine AS production
+# Debian (glibc) base rather than Alpine (musl): the audio key detector needs
+# librosa, whose numba/llvmlite deps ship no musl wheels and would otherwise
+# compile LLVM from source. On glibc all deps install as prebuilt wheels.
+FROM php:8.2-fpm-bookworm AS production
 
-# nginx (php-fpm-alpine base already has all required PHP extensions: ctype,
-# iconv, dom, simplexml, xml, libxml — they are core and compiled in)
-RUN apk add --no-cache nginx libzip-dev \
+# System deps: nginx (web server); ffmpeg + libsndfile1 (audio decoding for the
+# tonality detector); python3/venv (librosa sidecar); libzip for the zip ext.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nginx libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static \
+        ffmpeg libsndfile1 python3 python3-venv \
+        libzip-dev zlib1g-dev \
     && docker-php-ext-install pdo_mysql zip \
-    && printf 'upload_max_filesize = 10M\npost_max_size = 15M\nmemory_limit = 512M\n' \
-       > /usr/local/etc/php/conf.d/uploads.ini
+    && printf 'upload_max_filesize = 30M\npost_max_size = 32M\nmemory_limit = 512M\n' \
+       > /usr/local/etc/php/conf.d/uploads.ini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python venv with librosa for the audio key detector (bin/audio_keychroma.py).
+# Requirements copied first so this heavy layer is cached across source changes.
+COPY bin/audio-requirements.txt /tmp/audio-requirements.txt
+RUN python3 -m venv /opt/audio-venv \
+    && /opt/audio-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/audio-venv/bin/pip install --no-cache-dir -r /tmp/audio-requirements.txt
+# AudioChromagramExtractor reads this to locate the librosa interpreter.
+ENV AUDIO_PYTHON_BIN=/opt/audio-venv/bin/python
 
 WORKDIR /var/www/continuo
 
@@ -47,8 +63,9 @@ COPY . .
 RUN mkdir -p var/cache var/log var/share \
     && chown -R www-data:www-data var/ public/build/
 
-# nginx vhost
-COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
+# nginx vhost (Debian loads /etc/nginx/conf.d/*.conf; drop the stock default site)
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+RUN rm -f /etc/nginx/sites-enabled/default
 
 # Entrypoint
 COPY docker/php/entrypoint.sh /entrypoint.sh

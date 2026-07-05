@@ -176,11 +176,16 @@ function showResult(data) {
         passagesList.innerHTML = passages.map((p, idx) => {
             const keyName = keyFifthsToName(p.key.fifths, p.key.mode);
             const confClass = 'conf-' + p.confidence;
+            // A confirmed leading-tone resolution (raised ^7 → tonic in the
+            // realized voices) upgrades the label and lights up an accent marker.
+            const lt = p.leadingTone
+                ? `<span class="passage-lt" title="Realized leading tone resolves ♯7→1̂" style="margin-left:0.35rem;font-size:0.7rem;color:var(--accent);font-weight:600">♯7→1̂</span>`
+                : '';
             const cadence = p.cadence
-                ? `<span class="passage-cadence" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">⟂ ${escapeHtml(p.cadence)}</span>`
+                ? `<span class="passage-cadence" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">⟂ ${escapeHtml(p.cadence)}</span>${lt}`
                 : '';
             const colour = passageColor(idx);
-            return `<div class="passage-item" style="padding:0.5rem;border:1px solid var(--border);border-left:3px solid ${colour};border-radius:3px;background:var(--bg)">
+            return `<div class="passage-item" id="passage-item-${idx}" data-idx="${idx}" style="padding:0.5rem;border:1px solid var(--border);border-left:3px solid ${colour};border-radius:3px;background:var(--bg);scroll-margin-top:0.75rem">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                     <div style="flex:1">
                         <span class="passage-swatch" style="display:inline-block;width:0.7rem;height:0.7rem;border-radius:2px;background:${colour};vertical-align:middle;margin-right:0.4rem"></span>
@@ -188,9 +193,12 @@ function showResult(data) {
                         <span class="passage-key" style="margin-left:0.5rem;font-family:monospace;font-size:0.85rem">${keyName}</span>
                         <span class="passage-conf ${confClass}" style="margin-left:0.5rem;font-size:0.7rem;text-transform:uppercase;opacity:0.6">${p.confidence}</span>
                         ${cadence}
+                        ${passagePatternsHtml(p)}
+                        ${passageSuspensionsHtml(p)}
                     </div>
                     <button class="passage-edit-btn" data-idx="${idx}" style="padding:0.3rem 0.6rem;font-size:0.8rem;background:var(--accent);color:white;border:none;border-radius:2px;cursor:pointer">Edit</button>
                 </div>
+                ${passageProgressionHtml(p, keyName)}
                 ${passageTraceHtml(p)}
             </div>`;
         }).join('');
@@ -279,6 +287,49 @@ function keyFifthsToName(fifths, mode) {
 
 const PC_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
 
+// Human labels for the baroque sequential patterns.
+const SEQUENCE_LABELS = {
+    circle_of_fifths: 'circle of 5ths',
+    descending_steps: 'descending steps',
+    ascending_steps:  'ascending steps',
+};
+
+// The Roman-numeral progression read from the source figured bass, prefixed by
+// the local tonic so it reads as real functional harmony (e.g. "e: i – V⁷ – i").
+function passageProgressionHtml(p, keyName) {
+    const prog = p.progression || [];
+    if (!prog.length) return '';
+    const tonic = keyName.replace(/m$/, '').toLowerCase(); // "Em" → "e", "G" → "g"
+    const chords = prog.map(c => {
+        const applied = c.applied ? 'color:var(--accent)' : '';
+        return `<span class="rn" style="${applied}">${escapeHtml(c.roman)}</span>`;
+    }).join('<span style="opacity:0.35"> – </span>');
+    return `<div class="passage-progression" style="margin-top:0.4rem;font-family:'Georgia',serif;font-size:0.92rem;line-height:1.7;letter-spacing:0.02em">
+        <span style="opacity:0.55;font-family:monospace">${escapeHtml(tonic)}:</span> ${chords}
+    </div>`;
+}
+
+// Suspension badges (held-note dissonances resolving down by step).
+function passageSuspensionsHtml(p) {
+    const susp = p.suspensions || [];
+    if (!susp.length) return '';
+    const seen = new Set();
+    return susp.filter(x => !seen.has(x.type) && seen.add(x.type)).map(x =>
+        `<span class="passage-susp" title="Suspension ${escapeHtml(x.type)} (dissonance resolving down by step)" style="margin-left:0.5rem;font-size:0.7rem;padding:0.05rem 0.35rem;border:1px solid var(--border);border-radius:2px;opacity:0.75">⤵ ${escapeHtml(x.type)}</span>`
+    ).join('');
+}
+
+// Sequential-pattern badges shown next to the cadence.
+function passagePatternsHtml(p) {
+    const pats = p.patterns || [];
+    if (!pats.length) return '';
+    // De-duplicate by type; a phrase rarely needs the same label twice.
+    const seen = new Set();
+    return pats.filter(x => !seen.has(x.type) && seen.add(x.type)).map(x =>
+        `<span class="passage-pattern" style="margin-left:0.5rem;font-size:0.7rem;padding:0.05rem 0.35rem;border:1px solid var(--border);border-radius:2px;opacity:0.75">↻ ${escapeHtml(SEQUENCE_LABELS[x.type] || x.type)}</span>`
+    ).join('');
+}
+
 // Expandable "why this key?" decision trace for a detected passage: the phrase
 // boundary, the weighted pitch-class evidence, the ranked Krumhansl–Schmuckler
 // candidate correlations, and the confidence reasoning.
@@ -288,6 +339,7 @@ function passageTraceHtml(p) {
 
     const boundary = p.boundary === 'cadence'
         ? 'cadence' + (p.cadence ? ' (' + escapeHtml(p.cadence) + ')' : '')
+            + (p.leadingTone ? ' — leading tone ♯7→1̂ confirmed in realization' : '')
         : p.boundary === 'key-change'  ? 'explicit key change'
         : p.boundary === 'end-of-piece' ? 'end of piece'
         : '—';
@@ -299,8 +351,32 @@ function passageTraceHtml(p) {
     const cands = t.candidates.map(c => {
         const name = keyFifthsToName(c.fifths, c.mode);
         const style = c.winner ? 'font-weight:700;color:var(--accent)' : 'opacity:0.7';
-        return `<li style="${style}">${escapeHtml(name)} — r=${c.correlation.toFixed(3)}${c.winner ? ' ✓' : ''}</li>`;
+        const boost = c.boosted ? ' <span style="opacity:0.6">+cadence</span>' : '';
+        return `<li style="${style}">${escapeHtml(name)} — r=${c.correlation.toFixed(3)}${boost}${c.winner ? ' ✓' : ''}</li>`;
     }).join('');
+
+    // Cadential prior: the tonic implied by the closing cadence, added on top of
+    // the raw histogram correlation — the strongest baroque key cue.
+    const cp = t.cadence_prior;
+    const priorHtml = cp
+        ? `<div style="margin-top:0.3rem"><strong>Cadential evidence:</strong> ${escapeHtml(cp.reason)} cadence implies <strong>${escapeHtml(cp.name)}</strong> — boosted by +${(cp.bonus ?? 0).toFixed(2)}</div>`
+        : '';
+
+    // Sequential patterns found in the bass of this phrase.
+    const pats = (p.patterns || []);
+    const seenP = new Set();
+    const patList = pats.filter(x => !seenP.has(x.type) && seenP.add(x.type))
+        .map(x => `${escapeHtml(SEQUENCE_LABELS[x.type] || x.type)} (mm ${x.start_measure}–${x.end_measure})`).join(', ');
+    const patHtml = patList
+        ? `<div style="margin-top:0.3rem"><strong>Sequential patterns:</strong> ${patList}</div>`
+        : '';
+
+    // Suspensions found in the figured bass of this phrase.
+    const susp = (p.suspensions || []);
+    const suspHtml = susp.length
+        ? `<div style="margin-top:0.3rem"><strong>Suspensions:</strong> ${
+            susp.map(s => `${escapeHtml(s.type)} (m ${s.measure})`).join(', ')}</div>`
+        : '';
 
     return `<details class="passage-trace" style="margin-top:0.45rem">
         <summary style="cursor:pointer;font-size:0.78rem;opacity:0.75">Why this key?</summary>
@@ -310,7 +386,10 @@ function passageTraceHtml(p) {
             <div style="margin-top:0.3rem"><strong>Krumhansl–Schmuckler correlation:</strong></div>
             <ul style="margin:0.2rem 0 0.25rem 1.1rem;padding:0;font-family:monospace;list-style:none">${cands}</ul>
             <div><strong>Margin over runner-up:</strong> ${(t.margin ?? 0).toFixed(3)}</div>
-            <div><strong>Confidence:</strong> ${escapeHtml(t.confidence || '')}</div>
+            ${priorHtml}
+            ${patHtml}
+            ${suspHtml}
+            <div style="margin-top:0.3rem"><strong>Confidence:</strong> ${escapeHtml(t.confidence || '')}</div>
         </div>
     </details>`;
 }

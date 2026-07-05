@@ -99,6 +99,8 @@ class VoiceLeadingEngine
         bool    $isLeadingTone7th = false,
         ?int    $melodyPc = null,  // pitch class (0–11) of the melody note sounding now
         int     $numVoices = 4,    // total voices: 4 = soprano+alto+tenor+bass, 3 = alto+soprano+bass
+        ?int    $melodyCeiling = null, // highest melody (solo) MIDI over this chord; the
+                                       // top voice must not rise above it
     ): Chord {
         $this->keyFifths = $keyFifths;
         $this->keyMode   = $keyMode;
@@ -132,7 +134,7 @@ class VoiceLeadingEngine
             : $numVoices;
 
         // Choose pitches by minimizing total voice movement
-        $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th, $prevBassMidi, $melodyPc, $effectiveVoices);
+        $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th, $prevBassMidi, $melodyPc, $effectiveVoices, $melodyCeiling);
 
         // Voice name order matches the upperVoices array order (lowest first)
         $voiceNames = $effectiveVoices === 3
@@ -244,7 +246,7 @@ class VoiceLeadingEngine
      *  5. Doubling: every voice draws from the full pool of chord-tone pitch classes
      *     (no fixed interval→voice assignment) so the optimizer can freely mix doublings.
      */
-    private function chooseVoices(array $candidateLists, array $prevMidis, int $bassMidi, bool $isLeadingTone, ?int $prevBassMidi = null, ?int $melodyPc = null, int $numVoices = 4): array
+    private function chooseVoices(array $candidateLists, array $prevMidis, int $bassMidi, bool $isLeadingTone, ?int $prevBassMidi = null, ?int $melodyPc = null, int $numVoices = 4, ?int $melodyCeiling = null): array
     {
         if (empty($candidateLists)) {
             return [];
@@ -321,6 +323,37 @@ class VoiceLeadingEngine
             if (empty($filtered[$v])) {
                 $filtered[$v] = [$bassMidi + 7];
             }
+        }
+
+        // Flute ceiling: the top (soprano) voice must not rise above the highest
+        // melody pitch sounding during this chord — the keyboard right hand stays
+        // under the solo line. If every candidate is above the ceiling (e.g. the
+        // bass itself sits high), keep only the lowest so the voicing stays as low
+        // as the harmony allows.
+        if ($melodyCeiling !== null) {
+            $si        = $numUpper - 1;
+            $underCeil = array_values(array_filter($filtered[$si], fn($m) => $m <= $melodyCeiling));
+
+            if (empty($underCeil)) {
+                // The solo dips below the top voice's normal floor. Rather than poke
+                // above it, let the top voice duck down to the highest chord tone at or
+                // under the ceiling (matching the sample's low, thin right hand when the
+                // flute is low). Fall back to the lowest in-range note only if even that
+                // is impossible (e.g. a high bass).
+                $low = [];
+                foreach ($allPcs as $pc) {
+                    for ($o = 2; $o <= 5; $o++) {
+                        $midi = ($o + 1) * 12 + $pc;
+                        if ($midi > $bassMidi && $midi <= $melodyCeiling) {
+                            $low[] = $midi;
+                        }
+                    }
+                }
+                sort($low);
+                $underCeil = !empty($low) ? $low : [min($filtered[$si])];
+            }
+
+            $filtered[$si] = $underCeil;
         }
 
         $limit = 8;

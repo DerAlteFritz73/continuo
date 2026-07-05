@@ -44,12 +44,21 @@ class LocalKeyEstimator
     /**
      * Estimate the key from a duration-weighted pitch-class histogram.
      *
-     * @param float[] $histogram 12 weights indexed by pitch class (C = 0)
+     * An optional cadential prior lets the caller inject the strongest piece of
+     * baroque key evidence — the tonic implied by the phrase's closing cadence —
+     * as a bonus on every candidate sharing that tonic. Pure histogram
+     * correlation weights the whole phrase equally; the cadence, musically, does
+     * not. The prior is a gentle nudge, enough to tip between close relatives
+     * (home key vs. its dominant/relative) without overriding a clearly
+     * different key.
+     *
+     * @param float[]                                              $histogram 12 weights indexed by pitch class (C = 0)
+     * @param array{tonicPc:int, bonus:float, reason:string}|null  $prior     cadential tonic bias
      *
      * @return array{fifths:int, mode:string, tonicPc:int, correlation:float,
      *               confidence:string, alternatives:list<array{fifths:int,mode:string,tonicPc:int,correlation:float}>}
      */
-    public function estimateFromHistogram(array $histogram): array
+    public function estimateFromHistogram(array $histogram, ?array $prior = null): array
     {
         if (array_sum($histogram) <= 0.0) {
             return [
@@ -69,12 +78,20 @@ class LocalKeyEstimator
             $scored[] = $this->scoreCandidate($histogram, $tonic, 'minor');
         }
 
-        usort($scored, static fn(array $a, array $b): int => $b['correlation'] <=> $a['correlation']);
+        // Adjusted score = raw correlation + cadential bonus on the implied tonic.
+        // 'correlation' is kept raw for display; ranking and confidence use 'adjusted'.
+        foreach ($scored as &$cand) {
+            $bonus = ($prior !== null && $cand['tonicPc'] === $prior['tonicPc']) ? $prior['bonus'] : 0.0;
+            $cand['adjusted'] = $cand['correlation'] + $bonus;
+        }
+        unset($cand);
+
+        usort($scored, static fn(array $a, array $b): int => $b['adjusted'] <=> $a['adjusted']);
 
         $best                 = $scored[0];
-        $best['confidence']   = $this->confidence($best['correlation'], $scored[1]['correlation'] ?? 0.0);
+        $best['confidence']   = $this->confidence($best['adjusted'], $scored[1]['adjusted'] ?? 0.0);
         $best['alternatives'] = array_slice($scored, 1, 3);
-        $best['trace']        = $this->buildTrace($histogram, $scored);
+        $best['trace']        = $this->buildTrace($histogram, $scored, $prior);
 
         return $best;
     }
@@ -191,13 +208,14 @@ class LocalKeyEstimator
      * decision-trace shown for individual chords.
      *
      * @param float[] $histogram
-     * @param list<array{fifths:int,mode:string,tonicPc:int,correlation:float}> $scored ranked best-first
+     * @param list<array{fifths:int,mode:string,tonicPc:int,correlation:float,adjusted:float}> $scored ranked best-first
+     * @param array{tonicPc:int, bonus:float, reason:string}|null $prior cadential bias applied, if any
      *
      * @return array{profile:list<array{pc:int,pct:int}>,
      *               candidates:list<array{fifths:int,mode:string,correlation:float,winner:bool}>,
-     *               margin:float, confidence:string}
+     *               margin:float, confidence:string, cadence_prior:?array}
      */
-    private function buildTrace(array $histogram, array $scored): array
+    private function buildTrace(array $histogram, array $scored, ?array $prior = null): array
     {
         $total = array_sum($histogram);
 
@@ -215,7 +233,8 @@ class LocalKeyEstimator
             $profile[] = ['pc' => $pc, 'pct' => (int) round(100 * $w / $total)];
         }
 
-        // The comparison: the top candidate keys with their correlations.
+        // The comparison: the top candidate keys with their correlations, and
+        // whether the cadential prior boosted them.
         $candidates = [];
         foreach (array_slice($scored, 0, 4) as $rank => $cand) {
             $candidates[] = [
@@ -223,17 +242,30 @@ class LocalKeyEstimator
                 'mode'        => $cand['mode'],
                 'correlation' => round($cand['correlation'], 3),
                 'winner'      => $rank === 0,
+                'boosted'     => $prior !== null && $cand['tonicPc'] === $prior['tonicPc'],
             ];
         }
 
-        $best   = $scored[0]['correlation'];
-        $second = $scored[1]['correlation'] ?? 0.0;
+        // Rank by the same adjusted score used to pick the winner.
+        $best   = $scored[0]['adjusted'] ?? $scored[0]['correlation'];
+        $second = $scored[1]['adjusted'] ?? ($scored[1]['correlation'] ?? 0.0);
+
+        $cadencePrior = null;
+        if ($prior !== null) {
+            $cadencePrior = [
+                'tonicPc' => $prior['tonicPc'],
+                'name'    => self::PC_NAMES[$prior['tonicPc']] ?? '?',
+                'bonus'   => $prior['bonus'],
+                'reason'  => $prior['reason'],
+            ];
+        }
 
         return [
-            'profile'    => $profile,
-            'candidates' => $candidates,
-            'margin'     => round($best - $second, 3),
-            'confidence' => $this->confidenceReason($best, $second),
+            'profile'       => $profile,
+            'candidates'    => $candidates,
+            'margin'        => round($best - $second, 3),
+            'confidence'    => $this->confidenceReason($best, $second),
+            'cadence_prior' => $cadencePrior,
         ];
     }
 

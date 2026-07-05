@@ -267,11 +267,31 @@ class MusicXmlParser
         }
 
         // --- Second pass: annotate measures with melody notes (if available) ---
-        if ($melodyPart !== null && !empty($score->measures)) {
-            $this->parseMelodyIntoMeasures($melodyPart, $score->measures);
-        } elseif ($numStaves > 1 && !empty($score->measures)) {
-            // For grand-staff single-part (no separate melody part), extract from staff 1 (treble)
-            $this->parseSopranoFromGrandStaff($bassPart, $score->measures, $numStaves);
+        if (!empty($score->measures)) {
+            // Pool melody notes from EVERY non-bass part — all voices and staves —
+            // so multi-soloist textures (e.g. a trio sonata's two upper parts) are
+            // all counted for key detection and the leading-tone resolution check.
+            $bassId       = (string) ($bassPart['id'] ?? '');
+            $collectedAny = false;
+            foreach ($parts as $part) {
+                if ((string) ($part['id'] ?? '') === $bassId) {
+                    continue;
+                }
+                $this->parseMelodyIntoMeasures($part, $score->measures);
+                $collectedAny = true;
+            }
+
+            if ($melodyPart !== null) {
+                // Preserve the highest melody part verbatim so the serializer can
+                // render it as the top staff above the realization (florid rhythms
+                // intact). Rendering stays single-part; analysis uses them all.
+                $score->melodyPartXml  = $melodyPart->asXML() ?: null;
+                $score->melodyPartName = $this->melodyPartName($xml, (string) ($melodyPart['id'] ?? ''));
+            } elseif (!$collectedAny && $numStaves > 1) {
+                // Single grand-staff part (no separate melody part): the treble
+                // staff (staff 1) is the melody.
+                $this->parseSopranoFromGrandStaff($bassPart, $score->measures, $numStaves);
+            }
         }
 
         // --- Mode-detection pass ---
@@ -552,12 +572,34 @@ class MusicXmlParser
     }
 
     /**
+     * Look up the <part-name> for a given part id in the <part-list>.
+     * Returns null when absent.
+     */
+    private function melodyPartName(SimpleXMLElement $xml, string $partId): ?string
+    {
+        if ($partId === '') {
+            return null;
+        }
+        foreach ($xml->xpath('//score-part[@id="' . $partId . '"]/part-name') as $name) {
+            $text = trim((string) $name);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Parse melody notes from $melodyPart and store them in the corresponding
-     * Measure objects (matched by measure number).
+     * Measure objects (matched by measure number). Appends to any notes already
+     * collected, so this may be called once per non-bass part to pool every
+     * melody staff (e.g. both soloists of a trio sonata) into one stream.
      *
-     * Only voice-1, non-chord, non-rest notes are recorded.  Backup/forward
-     * elements are handled so that the beat offset stays correct even in
-     * multi-voice melody parts.
+     * All voices/staves are recorded (non-chord, non-rest); backup/forward
+     * elements keep the beat offset correct across multi-voice parts. Each entry
+     * carries pitch class, octave and absolute MIDI so consumers (key histogram,
+     * the leading-tone resolution check) can reason about register, not just
+     * pitch class.
      *
      * @param Measure[] $measures
      */
@@ -599,7 +641,7 @@ class MusicXmlParser
 
                     $voice = (int) ($child->{'voice'} ?? 1);
 
-                    if ($voice === 1 && !isset($child->{'rest'}) && $measure !== null) {
+                    if (isset($child->{'pitch'}) && !isset($child->{'rest'}) && $measure !== null) {
                         $pitch = $child->{'pitch'};
                         $step  = (string) ($pitch->{'step'}   ?? 'C');
                         $oct   = (int) ($pitch->{'octave'} ?? 4);
@@ -614,13 +656,15 @@ class MusicXmlParser
                             alter: $alter,
                             type: (string) ($child->{'type'} ?? 'quarter'),
                             isRest: false,
-                            voice: 1,
+                            voice: $voice,
                         );
 
                         $measure->melodyNotes[] = [
                             'offset'   => $beatOffset,
                             'duration' => $dq,
                             'pc'       => $pc,
+                            'octave'   => $oct,
+                            'midi'     => $noteObj->midiPitch(),
                             'note'     => $noteObj,
                         ];
                     }
@@ -714,6 +758,8 @@ class MusicXmlParser
                             'offset'   => $beatOffset,
                             'duration' => $dq,
                             'pc'       => $pc,
+                            'octave'   => $oct,
+                            'midi'     => $noteObj->midiPitch(),
                             'note'     => $noteObj,
                         ];
                     }

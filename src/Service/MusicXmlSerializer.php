@@ -53,6 +53,9 @@ use App\Model\Score;
  */
 class MusicXmlSerializer
 {
+    /** Part id used for the preserved melody (flute) part in the output. */
+    private const MELODY_PART_ID = 'PMEL';
+
     public function serialize(Score $score): string
     {
         $dom = new \DOMDocument('1.0', 'UTF-8');
@@ -76,8 +79,23 @@ class MusicXmlSerializer
         $id->appendChild($enc);
         $root->appendChild($id);
 
+        // --- Melody part (optional): the original flute/violin line, rendered as
+        //     a top staff above the realization. Prepared first so it can be
+        //     listed and placed ABOVE the realization part. ---
+        $melodyPart = null;
+        if ($score->melodyPartXml !== null) {
+            $melodyPart = $this->buildMelodyPart($dom, $score->melodyPartXml);
+        }
+
         // --- Part list ---
         $partList = $dom->createElement('part-list');
+
+        if ($melodyPart !== null) {
+            $spM = $dom->createElement('score-part');
+            $spM->setAttribute('id', self::MELODY_PART_ID);
+            $spM->appendChild($dom->createElement('part-name', $score->melodyPartName ?: 'Melody'));
+            $partList->appendChild($spM);
+        }
 
         $sp1 = $dom->createElement('score-part');
         $sp1->setAttribute('id', 'P1');
@@ -89,6 +107,11 @@ class MusicXmlSerializer
         $partList->appendChild($sp1);
 
         $root->appendChild($partList);
+
+        // Melody part goes into the body BEFORE the realization so it renders on top.
+        if ($melodyPart !== null) {
+            $root->appendChild($melodyPart);
+        }
 
         // --- Single part: realized continuo (grand staff, bass + upper voices) ---
         $part1 = $dom->createElement('part');
@@ -118,6 +141,56 @@ class MusicXmlSerializer
         }
 
         return $dom->saveXML();
+    }
+
+    // -------------------------------------------------------------------------
+    // Melody (flute) part — preserved verbatim from the source
+    // -------------------------------------------------------------------------
+
+    /**
+     * Import the preserved melody-part MusicXML into the output document as a
+     * <part>, re-id'd to MELODY_PART_ID and tagged with per-note xml:ids
+     * ("flute-{measureNumber}-{index}") so the viewer can tint each note by the
+     * phrase it belongs to. Returns null if the fragment can't be parsed.
+     */
+    private function buildMelodyPart(\DOMDocument $dom, string $melodyXml): ?\DOMElement
+    {
+        $src = new \DOMDocument();
+        // The fragment is trusted (produced by our own parser from the upload),
+        // but suppress libxml warnings on any stray entities.
+        if (!@$src->loadXML($melodyXml)) {
+            return null;
+        }
+        $srcPart = $src->documentElement;
+        if ($srcPart === null || $srcPart->nodeName !== 'part') {
+            return null;
+        }
+
+        /** @var \DOMElement $part */
+        $part = $dom->importNode($srcPart, true);
+        $part->setAttribute('id', self::MELODY_PART_ID);
+
+        // Tag each sounding note so the front-end can colour it per phrase.
+        // Rests get no id (nothing to tint).
+        foreach ($part->getElementsByTagName('measure') as $measureEl) {
+            $mnum = $measureEl->getAttribute('number');
+            // Tag the measure itself so the viewer can draw a per-phrase
+            // background band using its rendered bounding box.
+            $measureEl->setAttribute('id', 'meas-' . $mnum);
+            $i    = 0;
+            foreach (iterator_to_array($measureEl->getElementsByTagName('note')) as $noteEl) {
+                /** @var \DOMElement $noteEl */
+                $isRest = $noteEl->getElementsByTagName('rest')->length > 0;
+                if (!$isRest) {
+                    // MusicXML notes carry a native `id` (xs:ID) which Verovio
+                    // preserves onto the rendered SVG element — unlike `xml:id`.
+                    $noteEl->setAttribute('id', 'flute-' . $mnum . '-' . $i);
+                }
+                $i++;
+            }
+        }
+
+        return $part;
     }
 
     // -------------------------------------------------------------------------

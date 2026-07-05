@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Model\Chord;
 use App\Model\Measure;
 use App\Model\Note;
 use App\Model\Score;
@@ -39,9 +40,14 @@ class CadenceDetector
     /**
      * Detect cadences across the score under the given key frame.
      *
-     * @return list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool}>
+     * When $useRealized is set the detector consults the realized upper voices
+     * (available only after {@see ContinuoRealizer}) to confirm the strongest
+     * authentic-cadence signal: a raised ^7 (leading tone) resolving up by
+     * semitone to the tonic. This is the post-realization refinement pass.
+     *
+     * @return list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool, arrivalPc:int, penultPc:int, leadingTone:bool}>
      */
-    public function detect(Score $score, int $keyFifths, string $keyMode): array
+    public function detect(Score $score, int $keyFifths, string $keyMode, bool $useRealized = false): array
     {
         $events = $this->flattenBass($score);
         if (count($events) < 2) {
@@ -53,7 +59,7 @@ class CadenceDetector
             $prev    = $events[$i - 1];
             $arrival = $events[$i];
 
-            $candidate = $this->evaluate($prev, $arrival, $keyFifths, $keyMode);
+            $candidate = $this->evaluate($prev, $arrival, $keyFifths, $keyMode, $useRealized);
             if ($candidate !== null && $candidate['score'] >= self::THRESHOLD) {
                 $cadences[] = $candidate;
             }
@@ -65,12 +71,12 @@ class CadenceDetector
     /**
      * Score and classify a single penultimate → arrival bass move.
      *
-     * @param array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float} $prev
-     * @param array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float} $arrival
+     * @param array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float, chord:?Chord} $prev
+     * @param array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float, chord:?Chord} $arrival
      *
-     * @return array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool}|null
+     * @return array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool, arrivalPc:int, penultPc:int, leadingTone:bool}|null
      */
-    private function evaluate(array $prev, array $arrival, int $keyFifths, string $keyMode): ?array
+    private function evaluate(array $prev, array $arrival, int $keyFifths, string $keyMode, bool $useRealized = false): ?array
     {
         $fromDeg = $this->analyzer->scaleDegree($prev['note'], $keyFifths, $keyMode);
         $toDeg   = $this->analyzer->scaleDegree($arrival['note'], $keyFifths, $keyMode);
@@ -112,13 +118,30 @@ class CadenceDetector
         // Figured-bass hints on the penultimate (dominant 7th, cadential 6/4, 4-3).
         $score += $this->scoreFigures($prev['note'], $arrival['note']);
 
+        // Post-realization: a realized leading tone resolving up to the tonic is
+        // the definitive authentic-cadence signal. Only meaningful once upper
+        // voices exist, and only for cadences that actually land on a tonic.
+        $leadingTone = false;
+        if ($useRealized && in_array($type, [self::AUTHENTIC, self::DECEPTIVE], true)) {
+            $tonicPc     = $type === self::DECEPTIVE
+                ? ($arrival['note']->pitchClass() + 3) % 12   // deceptive: tonic is a M3 below the vi arrival
+                : $arrival['note']->pitchClass();             // authentic: arrival bass IS the tonic
+            $leadingTone = $this->hasLeadingToneResolution($prev, $arrival, $tonicPc);
+            if ($leadingTone) {
+                $score += 1.5;
+            }
+        }
+
         return [
-            'measure'  => $arrival['measure'],
-            'type'     => $type,
-            'score'    => round($score, 2),
-            'bassFrom' => $fromDeg,
-            'bassTo'   => $toDeg,
-            'strong'   => $strong,
+            'measure'     => $arrival['measure'],
+            'type'        => $type,
+            'score'       => round($score, 2),
+            'bassFrom'    => $fromDeg,
+            'bassTo'      => $toDeg,
+            'strong'      => $strong,
+            'arrivalPc'   => $arrival['note']->pitchClass(),
+            'penultPc'    => $prev['note']->pitchClass(),
+            'leadingTone' => $leadingTone,
         ];
     }
 
@@ -183,22 +206,80 @@ class CadenceDetector
     }
 
     /**
-     * Placeholder for the strongest authentic-cadence signal: a leading tone
-     * (raised ^7) resolving up to the tonic in an upper voice. That requires the
-     * realised voices, which are not available at detection time — wire this up
-     * once cadence detection can run against a realised Score.
+     * The strongest authentic-cadence signal: a raised ^7 (leading tone)
+     * resolving UP by a semitone to the tonic. Checked against every sounding
+     * pitch — the realized keyboard voices AND the soloist melody line(s) — so a
+     * resolution carried by the melody (common in a solo sonata, where the
+     * keyboard's inner leading tone often falls to the fifth instead) is caught
+     * as well. A note whose pitch class is the leading tone and whose exact MIDI
+     * pitch + 1 sounds at the arrival is a genuine voice-leading resolution, not
+     * a coincidental pitch-class match.
+     *
+     * @param array{chord:?Chord, melody:array, offsetQn:float, durationQn:float} $penult
+     * @param array{chord:?Chord, melody:array, offsetQn:float, durationQn:float} $arrival
      */
-    private function scoreLeadingToneFigure(Note $penult, Note $arrival): float
+    private function hasLeadingToneResolution(array $penult, array $arrival, int $tonicPc): bool
     {
-        return 0.0;
+        $leadingTonePc = ($tonicPc + 11) % 12;   // a semitone below the tonic
+
+        $penultMidis  = $this->soundingMidis($penult);
+        $arrivalMidis = $this->soundingMidis($arrival);
+        if ($penultMidis === [] || $arrivalMidis === []) {
+            return false;
+        }
+
+        $arrivalSet = array_flip($arrivalMidis);
+        foreach ($penultMidis as $midi) {
+            if ($midi % 12 === $leadingTonePc && isset($arrivalSet[$midi + 1])) {
+                return true;   // leading tone → tonic, up a semitone
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Every MIDI pitch sounding across an event: the realized chord's voices plus
+     * any melody note whose span overlaps the bass note's span.
+     *
+     * @param array{chord:?Chord, melody:array, offsetQn:float, durationQn:float} $event
+     *
+     * @return int[]
+     */
+    private function soundingMidis(array $event): array
+    {
+        $midis = [];
+
+        $chord = $event['chord'] ?? null;
+        if ($chord !== null) {
+            foreach ($chord->allNotes() as $n) {
+                if (!$n->isRest()) {
+                    $midis[] = $n->midiPitch();
+                }
+            }
+        }
+
+        $start = $event['offsetQn'];
+        $end   = $start + $event['durationQn'];
+        foreach ($event['melody'] ?? [] as $mn) {
+            $mStart = $mn['offset'] ?? 0.0;
+            $mEnd   = $mStart + ($mn['duration'] ?? 0.0);
+            // Overlap with the bass note's span (half-open, small epsilon).
+            if ($mStart < $end - 1e-6 && $mEnd > $start + 1e-6) {
+                $midis[] = $mn['midi'] ?? ($mn['note']?->midiPitch() ?? 0);
+            }
+        }
+
+        return $midis;
     }
 
     /**
      * Flatten every measure's bass line into a linear stream annotated with
-     * metric position (offset in quarter notes, whether it is the downbeat) and
-     * sounding length in quarter notes.
+     * metric position (offset in quarter notes, whether it is the downbeat),
+     * sounding length in quarter notes, and the realized chord (when the score
+     * has been realized — otherwise null).
      *
-     * @return list<array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float}>
+     * @return list<array{note:Note, measure:int, offsetQn:float, downbeat:bool, durationQn:float, chord:?Chord, melody:array}>
      */
     private function flattenBass(Score $score): array
     {
@@ -207,7 +288,7 @@ class CadenceDetector
 
         foreach ($score->measures as $measure) {
             $offsetQn = 0.0;
-            foreach ($measure->bassNotes as $note) {
+            foreach ($measure->bassNotes as $i => $note) {
                 $durationQn = $note->duration / $divisions;
                 if (!$note->isRest()) {
                     $events[] = [
@@ -216,6 +297,8 @@ class CadenceDetector
                         'offsetQn'   => $offsetQn,
                         'downbeat'   => abs($offsetQn) < 1e-6,
                         'durationQn' => $durationQn,
+                        'chord'      => $measure->realizedChords[$i] ?? null,
+                        'melody'     => $measure->melodyNotes,
                     ];
                 }
                 $offsetQn += $durationQn;
@@ -229,9 +312,9 @@ class CadenceDetector
      * Keep only the strongest cadence per measure (cadences cluster around a
      * single arrival point).
      *
-     * @param list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool}> $cadences
+     * @param list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool, arrivalPc:int, penultPc:int, leadingTone:bool}> $cadences
      *
-     * @return list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool}>
+     * @return list<array{measure:int, type:string, score:float, bassFrom:int, bassTo:int, strong:bool, arrivalPc:int, penultPc:int, leadingTone:bool}>
      */
     private function dedupePerMeasure(array $cadences): array
     {

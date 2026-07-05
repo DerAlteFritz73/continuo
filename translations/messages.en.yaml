@@ -25,6 +25,26 @@ upload:
     sample_hint: "load sample file"
     progress: "Analyzing bass line and realizing harmony…"
 
+# ── Audio tonality detection ─────────────────────────────────────────────────
+audio:
+    title: "Detect key from audio"
+    drop_label: "Drop an audio file here"
+    drop_hint: "or click to browse — .mp3 / .wav / .flac / .ogg, max 30 MB"
+    detect_btn: "Detect Key"
+    progress: "Decoding audio and analysing tonality…"
+    global_label: "Overall key"
+    timeline_label: "Local-key timeline"
+    col_time: "Time (s)"
+    col_key: "Key"
+    col_corr: "Corr."
+    col_conf: "Confidence"
+    mode:
+        major: "major"
+        minor: "minor"
+    error:
+        no_file: "Please upload an audio file."
+        too_large: "Audio file too large (max 30 MB)."
+
 # ── Errors ───────────────────────────────────────────────────────────────────
 error:
     no_file: "Please upload a MusicXML file."

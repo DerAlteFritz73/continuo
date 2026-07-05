@@ -1,0 +1,11 @@
+# Python dependencies for the audio tonality detector (bin/audio_keychroma.py).
+# Installed into a project-local venv that AudioChromagramExtractor invokes.
+#
+#   python3 -m venv var/audio-venv
+#   var/audio-venv/bin/pip install -r bin/audio-requirements.txt
+#
+# Requires ffmpeg on PATH for decoding compressed formats (mp3/flac/m4a).
+# Top-level deps; their transitive deps (numba, scipy, audioread, soxr, ...)
+# are resolved by pip. Versions pinned to what the feature was verified against.
+librosa==0.11.0
+soundfile==0.14.0

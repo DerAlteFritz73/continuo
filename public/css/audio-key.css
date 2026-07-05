@@ -1,0 +1,69 @@
+/* ── Audio tonality detection card ──────────────────────────── */
+.audio-key-card {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+.audio-key-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+}
+
+/* A more compact drop zone than the main MusicXML one. */
+.drop-zone-sm { padding: 1.5rem 1.25rem; }
+
+.audio-key-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+}
+.audio-key-progress .spinner { width: 22px; height: 22px; }
+
+.audio-key-result { margin-top: 1.25rem; }
+.audio-key-global {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface2);
+    border-radius: 8px;
+}
+.audio-key-global .ak-label { font-size: 0.85rem; color: var(--muted); }
+.audio-key-global .ak-key {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+}
+.audio-key-global .ak-meta { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+
+/* Confidence colouring, shared by the global key and timeline rows. */
+.ak-high { color: var(--accent2); }
+.ak-med  { color: var(--accent); }
+.ak-low  { color: var(--muted); }
+
+.audio-key-timeline { margin-top: 0.9rem; }
+.audio-key-timeline summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--accent);
+    user-select: none;
+}
+.ak-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.82rem;
+}
+.ak-table th, .ak-table td {
+    text-align: left;
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+.ak-table th { color: var(--muted); font-weight: 500; }
+.ak-table td { font-variant-numeric: tabular-nums; }

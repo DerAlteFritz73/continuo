@@ -28,6 +28,17 @@ class Score
     /** Divisions per quarter note */
     public int $divisions = 1;
 
+    /**
+     * Raw MusicXML of the original melody part (e.g. the flute in a sonata),
+     * preserved verbatim from the source so the florid rhythms render exactly.
+     * Rendered as a top staff above the continuo realization. Null when the
+     * source has no separate melody part.
+     */
+    public ?string $melodyPartXml = null;
+
+    /** Display name of the melody part (e.g. "Flöte."), for the part-list. */
+    public ?string $melodyPartName = null;
+
     public function tonic(): string
     {
         // Major keys by fifths

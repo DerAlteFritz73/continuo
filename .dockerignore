@@ -2,6 +2,7 @@ vendor/
 node_modules/
 var/cache/
 var/log/
+var/audio-venv/
 .git/
 .env.local
 .env.*.local

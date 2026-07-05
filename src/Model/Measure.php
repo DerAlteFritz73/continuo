@@ -11,12 +11,14 @@ class Measure
     public array $realizedChords = [];
 
     /**
-     * Melody notes (from the highest non-bass part) active in this measure.
+     * Melody notes pooled from every non-bass part (all voices/staves) active in
+     * this measure — so multi-soloist textures are all represented.
      * Each entry: ['offset' => float (quarter-note units from measure start),
-     *              'duration' => float, 'pc' => int (0–11)]
-     * Empty when no separate melody part is present.
+     *              'duration' => float, 'pc' => int (0–11), 'octave' => int,
+     *              'midi' => int (absolute MIDI pitch), 'note' => Note].
+     * Empty when the source has no separate melody/treble line.
      *
-     * @var array<array{offset:float,duration:float,pc:int}>
+     * @var array<array{offset:float,duration:float,pc:int,octave:int,midi:int,note:Note}>
      */
     public array $melodyNotes = [];
 

@@ -26,6 +26,26 @@ upload:
     sample_hint: "charger un exemple"
     progress: "Analyse de la basse et réalisation harmonique en cours…"
 
+# ── Détection de tonalité audio ──────────────────────────────────────────────
+audio:
+    title: "Détecter la tonalité depuis l'audio"
+    drop_label: "Déposez un fichier audio ici"
+    drop_hint: "ou cliquez pour parcourir — .mp3 / .wav / .flac / .ogg, max 30 Mo"
+    detect_btn: "Détecter la tonalité"
+    progress: "Décodage de l'audio et analyse de la tonalité…"
+    global_label: "Tonalité globale"
+    timeline_label: "Chronologie des tonalités locales"
+    col_time: "Temps (s)"
+    col_key: "Tonalité"
+    col_corr: "Corr."
+    col_conf: "Confiance"
+    mode:
+        major: "majeur"
+        minor: "mineur"
+    error:
+        no_file: "Veuillez téléverser un fichier audio."
+        too_large: "Fichier audio trop volumineux (max 30 Mo)."
+
 # ── Errors ───────────────────────────────────────────────────────────────────
 error:
     no_file: "Veuillez téléverser un fichier MusicXML."

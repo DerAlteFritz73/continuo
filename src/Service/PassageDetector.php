@@ -22,9 +22,15 @@ use App\Model\Score;
 class PassageDetector
 {
     public function __construct(
-        private readonly LocalKeyEstimator $keyEstimator,
-        private readonly CadenceDetector   $cadenceDetector,
+        private readonly LocalKeyEstimator     $keyEstimator,
+        private readonly CadenceDetector       $cadenceDetector,
+        private readonly RomanNumeralAnalyzer  $romanAnalyzer,
+        private readonly SequenceDetector      $sequenceDetector,
+        private readonly SuspensionDetector    $suspensionDetector,
     ) {}
+
+    /** Weight given to the cadential tonic on top of the raw K-S correlation. */
+    private const CADENCE_BONUS = 0.12;
 
     /**
      * @return list<array{start_measure:int, end_measure:int, key:array{fifths:int,mode:string},
@@ -74,18 +80,65 @@ class PassageDetector
     }
 
     /**
+     * Second pass, run AFTER realization: re-score the cadence closing each
+     * phrase now that the realized upper voices exist, confirming any raised ^7
+     * → tonic resolution. Phrase boundaries are left untouched — this only
+     * enriches each passage's cadence with a `leadingTone` flag and the refined
+     * score, upgrading a plausible authentic cadence to a confirmed one.
+     *
+     * @param Score $score a realized score (measures carry realizedChords)
+     */
+    public function refineWithRealization(Score $score): void
+    {
+        if (empty($score->passages)) {
+            return;
+        }
+
+        $divisions = max(1, $score->divisions);
+        $global    = $this->keyEstimator->estimateFromHistogram(
+            $this->histogramForRange($score->measures, $divisions)
+        );
+
+        // Re-detect with the realized voices; index by arrival measure.
+        $refined = [];
+        foreach ($this->cadenceDetector->detect($score, $global['fifths'], $global['mode'], true) as $c) {
+            $refined[$c['measure']] = $c;
+        }
+
+        foreach ($score->passages as &$passage) {
+            $c = $refined[$passage['end_measure']] ?? null;
+            if ($c === null) {
+                $passage['leadingTone'] = false;
+                continue;
+            }
+            $passage['cadence']       = $c['type'];
+            $passage['leadingTone']   = $c['leadingTone'];
+            $passage['cadence_score'] = $c['score'];
+        }
+        unset($passage);
+    }
+
+    /**
      * @param Measure[] $segment
      * @param array{type:string}|null $cadence
      * @param string $boundary what closed the phrase: cadence|key-change|end-of-piece
      */
     private function makePassage(array $segment, ?array $cadence, int $divisions, string $boundary): array
     {
+        // The closing cadence, when present, biases the key toward the tonic it
+        // implies — the strongest single piece of baroque key evidence.
+        $prior    = $this->cadencePrior($cadence);
         $estimate = $this->keyEstimator->estimateFromHistogram(
-            $this->histogramForRange($segment, $divisions)
+            $this->histogramForRange($segment, $divisions),
+            $prior
         );
 
         $first = $segment[0];
         $last  = end($segment);
+
+        $progression = $this->romanAnalyzer->analyze($segment, $estimate['fifths'], $estimate['mode'], $divisions);
+        $patterns    = $this->sequenceDetector->detect($segment);
+        $suspensions = $this->suspensionDetector->detect($segment, $divisions);
 
         return [
             'start_measure' => $first->number,
@@ -96,7 +149,34 @@ class PassageDetector
             'cadence'       => $cadence['type'] ?? null,
             'boundary'      => $boundary,
             'key_trace'     => $estimate['trace'] ?? [],
+            'progression'   => $progression,
+            'patterns'      => $patterns,
+            'suspensions'   => $suspensions,
         ];
+    }
+
+    /**
+     * Build the cadential key prior: the tonic implied by the phrase's closing
+     * cadence, resolved from the arrival bass pitch class and the cadence type.
+     *
+     * @param array{type:string, arrivalPc:int}|null $cadence
+     *
+     * @return array{tonicPc:int, bonus:float, reason:string}|null
+     */
+    private function cadencePrior(?array $cadence): ?array
+    {
+        if ($cadence === null || !isset($cadence['arrivalPc'])) {
+            return null;
+        }
+
+        $arrival = $cadence['arrivalPc'];
+        $tonicPc = match ($cadence['type']) {
+            CadenceDetector::HALF      => ($arrival + 5) % 12,   // arrival = dominant → tonic a 5th below
+            CadenceDetector::DECEPTIVE => ($arrival + 3) % 12,   // arrival = submediant → tonic
+            default                    => $arrival,              // authentic / plagal → arrival is the tonic
+        };
+
+        return ['tonicPc' => $tonicPc, 'bonus' => self::CADENCE_BONUS, 'reason' => $cadence['type']];
     }
 
     /**
@@ -148,15 +228,11 @@ class PassageDetector
             $length = $passage['end_measure'] - $passage['start_measure'] + 1;
 
             if ($length < 2 && !empty($merged)) {
-                $prev                  = array_pop($merged);
-                $prev['end_measure']   = $passage['end_measure'];
-                $prev['key']           = $passage['key'];
-                $prev['confidence']    = $passage['confidence'];
-                $prev['correlation']   = $passage['correlation'];
-                $prev['cadence']       = $passage['cadence'];
-                $prev['boundary']      = $passage['boundary'];
-                $prev['key_trace']     = $passage['key_trace'];
-                $merged[]              = $prev;
+                // Fold the fragment into its neighbour, adopting the fragment's
+                // (later) key reading but keeping the neighbour's start.
+                $passage['start_measure'] = $merged[count($merged) - 1]['start_measure'];
+                array_pop($merged);
+                $merged[] = $passage;
             } else {
                 $merged[] = $passage;
             }

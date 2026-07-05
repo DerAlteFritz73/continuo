@@ -144,4 +144,66 @@ class MusicXmlParserTest extends TestCase
         $this->assertSame([['number' => 7, 'alter' => 0]], $notes[2]->figuredBass, 'D keeps its own 7');
         $this->assertSame([['number' => 6, 'alter' => 0]], $notes[0]->figuredBass, '6 falls back to C');
     }
+
+    /** @test */
+    public function melody_notes_carry_octave_and_midi(): void
+    {
+        // One flute (A4) over a continuo bass (F3).
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<score-partwise version="4.0">'
+            . '<part-list>'
+            . '<score-part id="P1"><part-name>Flute</part-name></score-part>'
+            . '<score-part id="P2"><part-name>Bass</part-name></score-part>'
+            . '</part-list>'
+            . '<part id="P1"><measure number="1">'
+            . '<attributes><divisions>1</divisions><key><fifths>0</fifths></key></attributes>'
+            . '<note><pitch><step>A</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice></note>'
+            . '</measure></part>'
+            . '<part id="P2"><measure number="1">'
+            . '<attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>'
+            . '<note><pitch><step>F</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice></note>'
+            . '</measure></part>'
+            . '</score-partwise>';
+
+        $score  = $this->parser->parse($xml);
+        $melody = $score->measures[0]->melodyNotes;
+
+        $this->assertCount(1, $melody);
+        $this->assertSame(9, $melody[0]['pc'], 'A = pitch class 9');
+        $this->assertSame(4, $melody[0]['octave']);
+        $this->assertSame(69, $melody[0]['midi'], 'A4 = MIDI 69');
+    }
+
+    /** @test */
+    public function melody_notes_are_pooled_from_every_non_bass_part(): void
+    {
+        // Trio sonata texture: two upper parts (A4 and C5) over a bass (F3).
+        // Both soloists must land in melodyNotes, not just the highest.
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<score-partwise version="4.0">'
+            . '<part-list>'
+            . '<score-part id="P1"><part-name>Violin I</part-name></score-part>'
+            . '<score-part id="P2"><part-name>Violin II</part-name></score-part>'
+            . '<score-part id="P3"><part-name>Bass</part-name></score-part>'
+            . '</part-list>'
+            . '<part id="P1"><measure number="1">'
+            . '<attributes><divisions>1</divisions><key><fifths>0</fifths></key></attributes>'
+            . '<note><pitch><step>C</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice></note>'
+            . '</measure></part>'
+            . '<part id="P2"><measure number="1">'
+            . '<attributes><divisions>1</divisions></attributes>'
+            . '<note><pitch><step>A</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice></note>'
+            . '</measure></part>'
+            . '<part id="P3"><measure number="1">'
+            . '<attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>'
+            . '<note><pitch><step>F</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice></note>'
+            . '</measure></part>'
+            . '</score-partwise>';
+
+        $score = $this->parser->parse($xml);
+        $midis = array_map(fn(array $mn): int => $mn['midi'], $score->measures[0]->melodyNotes);
+        sort($midis);
+
+        $this->assertSame([69, 72], $midis, 'both Violin II (A4=69) and Violin I (C5=72) are pooled');
+    }
 }
