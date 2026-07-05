@@ -172,7 +172,7 @@ async function initScore(key, xml, preservePage = false) {
                 // The realization pane writes a Roman-numeral row under each
                 // system, so it needs extra room between systems for it. The
                 // original (bass + flute) pane keeps Verovio's default spacing.
-                if (key === 'real') opts.spacingSystem = 24;
+                if (key === 'real') opts.spacingSystem = 30;
                 tk.setOptions(opts);
                 break;
             } catch (_) {
@@ -426,6 +426,18 @@ function drawPassageKeyLabels(svgEl) {
     });
 }
 
+// Multiply a #rrggbb colour toward black by `factor` (0–1) for a darker, higher-
+// contrast shade of the same hue.
+function darkenHex(hex, factor) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    const r = Math.round(((n >> 16) & 255) * factor);
+    const g = Math.round(((n >> 8) & 255) * factor);
+    const b = Math.round((n & 255) * factor);
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
 // Write the detected Roman numeral for each structural chord beneath the bass
 // line's figures. Numerals come from chordDataStore[idx].roman (computed per
 // chord in the phrase's local key). Placed just below the lowest figured-bass
@@ -452,6 +464,11 @@ function drawRomanNumerals(svgEl) {
     layer.setAttribute('class', 'roman-layer');
     svgEl.appendChild(layer);
 
+    // Each numeral takes a strongly-darkened shade of its own phrase colour, so
+    // the colour changes with every background band and stays high-contrast
+    // against that band's light (0.12-opacity) tint.
+    const mColor = phraseColorByMeasure();
+
     // Baseline for each system = just under its lowest figure (`.harm`), falling
     // back to the system's bottom edge when a system carries no figures.
     const systemBaseline = new Map();
@@ -463,14 +480,16 @@ function drawRomanNumerals(svgEl) {
             if (b.y + b.h > y) y = b.y + b.h;
         });
         if (!y) { const b = svgBBoxInRoot(svgEl, sys); y = b.y + b.h; }
-        systemBaseline.set(sys, y + baseFont * 1.7);
+        systemBaseline.set(sys, y + baseFont * 1.9);
         return systemBaseline.get(sys);
     };
 
     let lastRoman = null;
     let lastSys   = null;
+    const rightEdge = new Map();   // system → right x of the last placed numeral
     Object.keys(idxToEls).map(Number).sort((a, b) => a - b).forEach(idx => {
-        const roman = (chordDataStore[idx] || {}).roman;
+        const cd    = chordDataStore[idx] || {};
+        const roman = cd.roman;
         if (!roman) return;
 
         const boxes = idxToEls[idx].map(el => svgBBoxInRoot(svgEl, el));
@@ -485,11 +504,24 @@ function drawRomanNumerals(svgEl) {
         text.setAttribute('x', cx);
         text.setAttribute('y', baselineFor(sys));
         text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('fill', '#c9a24b');
-        text.setAttribute('font-size', String(baseFont * 1.5));
+        text.setAttribute('fill', darkenHex(mColor[cd.measureNum] || '#7a5a00', 0.55));
+        text.setAttribute('font-size', String(baseFont * 2.0));
+        text.setAttribute('font-weight', '700');
         text.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
         text.textContent = roman;
         layer.appendChild(text);
+
+        // Collision check: if this numeral would overlap the previous one in the
+        // same system, drop it (keep the earlier, on-the-beat chord). Measured
+        // from the rendered glyph box so it accounts for the actual width.
+        const tb        = svgBBoxInRoot(svgEl, text);
+        const gap       = baseFont * 0.45;
+        const prevRight = rightEdge.get(sys);
+        if (prevRight !== undefined && tb.x < prevRight + gap) {
+            text.remove();
+            return;
+        }
+        rightEdge.set(sys, tb.x + tb.w);
     });
 }
 
