@@ -162,13 +162,18 @@ async function initScore(key, xml, preservePage = false) {
         for (let attempt = 0; attempt < 8; attempt++) {
             try {
                 tk = new verovio.toolkit();
-                tk.setOptions({
+                const opts = {
                     pageWidth:        2100,
                     pageHeight:       2970,
                     adjustPageHeight: true,
                     scale:            45,
                     breaks:           'auto',
-                });
+                };
+                // The realization pane writes a Roman-numeral row under each
+                // system, so it needs extra room between systems for it. The
+                // original (bass + flute) pane keeps Verovio's default spacing.
+                if (key === 'real') opts.spacingSystem = 24;
+                tk.setOptions(opts);
                 break;
             } catch (_) {
                 tk = null;
@@ -458,7 +463,7 @@ function drawRomanNumerals(svgEl) {
             if (b.y + b.h > y) y = b.y + b.h;
         });
         if (!y) { const b = svgBBoxInRoot(svgEl, sys); y = b.y + b.h; }
-        systemBaseline.set(sys, y + baseFont * 1.25);
+        systemBaseline.set(sys, y + baseFont * 1.7);
         return systemBaseline.get(sys);
     };
 
@@ -481,7 +486,7 @@ function drawRomanNumerals(svgEl) {
         text.setAttribute('y', baselineFor(sys));
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('fill', '#c9a24b');
-        text.setAttribute('font-size', String(baseFont * 1.05));
+        text.setAttribute('font-size', String(baseFont * 1.5));
         text.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
         text.textContent = roman;
         layer.appendChild(text);
