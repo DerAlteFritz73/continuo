@@ -24,9 +24,10 @@ class PassageDetector
     public function __construct(
         private readonly LocalKeyEstimator     $keyEstimator,
         private readonly CadenceDetector       $cadenceDetector,
-        private readonly RomanNumeralAnalyzer  $romanAnalyzer,
-        private readonly SequenceDetector      $sequenceDetector,
-        private readonly SuspensionDetector    $suspensionDetector,
+        private readonly RomanNumeralAnalyzer     $romanAnalyzer,
+        private readonly SequenceDetector         $sequenceDetector,
+        private readonly SuspensionDetector       $suspensionDetector,
+        private readonly SoundProgressionDetector $soundProgressionDetector,
     ) {}
 
     /** Weight given to the cadential tonic on top of the raw K-S correlation. */
@@ -139,6 +140,7 @@ class PassageDetector
         $progression = $this->romanAnalyzer->analyze($segment, $estimate['fifths'], $estimate['mode'], $divisions);
         $patterns    = $this->sequenceDetector->detect($segment);
         $suspensions = $this->suspensionDetector->detect($segment, $divisions);
+        $sound       = $this->soundProgressionDetector->detect($segment, $estimate['fifths'], $estimate['mode'], $divisions);
 
         return [
             'start_measure' => $first->number,
@@ -149,9 +151,10 @@ class PassageDetector
             'cadence'       => $cadence['type'] ?? null,
             'boundary'      => $boundary,
             'key_trace'     => $estimate['trace'] ?? [],
-            'progression'   => $progression,
-            'patterns'      => $patterns,
-            'suspensions'   => $suspensions,
+            'progression'      => $progression,
+            'patterns'         => $patterns,
+            'suspensions'      => $suspensions,
+            'sound_progression'=> $sound,
         ];
     }
 

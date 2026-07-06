@@ -391,6 +391,34 @@ function passageTraceHtml(p) {
             ${suspHtml}
             <div style="margin-top:0.3rem"><strong>Confidence:</strong> ${escapeHtml(t.confidence || '')}</div>
         </div>
+    </details>${soundProgressionHtml(p)}`;
+}
+
+// Sound-progression reading after Markus Jans: the stable–mobile–dissonant
+// ("p–i–p") profile of the bass, its Rule-of-the-Octave stepwise runs (Terz-/
+// Quart-/Quintgänge), 5–6 dynamisations, and chromatic bass notes read as ficta.
+const GANG_LABELS = { third: 'Terzgang', fourth: 'Quartgang', fifth: 'Quintgang', octave: 'octave run' };
+function soundProgressionHtml(p) {
+    const sp = p.sound_progression;
+    if (!sp) return '';
+    const st = sp.stability || { stable: 0, mobile: 0, dissonant: 0 };
+
+    const gaenge = (sp.octave_rule || []).map(g => {
+        const arrow = g.direction === 'ascending' ? '↑' : '↓';
+        const mark  = g.conforms ? '✓' : '✗';
+        return `${GANG_LABELS[g.type] || g.type} ${arrow} (mm ${g.start_measure}–${g.end_measure}) ${mark}`;
+    }).join(', ');
+
+    const rows = [
+        `<div><strong>Stability (p–i–p):</strong> <span style="color:#16a34a">${st.stable} stable</span> · <span style="color:#ca8a04">${st.mobile} mobile</span> · <span style="color:#dc2626">${st.dissonant} dissonant</span>${sp.pip_arcs && sp.pip_arcs.length ? ` · ${sp.pip_arcs.length} arc${sp.pip_arcs.length > 1 ? 's' : ''}` : ''}</div>`,
+        gaenge ? `<div style="margin-top:0.2rem"><strong>Rule of the Octave:</strong> ${gaenge}</div>` : '',
+        (sp.five_six && sp.five_six.length) ? `<div style="margin-top:0.2rem"><strong>5–6 motion:</strong> ${sp.five_six.map(x => 'm ' + x.measure).join(', ')}</div>` : '',
+        (sp.ficta && sp.ficta.length) ? `<div style="margin-top:0.2rem"><strong>Ficta:</strong> ${sp.ficta.map(x => escapeHtml(x.note) + ' (m ' + x.measure + ')').join(', ')}</div>` : '',
+    ].filter(Boolean).join('');
+
+    return `<details class="passage-sound" style="margin-top:0.35rem">
+        <summary style="cursor:pointer;font-size:0.78rem;opacity:0.75">Sound progression (Jans)</summary>
+        <div style="margin-top:0.4rem;font-size:0.78rem;line-height:1.55">${rows}</div>
     </details>`;
 }
 
