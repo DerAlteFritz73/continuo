@@ -274,21 +274,27 @@ function svgBBoxInRoot(svgEl, el) {
 // the data: every note time equals scorePosition × k, so the k shared by the
 // most notes is the right one. (Notes at scorePosition 0 carry no information.)
 function deriveMsPerQuarter(noteTimes) {
-    const positions = chordDataStore.map(cd => cd.scorePosition).filter(p => p > 0);
-    if (!positions.length) return 1000;
-
-    const votes = new Map();
-    for (const t of noteTimes) {
-        if (t <= 0) continue;
-        for (const s of positions) {
-            const k = Math.round((t / s) * 10) / 10;
-            votes.set(k, (votes.get(k) || 0) + 1);
+    // Verovio time = k × scorePosition, with k (ms per scorePosition unit)
+    // constant across the whole piece. Both timelines advance by the same
+    // smallest rhythmic step, so k is the ratio of their smallest gaps. (The old
+    // per-position voting was swamped: a page's notes voted t/s against EVERY
+    // chord in the whole piece, and the many large positions flooded the tally
+    // with spurious tiny ratios.)
+    const minGap = (arr) => {
+        const u = [...new Set(arr.filter(v => v > 0))].sort((a, b) => a - b);
+        let g = Infinity;
+        for (let i = 1; i < u.length; i++) {
+            const d = u[i] - u[i - 1];
+            if (d > 1e-9 && d < g) g = d;
         }
-    }
+        return g;
+    };
 
-    let best = 1000, bestVotes = -1;
-    for (const [k, n] of votes) if (n > bestVotes) { bestVotes = n; best = k; }
-    return best || 1000;
+    const gt = minGap(noteTimes);
+    const gs = minGap(chordDataStore.map(cd => cd.scorePosition));
+    if (!isFinite(gt) || !isFinite(gs) || gs <= 0) return 1000;
+
+    return gt / gs;
 }
 
 // Map chordDataStore index → its .note SVG elements on the current page.
@@ -312,27 +318,30 @@ function buildChordElementMap(svgEl, tk) {
 
     const msPerQuarter = deriveMsPerQuarter(noteEls.map(n => n.timeMs));
 
-    const chordTimeMap = {};
-    chordDataStore.forEach((cd, idx) => { chordTimeMap[Math.round(cd.scorePosition * msPerQuarter)] = idx; });
-
-    // Exact key first, then a small tolerance (scaled to the tempo) to absorb
-    // floating-point rounding between Verovio's clock and our derived factor.
-    const tol = Math.max(5, Math.round(msPerQuarter * 0.02));
-    const lookupTime = (ms) => {
-        const t = Math.round(ms);
-        if (t in chordTimeMap) return chordTimeMap[t];
-        for (let d = 1; d <= tol; d++) {
-            if ((t - d) in chordTimeMap) return chordTimeMap[t - d];
-            if ((t + d) in chordTimeMap) return chordTimeMap[t + d];
-        }
-        return null;
-    };
+    // Each chord's expected time on Verovio's clock. Match every rendered note to
+    // the NEAREST chord time rather than an exact rounded-ms key: when Verovio's
+    // tempo makes msPerQuarter tiny, integer keys collapse many chords onto the
+    // same key and the lookup fails. Nearest-match on the continuous timeline is
+    // robust to any tempo scale.
+    const chordTimes = chordDataStore.map(cd => cd.scorePosition * msPerQuarter);
+    const sorted = [...chordTimes].filter(t => t > 0).sort((a, b) => a - b);
+    let minGap = Infinity;
+    for (let i = 1; i < sorted.length; i++) {
+        const g = sorted[i] - sorted[i - 1];
+        if (g > 1e-9 && g < minGap) minGap = g;
+    }
+    const tol = (isFinite(minGap) ? minGap : msPerQuarter) * 1.5 + 1;
 
     const idxToEls = {};
     noteEls.forEach(({ el, timeMs }) => {
-        const idx = lookupTime(timeMs);
-        if (idx === null) return;
-        (idxToEls[idx] ||= []).push(el);
+        let best = -1, bestD = Infinity;
+        for (let i = 0; i < chordTimes.length; i++) {
+            const d = Math.abs(chordTimes[i] - timeMs);
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        if (best >= 0 && bestD <= tol) {
+            (idxToEls[best] ||= []).push(el);
+        }
     });
     return idxToEls;
 }
