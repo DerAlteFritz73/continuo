@@ -35,14 +35,26 @@ use App\Repository\VoiceLeadingRuleRepository;
  * 4. VOICE LEADING / LAW OF SHORTEST WAY (Delair):
  *    - Prefer common tones between chords; retain them in the same voice
  *    - Exception for repeated chords: shift position away from range extremes
- *    - Prefer steps over leaps
+ *    - Prefer steps over leaps; keep every voice as conjunct as possible
  *    - Contrary motion between soprano and bass preferred
  *    - One voice may leap if others move by step/common tone
+ *    - Smoothness over completeness: the PERFECT fifth of a chord may be
+ *      dropped (doubling the root instead) when that lets the upper voices
+ *      move by step / common tone rather than leap. Only a pure fifth
+ *      (7 semitones above the bass root) qualifies — a diminished or augmented
+ *      fifth is a tendency tone and is always kept. See {@see OMIT_FIFTH_PENALTY}.
+ *    - Parallel 3rds/10ths with the bass are rewarded — the idiomatic way to
+ *      harmonise a moving/passing bass line (imperfect parallels, unlike the
+ *      forbidden parallel 5ths/8ves). See {@see parallelTenthBonus}.
+ *    - Lighter texture: in four-voice mode a triad is realised as three notes
+ *      (complete triad, no doubling); four voices are kept only for 7th chords
+ *      and for a leading-tone → tonic cadence with the tonic in the bass (where
+ *      the tonic is doubled). See {@see resolveVoiceCount}.
  *
  * 5. SEVENTH CHORD RESOLUTION (Rameau / Gasparini):
  *    - 7th resolves down by step
  *    - Leading tone resolves up by half step
- *    - 5th of V7 may omit for four-part writing
+ *    - 5th of V7 (and of any root-position chord) may omit — see rule 4 above
  *
  * 6. SUSPENSION RESOLUTION:
  *    - 9-8: 9th resolves down to 8th (unison with bass)
@@ -66,6 +78,12 @@ class VoiceLeadingEngine
 
     // Perfect intervals in semitones (mod 12)
     private const PERFECT_CONSONANCES = [0, 7]; // unison/octave=0, fifth=7
+
+    // Cost of omitting a chord's pure fifth, in place of the hard 150-per-missing
+    // required-tone penalty. Small enough that the optimizer drops the fifth to
+    // avoid a leap of a fifth or larger, but large enough that it is kept
+    // whenever the voice leading is already smooth ("omit only if necessary").
+    private const OMIT_FIFTH_PENALTY = 8.0;
 
     /** @var array<int, \Closure>|null Compiled rule closures, null until first use */
     private ?array $compiledRules = null;
@@ -129,9 +147,7 @@ class VoiceLeadingEngine
         // and similar) or because an unresolved voice-leading obligation from the previous
         // chord (leading-tone resolution up, chordal-7th resolution down) cannot be handled
         // cleanly with only two upper voices.
-        $effectiveVoices = $numVoices === 3
-            ? $this->effectiveVoiceCount($intervals, $prevChord, $keyFifths, $keyMode)
-            : $numVoices;
+        $effectiveVoices = $this->resolveVoiceCount($numVoices, $intervals, $chord, $prevChord, $keyFifths, $keyMode);
 
         // Choose pitches by minimizing total voice movement
         $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th, $prevBassMidi, $melodyPc, $effectiveVoices, $melodyCeiling);
@@ -192,6 +208,59 @@ class VoiceLeadingEngine
         }
 
         return 3;
+    }
+
+    /**
+     * Effective voice count for a chord.
+     *
+     * In 3-voice mode, upgrade to 4 when the harmony or a resolution obligation
+     * needs it ({@see effectiveVoiceCount}).
+     *
+     * In 4-voice mode, LIGHTEN the texture: a triad is realised as three notes
+     * (a complete triad with no doubling) rather than four. Four voices are kept
+     * only where doubling is warranted — a 7th chord (four distinct tones), or a
+     * leading-tone → tonic cadence with the tonic in the bass, where the leading
+     * tone must resolve up to the tonic and the tonic is therefore doubled.
+     */
+    private function resolveVoiceCount(int $numVoices, array $intervals, Chord $chord, ?Chord $prevChord, int $keyFifths, string $keyMode): int
+    {
+        if ($numVoices === 3) {
+            return $this->effectiveVoiceCount($intervals, $prevChord, $keyFifths, $keyMode);
+        }
+
+        if (count($intervals) >= 3) {
+            return 4;   // 7th chord etc. — four distinct pitch classes
+        }
+        if ($this->requiresTonicDoubling($chord, $prevChord, $keyFifths, $keyMode)) {
+            return 4;   // authentic-cadence tonic in the bass — double the tonic
+        }
+
+        return 3;   // complete triad, no doubling — the lighter texture
+    }
+
+    /**
+     * True when the current chord has the tonic in the bass and the previous
+     * chord held the leading tone — the authentic-cadence arrival, where the
+     * leading tone resolves up to the tonic and the tonic is doubled (typically
+     * at the expense of the fifth).
+     */
+    private function requiresTonicDoubling(Chord $chord, ?Chord $prevChord, int $keyFifths, string $keyMode): bool
+    {
+        if ($prevChord === null) {
+            return false;
+        }
+        $tonicPc = PitchHelper::buildScale($keyFifths, $keyMode)[0];
+        if ($chord->bass->pitchClass() !== $tonicPc) {
+            return false;   // the tonic must be in the bass
+        }
+        $ltPc = ($tonicPc - 1 + 12) % 12;
+        foreach ($prevChord->allNotes() as $note) {
+            if (!$note->isRest() && $note->pitchClass() === $ltPc) {
+                return true;   // leading tone in the previous chord resolves to this tonic
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -271,6 +340,14 @@ class VoiceLeadingEngine
                 array_filter($requiredPcsForVoices, fn($pc) => $pc !== $melodyPc)
             );
         }
+
+        // The chord's pure fifth (7 semitones above the bass root) may be dropped
+        // for smoother voice leading. A diminished/augmented fifth is bass+6 / +8
+        // and so never equals bass+7 — it is never treated as omittable. Only
+        // fires when that perfect fifth is actually a required chord tone (root
+        // position); in inversions bass+7 is not a chord tone, so nothing drops.
+        $perfectFifthPc   = ($bassMidi + 7) % 12;
+        $omittableFifthPc = in_array($perfectFifthPc, $requiredPcs, true) ? $perfectFifthPc : null;
 
         // Build the full chord-tone pool.
         // In 3-voice mode (2 upper voices): allow root doubling when ≤ 1 required PC
@@ -378,11 +455,11 @@ class VoiceLeadingEngine
         $a_opts     = array_slice($filtered[1], 0, $limit);
         $s_opts     = array_slice($filtered[2], 0, $limit);
 
-        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc, $omittableFifthPc);
         if ($found !== null) {
             return $found;
         }
-        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+        $found = $this->searchVoices($t_opts, $a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc, $omittableFifthPc);
         return $found ?? $bestChosen;
     }
 
@@ -393,7 +470,7 @@ class VoiceLeadingEngine
     private function searchVoices(
         array $tOpts, array $aOpts, array $sOpts,
         array $prevMidis, int $bassMidi, int $maxSpan, ?int $prevBassMidi = null,
-        array $requiredPcs = [], ?int $melodyPc = null
+        array $requiredPcs = [], ?int $melodyPc = null, ?int $omittableFifthPc = null
     ): ?array {
         $bestCost   = PHP_INT_MAX;
         $bestChosen = null;
@@ -423,12 +500,14 @@ class VoiceLeadingEngine
 
                     // Hard penalty for omitting a required figured-bass interval.
                     // 150 per missing PC dwarfs any motion-cost gain (max ~30), so the
-                    // optimizer will always prefer a voicing that includes all figure tones.
+                    // optimizer will always prefer a voicing that includes all figure tones —
+                    // except a pure fifth, which may be dropped for smoother leading at the
+                    // much smaller OMIT_FIFTH_PENALTY.
                     if (!empty($requiredPcs)) {
                         $presentPcs = [$t % 12, $a % 12, $s % 12];
                         foreach ($requiredPcs as $rpc) {
                             if (!in_array($rpc, $presentPcs, true)) {
-                                $cost += 150.0;
+                                $cost += ($rpc === $omittableFifthPc) ? self::OMIT_FIFTH_PENALTY : 150.0;
                             }
                         }
                     }
@@ -443,6 +522,9 @@ class VoiceLeadingEngine
                         if ($s % 12 === $melodyPc) $cost += 40.0;
                     }
 
+                    // Reward idiomatic parallel 3rds/10ths with a moving bass.
+                    $cost -= $this->parallelTenthBonus([$t, $a, $s], $prevMidis, $bassMidi, $prevBassMidi);
+
                     if ($cost < $bestCost) {
                         $bestCost   = $cost;
                         $bestChosen = [$t, $a, $s];
@@ -452,6 +534,46 @@ class VoiceLeadingEngine
         }
 
         return $bestChosen;
+    }
+
+    /**
+     * Reward an upper voice that runs in parallel 3rds/10ths with the bass — the
+     * standard idiomatic way to harmonise a moving (passing) bass line. The
+     * interval to the bass stays a third (or its octave compound, a 10th/17th)
+     * and both voices move the same direction. Unlike parallel 5ths/8ves (which
+     * are penalised elsewhere) these imperfect parallels are desirable, and most
+     * of all over a stepwise passing bass.
+     *
+     * @param int[] $curr upper-voice MIDIs (each with its prev counterpart in $prevMidis)
+     */
+    private function parallelTenthBonus(array $curr, array $prevMidis, int $bassCurr, ?int $prevBassMidi): float
+    {
+        if ($prevBassMidi === null || empty($prevMidis)) {
+            return 0.0;
+        }
+        $bassDir = $bassCurr - $prevBassMidi;
+        if ($bassDir === 0) {
+            return 0.0;   // the bass must move for a parallel to exist
+        }
+
+        $isThirdOrTenth = static fn(int $iv): bool => $iv > 0 && ($iv % 12 === 3 || $iv % 12 === 4);
+
+        $bonus = 0.0;
+        foreach ($curr as $i => $v) {
+            $pv = $prevMidis[$i] ?? null;
+            if ($pv === null || $v === $pv) {
+                continue;
+            }
+            $sameDir = (($v - $pv) > 0) === ($bassDir > 0);
+            if ($sameDir && $isThirdOrTenth($v - $bassCurr) && $isThirdOrTenth($pv - $prevBassMidi)) {
+                $bonus += 6.0;
+                if (abs($bassDir) <= 2) {
+                    $bonus += 3.0;   // passing (stepwise) bass — the most idiomatic case
+                }
+            }
+        }
+
+        return $bonus;
     }
 
     /**
@@ -478,6 +600,10 @@ class VoiceLeadingEngine
 
                 $cost = $this->voiceCost2([$a, $s], $prevMidis, $bassMidi, $isStart, $prevBassMidi);
 
+                // With only two upper voices the triad is already at three notes;
+                // keep it complete (never drop the fifth here, or it collapses to a
+                // hollow root + third). Fifth omission applies in the fuller,
+                // three-upper-voice path instead.
                 if (!empty($requiredPcs)) {
                     $present = [$a % 12, $s % 12];
                     foreach ($requiredPcs as $rpc) {
@@ -491,6 +617,9 @@ class VoiceLeadingEngine
                     if ($a % 12 === $melodyPc) $cost += 40.0;
                     if ($s % 12 === $melodyPc) $cost += 40.0;
                 }
+
+                // Reward idiomatic parallel 3rds/10ths with a moving bass.
+                $cost -= $this->parallelTenthBonus([$a, $s], $prevMidis, $bassMidi, $prevBassMidi);
 
                 if ($cost < $bestCost) {
                     $bestCost   = $cost;
