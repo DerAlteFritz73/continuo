@@ -135,6 +135,7 @@ form.addEventListener('submit', async ev => {
         currentInputXml = data.inputXml || null;
         chordDataStore  = data.chordData || [];
         passageStore    = data.passages  || [];
+        selectedPassageIdx = 0; // reset on-score numeral selection to the first phrase
         buildFbComputedFlags();
         showResult(data);
     } catch (err) {
@@ -203,6 +204,9 @@ function showResult(data) {
             </div>`;
         }).join('');
         passagesPanel.style.display = '';
+        // Only the selected phrase's analysis card is shown at a time; the rest
+        // are revealed by clicking their phrase on the score. (defined in score-viewer.js)
+        if (typeof updatePassagePanelVisibility === 'function') updatePassagePanelVisibility();
     } else {
         passagesPanel.style.display = 'none';
     }

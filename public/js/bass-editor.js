@@ -520,6 +520,7 @@
             currentInputXml = data.inputXml || null;
             chordDataStore  = data.chordData || [];
             passageStore    = data.passages  || [];
+            selectedPassageIdx = 0; // reset on-score numeral selection to the first phrase
             buildFbComputedFlags();
             showResult(data);
         } catch (err) {

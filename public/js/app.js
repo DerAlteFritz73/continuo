@@ -6,6 +6,7 @@ let currentInputXml = null;
 let currentFile     = null;
 let chordDataStore  = [];
 let passageStore    = [];  // detected phrases: {start_measure, end_measure, key, confidence, cadence}
+let selectedPassageIdx = 0; // which phrase's Roman numerals are drawn under the score (one at a time)
 let fbComputedFlags = [];  // one boolean per figured-bass element, in score order
 let currentEditIdx  = null;
 

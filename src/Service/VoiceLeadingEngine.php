@@ -69,8 +69,11 @@ class VoiceLeadingEngine
     // Voice range MIDI limits: [min, max]
     private const RANGES = [
         'soprano' => [60, 79],  // C4–G5
-        'alto'    => [55, 72],  // G3–C5
-        'tenor'   => [55, 64],  // G3–E4  (floor raised from C3 to avoid muddy bass register)
+        'alto'    => [60, 74],  // C4–D5  (floor raised G3→C4: the editorial reference keeps
+                                //         the lower RH voice around E4, letting the bass carry
+                                //         the low register — see register analysis vs sample)
+        'tenor'   => [58, 67],  // Bb3–G4 (floor/ceiling lifted to match the reference's compact,
+                                //         high right hand; only used for full 4-voice 7th chords)
     ];
 
     // Maximum right-hand span: soprano − tenor must not exceed a 9th (major 9th = 14 semitones)
@@ -84,6 +87,20 @@ class VoiceLeadingEngine
     // avoid a leap of a fifth or larger, but large enough that it is kept
     // whenever the voice leading is already smooth ("omit only if necessary").
     private const OMIT_FIFTH_PENALTY = 8.0;
+
+    // Reward for including the bass's own octave among the upper voices of a
+    // root-position triad. The octave is part of the "basic chord" — Christensen
+    // (18th-Century Continuo Playing) summarises the thoroughbass consensus as
+    // "the basic chord consists of the octave, the fifth, and the third." In a
+    // thin two-voice right hand one of the fifth / octave is dropped; making the
+    // octave nearly as attractive as the fifth (this bonus ≈ OMIT_FIFTH_PENALTY)
+    // lets voice-leading smoothness decide between octave+third and third+fifth,
+    // matching the editorial reference's frequent octave doublings rather than
+    // its former near-total absence.
+    private const OCTAVE_DOUBLE_BONUS = 0.0;   // the bass octave stays an AVAILABLE voicing
+                                               // option, but is no longer rewarded: it is
+                                               // chosen only when it makes the smoother line
+                                               // (octave doubling is not a goal in itself).
 
     /** @var array<int, \Closure>|null Compiled rule closures, null until first use */
     private ?array $compiledRules = null;
@@ -119,6 +136,8 @@ class VoiceLeadingEngine
         int     $numVoices = 4,    // total voices: 4 = soprano+alto+tenor+bass, 3 = alto+soprano+bass
         ?int    $melodyCeiling = null, // highest melody (solo) MIDI over this chord; the
                                        // top voice must not rise above it
+        bool    $lighten = false,  // fast passing note (16th run): thin the texture by one
+                                   // voice — a triad becomes bass+1 (2 notes), a 7th bass+2
     ): Chord {
         $this->keyFifths = $keyFifths;
         $this->keyMode   = $keyMode;
@@ -149,13 +168,23 @@ class VoiceLeadingEngine
         // cleanly with only two upper voices.
         $effectiveVoices = $this->resolveVoiceCount($numVoices, $intervals, $chord, $prevChord, $keyFifths, $keyMode);
 
+        // Fast passing note (a 16th within a run): thin the texture by one voice
+        // so the hand stays light and the moving line stays audible — a triad
+        // drops to bass + one upper (2 notes), a 7th chord to bass + two (3, the
+        // maximum). Never below a single upper voice.
+        if ($lighten) {
+            $effectiveVoices = max(2, $effectiveVoices - 1);
+        }
+
         // Choose pitches by minimizing total voice movement
         $chosen = $this->chooseVoices($candidatePitches, $prevUpperMidis, $bass->midiPitch(), $isLeadingTone7th, $prevBassMidi, $melodyPc, $effectiveVoices, $melodyCeiling);
 
         // Voice name order matches the upperVoices array order (lowest first)
-        $voiceNames = $effectiveVoices === 3
-            ? ['alto', 'soprano']
-            : ['tenor', 'alto', 'soprano'];
+        $voiceNames = match ($effectiveVoices) {
+            2       => ['soprano'],
+            3       => ['alto', 'soprano'],
+            default => ['tenor', 'alto', 'soprano'],
+        };
 
         foreach ($chosen as $idx => $midi) {
             $voiceName = $voiceNames[$idx] ?? 'soprano';
@@ -353,9 +382,9 @@ class VoiceLeadingEngine
         // In 3-voice mode (2 upper voices): allow root doubling when ≤ 1 required PC
         //   so that simple triads (e.g. 5-3) still cover root + third.
         // In 4-voice mode (3 upper voices): allow root doubling when ≤ 2 required PCs.
-        $numUpper   = $numVoices === 3 ? 2 : 3;
+        $numUpper   = $numVoices - 1;   // 2→1 (lightened), 3→2, 4→3 upper voices
         $allPcs     = $requiredPcs;
-        $maxForRoot = $numVoices === 3 ? 1 : 2;
+        $maxForRoot = $numUpper - 1;    // 1→0, 2→1, 3→2
         if (count($requiredPcs) <= $maxForRoot) {
             $bassPc = $bassMidi % 12;
             if (!in_array($bassPc, $allPcs, true)) {
@@ -363,10 +392,26 @@ class VoiceLeadingEngine
             }
         }
 
+        // Root-position triad: the bass octave is an alternative to the
+        // (omittable) perfect fifth, so a thin texture can realise as
+        // octave+third instead of only third+fifth. Add the bass PC to the pool
+        // even when the required set is otherwise full (e.g. a 5-3 triad has two
+        // required PCs and would not qualify above). searchVoices/searchVoices2
+        // then weigh octave (OCTAVE_DOUBLE_BONUS) against fifth (OMIT_FIFTH_PENALTY).
+        if ($omittableFifthPc !== null) {
+            $bassPc = $bassMidi % 12;
+            if (!in_array($bassPc, $allPcs, true)) {
+                $allPcs[] = $bassPc;
+            }
+        }
+
         // Build per-voice candidate lists within each voice's range.
-        $voiceRanges = $numVoices === 3
-            ? [self::RANGES['alto'], self::RANGES['soprano']]
-            : [self::RANGES['tenor'], self::RANGES['alto'], self::RANGES['soprano']];
+        $voiceRanges = match ($numVoices) {
+            2       => [[55, 72]],   // single upper voice: a middle register (G3–C5),
+                                     // where a lone filler over a fast bass sits
+            3       => [self::RANGES['alto'], self::RANGES['soprano']],
+            default => [self::RANGES['tenor'], self::RANGES['alto'], self::RANGES['soprano']],
+        };
 
         $filtered = [];
         for ($v = 0; $v < $numUpper; $v++) {
@@ -435,17 +480,24 @@ class VoiceLeadingEngine
 
         $limit = 8;
 
+        if ($numVoices === 2) {
+            // ── Lightened: a single upper voice (bass + 1 note) ──────────────
+            $s_opts = array_slice($filtered[0], 0, $limit);
+            $found  = $this->searchVoices1($s_opts, $prevMidis, $bassMidi, $requiredPcsForVoices, $melodyPc, $omittableFifthPc);
+            return $found ?? [$filtered[0][0]];
+        }
+
         if ($numVoices === 3) {
             // ── 3-voice mode: alto + soprano only ────────────────────────────
             $bestChosen = [$filtered[0][0], $filtered[1][0]];
             $a_opts     = array_slice($filtered[0], 0, $limit);
             $s_opts     = array_slice($filtered[1], 0, $limit);
 
-            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, self::MAX_HAND_SPAN, $prevBassMidi, $requiredPcsForVoices, $melodyPc, $omittableFifthPc);
             if ($found !== null) {
                 return $found;
             }
-            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc);
+            $found = $this->searchVoices2($a_opts, $s_opts, $prevMidis, $bassMidi, 16, $prevBassMidi, $requiredPcsForVoices, $melodyPc, $omittableFifthPc);
             return $found ?? $bestChosen;
         }
 
@@ -525,6 +577,9 @@ class VoiceLeadingEngine
                     // Reward idiomatic parallel 3rds/10ths with a moving bass.
                     $cost -= $this->parallelTenthBonus([$t, $a, $s], $prevMidis, $bassMidi, $prevBassMidi);
 
+                    // Keep the right hand compact — penalise wide spacing.
+                    $cost += $this->spanPenalty($s - $t);
+
                     if ($cost < $bestCost) {
                         $bestCost   = $cost;
                         $bestChosen = [$t, $a, $s];
@@ -577,17 +632,120 @@ class VoiceLeadingEngine
     }
 
     /**
+     * Graduated penalty on the right-hand span (top − bottom upper voice), in
+     * semitones. The right hand should stay compact: up to a sixth (≤ 9) is the
+     * normal, free case; an octave is tolerated with a mild penalty; a ninth or
+     * tenth is allowed only exceptionally (steep penalty) — reserved for when it
+     * clearly saves motion or avoids a forbidden parallel. This shapes the
+     * spacing *within* the hard {@see MAX_HAND_SPAN} cutoff, which was otherwise
+     * span-indifferent (a 9th cost no more than a third).
+     */
+    private function spanPenalty(int $span): float
+    {
+        if ($span <= 9) {
+            return 0.0;                         // up to a sixth — compact, preferred
+        }
+        if ($span <= 12) {
+            return ($span - 9) * 2.0;           // m7 … octave: 2, 4, 6 — sometimes OK
+        }
+        return 6.0 + ($span - 12) * 6.0;        // 9th/10th: 12, 18, 24 … — exceptional
+    }
+
+    /**
+     * Melodic-motion cost for one voice moving $semitones from the previous
+     * chord. Each voice was historically an independent line that had to move
+     * smoothly: common tones and steps are nearly free, a third is idiomatic,
+     * but anything BEYOND a fourth is a real leap and is penalised steeply so
+     * the optimizer only takes it when no smooth voicing exists (which tends to
+     * coincide with phrase changes, where a leap is stylistically fine). Tuned
+     * against the editorial reference, whose upper voices leap past a fourth
+     * only ~3–5% of the time.
+     */
+    private function motionCost(int $semitones): float
+    {
+        $m = abs($semitones);
+        if     ($m === 0) return -2.0;    // common tone — retained (law of the shortest way)
+        elseif ($m <= 2)  return 1.0;     // step
+        elseif ($m <= 4)  return 3.0;     // third — smooth, idiomatic
+        elseif ($m === 5) return 7.0;     // fourth — acceptable, mildly discouraged
+        elseif ($m <= 7)  return 16.0;    // tritone / fifth — a real leap
+        elseif ($m <= 9)  return 28.0;    // sixth
+        else              return $m * 4.0; // seventh or wider — heavily penalised
+    }
+
+    /**
+     * 1-voice inner search loop (lightened texture: a single upper voice over
+     * the bass, for a fast passing note). Returns the best [soprano] array.
+     *
+     * With only one note above the bass, that note should CONVEY the harmony:
+     * prefer a colour tone (3rd / 6th / 7th) over the bass octave (which conveys
+     * nothing) or the bare fifth. Among those, pick the smoothest step from the
+     * previous top voice and keep it in a comfortable register and under the
+     * melody.
+     */
+    private function searchVoices1(
+        array $sOpts, array $prevMidis, int $bassMidi,
+        array $requiredPcs = [], ?int $melodyPc = null, ?int $omittableFifthPc = null
+    ): ?array {
+        $bestCost = PHP_INT_MAX;
+        $best     = null;
+        $prevTop  = !empty($prevMidis) ? end($prevMidis) : null;
+        $bassPc   = $bassMidi % 12;
+
+        foreach ($sOpts as $s) {
+            if ($s <= $bassMidi) {
+                continue;
+            }
+            $cost = 0.0;
+
+            // Smoothness: step from the previous top voice.
+            if ($prevTop !== null) {
+                $cost += $this->motionCost($s - $prevTop);
+            }
+
+            // Comfortable single-voice register (middle register, G3–C5).
+            if ($s < 55) $cost += (55 - $s) * 3;
+            if ($s > 72) $cost += ($s - 72) * 3;
+
+            // Mild colour preference: nudge the lone note toward the 3rd/6th/7th
+            // (which defines the chord) over the bass octave or bare fifth — but
+            // keep it small, so on a fast passing run CONTINUITY wins and the
+            // single voice holds/steps along the line rather than jumping to a
+            // colour tone (the reference holds a thin line across such runs).
+            $pc = $s % 12;
+            if ($pc === $bassPc) {
+                $cost += 8.0;
+            } elseif ($omittableFifthPc !== null && $pc === $omittableFifthPc) {
+                $cost += 4.0;
+            }
+
+            // Don't double the melody pitch class.
+            if ($melodyPc !== null && $pc === $melodyPc) {
+                $cost += 40.0;
+            }
+
+            if ($cost < $bestCost) {
+                $bestCost = $cost;
+                $best     = [$s];
+            }
+        }
+
+        return $best;
+    }
+
+    /**
      * 2-voice inner search loop (3-voice mode: alto + soprano).
      * Returns the best [alto, soprano] array, or null if none qualifies.
      */
     private function searchVoices2(
         array $aOpts, array $sOpts,
         array $prevMidis, int $bassMidi, int $maxSpan, ?int $prevBassMidi = null,
-        array $requiredPcs = [], ?int $melodyPc = null
+        array $requiredPcs = [], ?int $melodyPc = null, ?int $omittableFifthPc = null
     ): ?array {
         $bestCost   = PHP_INT_MAX;
         $bestChosen = null;
         $isStart    = empty($prevMidis);
+        $bassPc     = $bassMidi % 12;
 
         foreach ($aOpts as $a) {
             if ($a <= $bassMidi) {
@@ -600,17 +758,30 @@ class VoiceLeadingEngine
 
                 $cost = $this->voiceCost2([$a, $s], $prevMidis, $bassMidi, $isStart, $prevBassMidi);
 
-                // With only two upper voices the triad is already at three notes;
-                // keep it complete (never drop the fifth here, or it collapses to a
-                // hollow root + third). Fifth omission applies in the fuller,
-                // three-upper-voice path instead.
+                // Required figured-bass tones. With only two upper voices the
+                // triad is already thin, so missing a required PC is heavily
+                // penalised (150) — EXCEPT a root-position perfect fifth, which
+                // may be dropped in favour of the bass octave for smoother
+                // leading, at the much smaller OMIT_FIFTH_PENALTY. This lets a
+                // 5-3 triad realise as octave+third (the reference's frequent
+                // choice) instead of always third+fifth.
                 if (!empty($requiredPcs)) {
                     $present = [$a % 12, $s % 12];
                     foreach ($requiredPcs as $rpc) {
                         if (!in_array($rpc, $present, true)) {
-                            $cost += 150.0;
+                            $cost += ($rpc === $omittableFifthPc) ? self::OMIT_FIFTH_PENALTY : 150.0;
                         }
                     }
+                }
+
+                // Reward including the bass octave in a root-position triad, so
+                // octave+third is roughly as attractive as third+fifth and
+                // voice-leading smoothness picks between them. Only applies where
+                // the fifth is omittable (root position) — in an inversion the
+                // bass PC is not the root and gets no bonus.
+                if ($omittableFifthPc !== null) {
+                    if ($a % 12 === $bassPc) $cost -= self::OCTAVE_DOUBLE_BONUS;
+                    if ($s % 12 === $bassPc) $cost -= self::OCTAVE_DOUBLE_BONUS;
                 }
 
                 if ($melodyPc !== null) {
@@ -620,6 +791,9 @@ class VoiceLeadingEngine
 
                 // Reward idiomatic parallel 3rds/10ths with a moving bass.
                 $cost -= $this->parallelTenthBonus([$a, $s], $prevMidis, $bassMidi, $prevBassMidi);
+
+                // Keep the right hand compact — penalise wide spacing.
+                $cost += $this->spanPenalty($s - $a);
 
                 if ($cost < $bestCost) {
                     $bestCost   = $cost;
@@ -644,12 +818,7 @@ class VoiceLeadingEngine
         foreach ($curr as $i => $midi) {
             $prev = $prevMidis[$i] ?? null;
             if ($prev !== null) {
-                $motion = abs($midi - $prev);
-                if ($motion === 0)     $cost += 0;
-                elseif ($motion <= 2)  $cost += 1;
-                elseif ($motion <= 4)  $cost += 4;
-                elseif ($motion <= 7)  $cost += 9;
-                else                   $cost += $motion * 3;
+                $cost += $this->motionCost($midi - $prev);
             }
         }
 
@@ -774,18 +943,7 @@ class VoiceLeadingEngine
         foreach ($chosen as $i => $midi) {
             $prev = $prevMidis[$i] ?? null;
             if ($prev !== null) {
-                $motion = abs($midi - $prev);
-                if ($motion === 0) {
-                    $cost += 0;        // common tone — best
-                } elseif ($motion <= 2) {
-                    $cost += 1;        // step
-                } elseif ($motion <= 4) {
-                    $cost += 4;        // small leap
-                } elseif ($motion <= 7) {
-                    $cost += 9;        // leap of 5th/6th
-                } else {
-                    $cost += $motion * 3; // large leap — heavy penalty
-                }
+                $cost += $this->motionCost($midi - $prev);
             }
         }
 
@@ -892,7 +1050,11 @@ class VoiceLeadingEngine
     {
         $steps      = [];
         $currUpper  = $chord->upperVoices;
-        $voiceNames = count($currUpper) === 2 ? ['Alto', 'Soprano'] : ['Tenor', 'Alto', 'Soprano'];
+        $voiceNames = match (count($currUpper)) {
+            1       => ['Soprano'],
+            2       => ['Alto', 'Soprano'],
+            default => ['Tenor', 'Alto', 'Soprano'],
+        };
         $prevUpper  = $prevChord ? $prevChord->upperVoices : [];
 
         // ── Per-voice motion ──────────────────────────────────────────────────

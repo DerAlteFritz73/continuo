@@ -49,6 +49,14 @@ class ContinuoRealizer
             $keyMode    = $measure->keySignature['mode']   ?? $measure->detectedKey['mode']   ?? $score->keyMode;
             $bassOffset = 0.0; // cumulative quarter-note offset within this measure
 
+            // Figure-derived accidentals persist to the barline: an accidental a
+            // figure puts on a note letter (e.g. the D♯ of 's'/#3 or of '4+') stays
+            // in force for that letter on later, unfigured notes of the SAME
+            // measure — exactly as a written accidental does. Keyed by note letter
+            // → absolute alteration. Reset each measure. Keeps e.g. a tonicised
+            // dominant's D♯ (M5, B major) from slipping back to the diatonic D♮.
+            $activeAccidentals = [];
+
             foreach ($measure->bassNotes as $i => $bassNote) {
                 if ($bassNote->isRest()) {
                     $prevNote   = null;
@@ -103,6 +111,38 @@ class ContinuoRealizer
                 // Expand figures to interval list
                 $intervals = $this->interpreter->expand($rawFigures, $bassNote, $keyFifths, $keyMode);
 
+                // Apply accidental persistence: for each interval that carries NO
+                // accidental of its own (alter 0 — whether unfigured, melody-
+                // inferred, or a plain figure), if an accidental is already active
+                // for that note letter this measure, force it (as an explicit
+                // alteration so the voice-leading engine honours it). An interval
+                // that specifies its own accidental (alter ≠ 0) is left untouched.
+                foreach ($intervals as &$iv) {
+                    if ($iv['alter'] !== 0) {
+                        continue; // figure specifies its own accidental — self-defining
+                    }
+                    $note = PitchHelper::diatonicInterval($bassNote, $iv['interval'], $keyFifths, $keyMode);
+                    if (array_key_exists($note->step, $activeAccidentals)) {
+                        $delta = $activeAccidentals[$note->step] - $note->alter; // delta from diatonic spelling
+                        if ($delta !== 0) {
+                            $iv['alter']    = $delta;
+                            $iv['explicit'] = true;
+                        }
+                    }
+                }
+                unset($iv);
+
+                // Record accidentals introduced by this note's figures so they
+                // persist to later notes of the measure — absolute alteration per
+                // letter. Only genuine accidentals (alter ≠ 0) are recorded.
+                foreach ($intervals as $iv) {
+                    if ($iv['alter'] === 0) {
+                        continue;
+                    }
+                    $note = PitchHelper::diatonicInterval($bassNote, $iv['interval'], $keyFifths, $keyMode);
+                    $activeAccidentals[$note->step] = $note->alter + $iv['alter'];
+                }
+
                 // Determine if bass is leading tone (scale degree 7)
                 $isLeadingTone = ($scaleDeg === 7);
 
@@ -135,6 +175,17 @@ class ContinuoRealizer
                     $measure->melodyNotes, $bassOffset, $bassNote->duration
                 );
 
+                // Fast passing note: a 16th (or shorter) that belongs to a run of
+                // short notes (a neighbouring bass note is also short). Over such
+                // notes the harmony moves too quickly for a full chord, so the
+                // texture is thinned by one voice (see VoiceLeadingEngine::realize).
+                $shortMax  = 0.26; // quarter-note units; a 16th ≈ 0.25
+                $isShort   = $bassNote->duration <= $shortMax;
+                $runOfShort = $isShort && (
+                    ($prevNote && $prevNote->duration <= $shortMax)
+                    || ($nextNote && $nextNote->duration <= $shortMax)
+                );
+
                 // Realize upper voices
                 $chord = $this->voiceLeading->realize(
                     chord: $chord,
@@ -146,6 +197,7 @@ class ContinuoRealizer
                     melodyPc: $melodyPc,
                     numVoices: $numVoices,
                     melodyCeiling: $melodyCeiling,
+                    lighten: $runOfShort,
                 );
 
                 // Append voice-leading trace to decision steps (works for both

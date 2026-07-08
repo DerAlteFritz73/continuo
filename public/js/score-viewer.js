@@ -170,8 +170,11 @@ async function initScore(key, xml, preservePage = false) {
                     breaks:           'auto',
                 };
                 // The realization pane writes a Roman-numeral row under each
-                // system, so it needs extra room between systems for it. The
-                // original (bass + flute) pane keeps Verovio's default spacing.
+                // system, so it needs extra room between systems for it. Only one
+                // phrase's numerals are shown at a time (see drawRomanNumerals),
+                // so the default horizontal spacing gives them ample room — no
+                // need to widen the engraving. The original (bass + flute) pane
+                // keeps Verovio's default spacing.
                 if (key === 'real') opts.spacingSystem = 30;
                 tk.setOptions(opts);
                 break;
@@ -422,15 +425,16 @@ function drawPassageKeyLabels(svgEl) {
         text.textContent = passageKeyLabel(p);
         layer.appendChild(text);
 
-        // Clicking the on-score key label jumps to that phrase's analysis card
-        // and opens its "Why this key?" decision trail.
+        // Clicking the on-score key label shows this phrase's Roman numerals
+        // under the score, jumps to its analysis card, and opens its "Why this
+        // key?" decision trail.
         const title = document.createElementNS(SVGNS, 'title');
-        title.textContent = 'Why this key? →';
+        title.textContent = 'Show Roman numerals & why this key →';
         [tick, text].forEach(el => {
             el.style.cursor = 'pointer';
             el.setAttribute('pointer-events', 'all');
             el.appendChild(title.cloneNode(true));
-            el.addEventListener('click', ev => { ev.stopPropagation(); focusPassageAnalysis(pIdx); });
+            el.addEventListener('click', ev => { ev.stopPropagation(); selectPassage(pIdx); focusPassageAnalysis(pIdx); });
         });
     });
 }
@@ -447,12 +451,13 @@ function darkenHex(hex, factor) {
     return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
-// Write the detected Roman numeral for each structural chord beneath the bass
-// line's figures. Numerals come from chordDataStore[idx].roman (computed per
-// chord in the phrase's local key). Placed just below the lowest figured-bass
-// (`.harm`) element of each system so they sit under the figures, aligned to the
-// chord's horizontal position; consecutive repeats of the same numeral within a
-// system are collapsed. Redrawn per page (geometry needs the pane visible).
+// Write the detected Roman numeral under each chord's BASS NOTE, but only for
+// the currently-selected phrase (selectedPassageIdx) — the one whose analysis
+// the user clicked. Numerals come from chordDataStore[idx].roman (computed per
+// chord in the phrase's local key). Showing a single phrase keeps the row
+// uncluttered, so every chord of that phrase is labelled (no repeat-collapse,
+// nothing dropped) directly below the bass note it belongs to. Redrawn per page
+// (geometry needs the pane visible) and whenever the selection changes.
 function drawRomanNumerals(svgEl) {
     const tk = scores['real'].tk;
     if (!tk || !chordDataStore.length) return;
@@ -460,6 +465,13 @@ function drawRomanNumerals(svgEl) {
 
     const SVGNS = 'http://www.w3.org/2000/svg';
     svgEl.querySelector('.roman-layer')?.remove();
+
+    // Nothing to show without a valid selected phrase.
+    if (!passageStore.length) return;
+    const pIdx = (selectedPassageIdx >= 0 && selectedPassageIdx < passageStore.length)
+        ? selectedPassageIdx : 0;
+    const phrase = passageStore[pIdx];
+    if (!phrase) return;
 
     let baseFont = 0;
     const ref = svgEl.querySelector('.notehead') || svgEl.querySelector('.note');
@@ -473,10 +485,9 @@ function drawRomanNumerals(svgEl) {
     layer.setAttribute('class', 'roman-layer');
     svgEl.appendChild(layer);
 
-    // Each numeral takes a strongly-darkened shade of its own phrase colour, so
-    // the colour changes with every background band and stays high-contrast
-    // against that band's light (0.12-opacity) tint.
-    const mColor = phraseColorByMeasure();
+    // Numerals take a strongly-darkened shade of the phrase colour for contrast
+    // against the phrase's light background band.
+    const colour = darkenHex(passageColor(pIdx), 0.55);
 
     // Baseline for each system = just under its lowest figure (`.harm`), falling
     // back to the system's bottom edge when a system carries no figures.
@@ -493,46 +504,87 @@ function drawRomanNumerals(svgEl) {
         return systemBaseline.get(sys);
     };
 
-    let lastRoman = null;
-    let lastSys   = null;
-    const rightEdge = new Map();   // system → right x of the last placed numeral
     Object.keys(idxToEls).map(Number).sort((a, b) => a - b).forEach(idx => {
         const cd    = chordDataStore[idx] || {};
         const roman = cd.roman;
         if (!roman) return;
+        // Only the selected phrase's measures.
+        if (cd.measureNum < phrase.start_measure || cd.measureNum > phrase.end_measure) return;
 
-        const boxes = idxToEls[idx].map(el => svgBBoxInRoot(svgEl, el));
-        const cx    = (Math.min(...boxes.map(b => b.x)) + Math.max(...boxes.map(b => b.x + b.w))) / 2;
-        const sys   = idxToEls[idx][0].closest('.system') || svgEl;
+        // Anchor under the BASS note: of this chord's rendered notes, the bass is
+        // the physically lowest (its notehead centre has the largest y — the RH
+        // staff sits entirely above the bass staff). Use its horizontal centre.
+        const els     = idxToEls[idx];
+        let bassEl = els[0], bassCy = -Infinity;
+        for (const el of els) {
+            const b  = svgBBoxInRoot(svgEl, el);
+            const cy = b.y + b.h / 2;
+            if (cy > bassCy) { bassCy = cy; bassEl = el; }
+        }
+        const bb  = svgBBoxInRoot(svgEl, bassEl);
+        const cx  = bb.x + bb.w / 2;
+        const sys = bassEl.closest('.system') || svgEl;
 
-        // Collapse a repeated numeral within the same system.
-        if (roman === lastRoman && sys === lastSys) return;
-        lastRoman = roman; lastSys = sys;
-
+        // Always on the one baseline, directly under the bass note — same fixed
+        // vertical level as the figured-bass figures. No staggering: a single
+        // phrase is sparse enough that its numerals sit comfortably in one row.
         const text = document.createElementNS(SVGNS, 'text');
         text.setAttribute('x', cx);
         text.setAttribute('y', baselineFor(sys));
         text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('fill', darkenHex(mColor[cd.measureNum] || '#7a5a00', 0.55));
+        text.setAttribute('fill', colour);
         text.setAttribute('font-size', String(baseFont * 2.0));
         text.setAttribute('font-weight', '700');
         text.setAttribute('font-family', 'Georgia, "Times New Roman", serif');
         text.textContent = roman;
         layer.appendChild(text);
-
-        // Collision check: if this numeral would overlap the previous one in the
-        // same system, drop it (keep the earlier, on-the-beat chord). Measured
-        // from the rendered glyph box so it accounts for the actual width.
-        const tb        = svgBBoxInRoot(svgEl, text);
-        const gap       = baseFont * 0.45;
-        const prevRight = rightEdge.get(sys);
-        if (prevRight !== undefined && tb.x < prevRight + gap) {
-            text.remove();
-            return;
-        }
-        rightEdge.set(sys, tb.x + tb.w);
     });
 }
+
+// Select which phrase's Roman numerals are drawn under the score, and redraw.
+// Called when the user clicks a phrase — either its on-score key label or its
+// card in the passages panel. If the phrase lives on another page of the
+// paginated score, navigate there first (re-rendering redraws the numerals);
+// otherwise just redraw the overlay in place.
+function selectPassage(pIdx) {
+    if (pIdx == null || pIdx < 0 || pIdx >= passageStore.length) return;
+    selectedPassageIdx = pIdx;
+    updatePassagePanelVisibility();
+
+    const s      = scores.real;
+    const phrase = passageStore[pIdx];
+    if (s.tk && phrase) {
+        let pg = 0;
+        try { pg = s.tk.getPageWithElement('meas-' + phrase.start_measure); } catch (e) { pg = 0; }
+        if (pg && pg !== s.page) {
+            s.page = pg;
+            renderScorePage('real');   // re-render + redraw overlays (incl. numerals)
+            return;
+        }
+    }
+    const svgEl = document.querySelector('#wrap-real svg');
+    if (svgEl) drawRomanNumerals(svgEl);
+}
+
+// Show only the selected phrase's analysis card in the passages panel; the
+// others are hidden until their phrase is clicked on the score. A no-op if the
+// panel isn't rendered yet.
+function updatePassagePanelVisibility() {
+    document.querySelectorAll('.passage-item').forEach(item => {
+        const idx = parseInt(item.dataset.idx, 10);
+        item.style.display = (idx === selectedPassageIdx) ? '' : 'none';
+    });
+}
+
+// Clicking a phrase card in the passages panel selects it (shows its numerals
+// under the score). Delegated so it survives panel re-renders; the Edit button
+// keeps its own handler.
+document.addEventListener('click', (ev) => {
+    const item = ev.target.closest('.passage-item');
+    if (!item || ev.target.closest('.passage-edit-btn')) return;
+    const idx = parseInt(item.dataset.idx, 10);
+    if (!Number.isNaN(idx)) selectPassage(idx);
+});
 
 // Scroll the passages panel to a given phrase, open its decision trail, and
 // flash it — the target of a click on the on-score tonality label.

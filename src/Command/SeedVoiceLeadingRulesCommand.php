@@ -34,9 +34,16 @@ class SeedVoiceLeadingRulesCommand extends Command
             $existing = $repo->findOneBy(['name' => $data['name']]);
 
             if ($existing !== null) {
-                $existing->setCitations($data['citations']);
+                // Full upsert: keep the DB rule in sync with the code (source of
+                // truth), including the implementation body — not just citations.
+                $existing->setSource($data['source'])
+                    ->setPriority($data['priority'])
+                    ->setDefinition($data['definition'])
+                    ->setTranslation($data['translation'])
+                    ->setImplementation($data['implementation'])
+                    ->setCitations($data['citations']);
                 $updated++;
-                $io->note(sprintf('Updated citations for existing rule: %s', $data['name']));
+                $io->note(sprintf('Updated existing rule: %s', $data['name']));
                 continue;
             }
 
@@ -718,11 +725,17 @@ foreach ($ctx['curr'] as $i => $midi) {
     $prev = $ctx['prev'][$i] ?? null;
     if ($prev === null) { continue; }
     $motion = abs($midi - $prev);
-    if ($motion === 0)      { /* common tone */ }
+    // Each voice is an independent line that must move smoothly: common tones
+    // and steps are nearly free, a third is idiomatic, but anything beyond a
+    // fourth is a real leap and is penalised steeply (matching the editorial
+    // reference, whose voices leap past a fourth only a few % of the time).
+    if ($motion === 0)      { $cost -= 2.0; /* common tone — retained */ }
     elseif ($motion <= 2)   { $cost += 1.0; }
-    elseif ($motion <= 4)   { $cost += 4.0; }
-    elseif ($motion <= 7)   { $cost += 9.0; }
-    else                    { $cost += $motion * 3.0; }
+    elseif ($motion <= 4)   { $cost += 3.0; }
+    elseif ($motion === 5)  { $cost += 7.0; }
+    elseif ($motion <= 7)   { $cost += 16.0; }
+    elseif ($motion <= 9)   { $cost += 28.0; }
+    else                    { $cost += $motion * 4.0; }
 }
 return $cost;
 PHP,
