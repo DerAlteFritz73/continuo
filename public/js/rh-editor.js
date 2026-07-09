@@ -19,6 +19,7 @@ let rhSelId    = null;      // id of the selected note element, e.g. "chord-42-a
 let rhDoc      = null;      // parsed realization MusicXML (kept in sync with currentXml)
 let rhEditTk   = null;      // dedicated Verovio toolkit that renders ONE measure while editing
 let rhCurMeasure = null;    // measure number currently shown in the edit box
+let rhPopPos   = null;      // {left,top} once the user drags the popover; else auto-placed
 
 function rhMidiOf(p) { return (p.octave + 1) * 12 + RH_STEP_SEMI[p.step] + p.alter; }
 function rhSpell(midi) {
@@ -608,7 +609,8 @@ function rhShowPopover() {
     const col = VOICE_COLORS[voice] || '#888';
     const pop = rhEnsurePopover();
     pop.innerHTML =
-        '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem">'
+        '<div class="rh-pop-head" style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.4rem;cursor:move;user-select:none">'
+      + '<span style="opacity:.5;font-size:0.9rem" title="Drag to move">⠿</span>'
       + '<span style="width:0.7rem;height:0.7rem;border-radius:2px;background:' + col + '"></span>'
       + '<strong style="text-transform:capitalize">' + voice + '</strong>'
       + '<span style="margin-left:auto;font-family:monospace;font-size:0.95rem">' + label + '</span></div>'
@@ -630,12 +632,39 @@ function rhShowPopover() {
             else if (a === 'del') rhDelete();
         });
     });
-    const rect = el.getBoundingClientRect();
     pop.style.display = 'block';
-    pop.style.left = (window.scrollX + rect.left) + 'px';
-    pop.style.top  = (window.scrollY + rect.bottom + 8) + 'px';
+    if (rhPopPos) {
+        // Keep the user's chosen position.
+        pop.style.left = rhPopPos.left + 'px';
+        pop.style.top  = rhPopPos.top + 'px';
+    } else {
+        const rect = el.getBoundingClientRect();
+        pop.style.left = (window.scrollX + rect.left) + 'px';
+        pop.style.top  = (window.scrollY + rect.bottom + 8) + 'px';
+    }
+    // Drag the popover out of the way by its header.
+    pop.querySelector('.rh-pop-head')?.addEventListener('mousedown', rhPopDragStart);
 }
 function rhHidePopover() { const p = document.getElementById('rh-popover'); if (p) p.style.display = 'none'; }
+
+// Drag the popover by its header; remembers the position in rhPopPos so later
+// edits don't snap it back under the note.
+function rhPopDragStart(e) {
+    e.preventDefault();
+    const pop = document.getElementById('rh-popover');
+    if (!pop) return;
+    const startX = e.clientX, startY = e.clientY;
+    const r = pop.getBoundingClientRect();
+    const baseLeft = window.scrollX + r.left, baseTop = window.scrollY + r.top;
+    const move = (ev) => {
+        rhPopPos = { left: baseLeft + (ev.clientX - startX), top: baseTop + (ev.clientY - startY) };
+        pop.style.left = rhPopPos.left + 'px';
+        pop.style.top  = rhPopPos.top + 'px';
+    };
+    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+}
 
 // ── Mode toggle + event wiring ────────────────────────────────────────────────
 document.getElementById('cb-edit-rh')?.addEventListener('change', function () {
@@ -646,7 +675,7 @@ document.getElementById('cb-edit-rh')?.addEventListener('change', function () {
         // Stay on the full score until the user picks a note; the first
         // selection swaps in the fast one-measure edit box.
     } else {
-        rhSelId = null; rhCurMeasure = null; rhHidePopover();
+        rhSelId = null; rhCurMeasure = null; rhPopPos = null; rhHidePopover();
         rhSyncXml();   // flush pending edits into currentXml
         // Restore the full score with all edits (one heavier render, on exit).
         const s = (typeof scores !== 'undefined') ? scores.real : null;
