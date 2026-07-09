@@ -81,11 +81,55 @@ function rhSetPitch(id, step, alter, octave) {
 
 // Serialize the working DOM back into currentXml and re-render the realization,
 // then restore the selection highlight + popover on the same note id.
+//
+// Fast path: reuse the existing Verovio toolkit (loadData + render the current
+// page only) instead of rebuilding it and re-paginating the whole score — the
+// difference between a sluggish and an instant edit, so many keystrokes in a row
+// stay snappy (Finale "Speedy Entry" feel). Falls back to a full initScore.
 async function rhApply() {
     currentXml = new XMLSerializer().serializeToString(rhDoc);
-    await initScore('real', currentXml, true);
-    // initScore re-runs colorVoices via renderScorePage; re-establish selection.
+    const s = (typeof scores !== 'undefined') ? scores.real : null;
+    if (s && s.tk) {
+        try {
+            s.tk.loadData(currentXml);
+            s.total = s.tk.getPageCount() || s.total;
+            if (s.page > s.total) s.page = s.total;
+            renderScorePage('real');
+        } catch (e) {
+            await initScore('real', currentXml, true);
+        }
+    } else {
+        await initScore('real', currentXml, true);
+    }
     requestAnimationFrame(() => { rhHighlight(); rhShowPopover(); });
+}
+
+// Key signature of the realization (first <fifths>), for in-key diatonic steps.
+function rhKeyFifths() {
+    const f = rhDoc && rhDoc.querySelector('key fifths');
+    return f ? parseInt(f.textContent, 10) : 0;
+}
+// The accidental a key signature puts on a given note letter.
+function rhKeyAlter(letter, fifths) {
+    const sharps = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+    const flats  = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+    if (fifths > 0) return sharps.slice(0, fifths).includes(letter) ? 1 : 0;
+    if (fifths < 0) return flats.slice(0, -fifths).includes(letter) ? -1 : 0;
+    return 0;
+}
+// Move the note one diatonic step (staff position) up/down, taking the key
+// signature's accidental for the new letter — the Finale arrow-key behaviour.
+function rhDiatonic(dir) {
+    if (!rhSelId) return;
+    const p = rhGetPitch(rhSelId);
+    if (!p) return;
+    const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    let li = letters.indexOf(p.step), oct = p.octave;
+    li += dir;
+    if (li > 6) { li = 0; oct++; }
+    if (li < 0) { li = 6; oct--; }
+    const letter = letters[li];
+    if (rhSetPitch(rhSelId, letter, rhKeyAlter(letter, rhKeyFifths()), oct)) rhApply();
 }
 
 // ── Editing operations ───────────────────────────────────────────────────────
@@ -213,18 +257,18 @@ function rhShowPopover() {
       + '<strong style="text-transform:capitalize">' + voice + '</strong>'
       + '<span style="margin-left:auto;font-family:monospace;font-size:0.95rem">' + label + '</span></div>'
       + '<div style="display:flex;gap:0.3rem;flex-wrap:wrap">'
-      + '<button data-rh="up">pitch ▲</button><button data-rh="down">pitch ▼</button>'
+      + '<button data-rh="up">step ▲</button><button data-rh="down">step ▼</button>'
       + '<button data-rh="octup">8ve ▲</button><button data-rh="octdown">8ve ▼</button>'
       + '<button data-rh="sharp">♯</button><button data-rh="flat">♭</button>'
       + '<button data-rh="del" style="color:#f87171">✕ del</button></div>'
-      + '<div style="margin-top:0.35rem;opacity:.6;font-size:0.68rem">←/→ chord · ↑/↓ pitch · A–G letter · Del</div>';
+      + '<div style="margin-top:0.35rem;opacity:.6;font-size:0.68rem">←/→ note · ↑/↓ step · ⇧↑/↓ 8ve · +/− semitone · A–G · Del</div>';
     pop.querySelectorAll('button').forEach(btn => {
         btn.style.cssText = 'padding:0.2rem 0.4rem;font-size:0.75rem;background:var(--surface-alt,#2a2f3a);'
             + 'color:inherit;border:1px solid var(--border,#3a3f4b);border-radius:3px;cursor:pointer';
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const a = btn.dataset.rh;
-            if (a === 'up') rhNudge(1); else if (a === 'down') rhNudge(-1);
+            if (a === 'up') rhDiatonic(1); else if (a === 'down') rhDiatonic(-1);
             else if (a === 'octup') rhOctave(1); else if (a === 'octdown') rhOctave(-1);
             else if (a === 'sharp') rhSetAlter(1); else if (a === 'flat') rhSetAlter(-1);
             else if (a === 'del') rhDelete();
@@ -273,8 +317,8 @@ document.addEventListener('keydown', function (e) {
     if (e.target.matches('input, textarea, select')) return;
     let handled = true;
     switch (e.key) {
-        case 'ArrowUp':    e.shiftKey ? rhOctave(1)  : rhNudge(1);  break;
-        case 'ArrowDown':  e.shiftKey ? rhOctave(-1) : rhNudge(-1); break;
+        case 'ArrowUp':    e.shiftKey ? rhOctave(1)  : rhDiatonic(1);  break;
+        case 'ArrowDown':  e.shiftKey ? rhOctave(-1) : rhDiatonic(-1); break;
         case 'ArrowRight': rhMoveChord(1);  break;
         case 'ArrowLeft':  rhMoveChord(-1); break;
         case 'Delete': case 'Backspace': rhDelete(); break;
