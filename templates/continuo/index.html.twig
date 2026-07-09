@@ -10,7 +10,6 @@
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/header.css">
 <link rel="stylesheet" href="/css/card.css">
-<link rel="stylesheet" href="/css/audio-key.css">
 <link rel="stylesheet" href="/css/result.css">
 <link rel="stylesheet" href="/css/accordion.css">
 <link rel="stylesheet" href="/css/score.css">
@@ -178,56 +177,6 @@
                     </div>
                 </form>
 
-                <!-- ── Audio tonality detection ── -->
-                <div class="audio-key-card" id="audio-key-card">
-                    <div class="audio-key-title">🎧 {{ 'audio.title'|trans }}</div>
-                    <form id="audio-key-form" action="{{ path('app_detect_audio_key') }}" method="post"
-                          enctype="multipart/form-data">
-                        <div class="drop-zone drop-zone-sm" id="audio-drop-zone">
-                            <input type="file" name="audio" id="audio-file-input"
-                                   accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,.opus,audio/*">
-                            <div class="label">{{ 'audio.drop_label'|trans }}</div>
-                            <div class="hint">{{ 'audio.drop_hint'|trans }}</div>
-                        </div>
-                        <div class="file-name" id="audio-file-name-display">
-                            <span>🎵</span>
-                            <span id="audio-file-name-text"></span>
-                        </div>
-                        <div class="btn-row">
-                            <button type="submit" class="btn btn-primary" id="audio-detect-btn" disabled>
-                                ♪ {{ 'audio.detect_btn'|trans }}
-                            </button>
-                        </div>
-                    </form>
-
-                    <div class="audio-key-progress" id="audio-key-progress" style="display:none">
-                        <div class="spinner"></div>
-                        <span>{{ 'audio.progress'|trans }}</span>
-                    </div>
-                    <div class="alert alert-error" id="audio-key-error" style="display:none"></div>
-
-                    <div class="audio-key-result" id="audio-key-result" style="display:none">
-                        <div class="audio-key-global">
-                            <span class="ak-label">{{ 'audio.global_label'|trans }}:</span>
-                            <span class="ak-key" id="audio-global-key"></span>
-                            <span class="ak-meta" id="audio-global-meta"></span>
-                        </div>
-                        <details class="audio-key-timeline">
-                            <summary>{{ 'audio.timeline_label'|trans }}</summary>
-                            <table class="ak-table">
-                                <thead>
-                                    <tr>
-                                        <th>{{ 'audio.col_time'|trans }}</th>
-                                        <th>{{ 'audio.col_key'|trans }}</th>
-                                        <th>{{ 'audio.col_corr'|trans }}</th>
-                                        <th>{{ 'audio.col_conf'|trans }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="audio-timeline-body"></tbody>
-                            </table>
-                        </details>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -346,6 +295,19 @@
                         <input type="checkbox" id="cb-show-computed">
                         {{ 'viewer.show_computed'|trans }}
                         <span class="cb-swatch"></span>
+                    </label>
+                    <label class="cb-label">
+                        <input type="checkbox" id="cb-color-voices" checked>
+                        Colour voices
+                    </label>
+                    <span id="voice-legend" style="display:inline-flex;gap:0.6rem;align-items:center;font-size:0.75rem">
+                        <span class="vl-item" data-voice="soprano">● soprano</span>
+                        <span class="vl-item" data-voice="alto">● alto</span>
+                        <span class="vl-item" data-voice="tenor">● tenor</span>
+                    </span>
+                    <label class="cb-label">
+                        <input type="checkbox" id="cb-edit-rh">
+                        ✎ Edit RH
                     </label>
                 </div>
 
@@ -596,9 +558,9 @@ const TRANS = {
 <script src="/js/app.js"></script>
 <script src="/js/utils.js"></script>
 <script src="/js/upload.js"></script>
-<script src="/js/audio-key.js"></script>
 <script src="/js/score-viewer.js"></script>
 <script src="/js/chord-inspector.js"></script>
 <script src="/js/playback.js"></script>
 <script src="/js/bass-editor.js"></script>
+<script src="/js/rh-editor.js"></script>
 {% endblock %}

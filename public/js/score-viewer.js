@@ -31,6 +31,7 @@ document.querySelectorAll('.score-tab').forEach(tab => {
             const svgEl = document.querySelector('#wrap-real svg');
             if (svgEl) requestAnimationFrame(() => {
                 drawPhraseBackgrounds(svgEl);
+                colorVoices(svgEl);
                 drawPassageKeyLabels(svgEl);
                 drawRomanNumerals(svgEl);
             });
@@ -82,6 +83,7 @@ function renderScorePage(key) {
         if (svgEl) {
             attachChordClickHandlers(svgEl);
             colorFluteByPhrase(svgEl);
+            colorVoices(svgEl);
             drawPhraseBackgrounds(svgEl);
 
             // Colour computed figured-bass elements (muted indigo).
@@ -669,6 +671,40 @@ function colorFluteByPhrase(svgEl) {
         el.querySelectorAll('.stem path, .stem rect').forEach(s => s.setAttribute('stroke', c));
     });
 }
+
+// Tint each realization RH note (soprano/alto/tenor) with its voice colour, so
+// the separate voices are visible at a glance. Off → revert to default black.
+// Bass (id "bass-…") and flute (id "flute-…") are untouched. Runs per page.
+function colorVoices(svgEl) {
+    if (!svgEl) return;
+    const on = document.getElementById('cb-color-voices')?.checked;
+    svgEl.querySelectorAll('.note[id^="chord-"]').forEach(el => {
+        const voice = voiceOfNoteId(el.id);
+        if (!voice) return;
+        const c = on ? VOICE_COLORS[voice] : null;
+        const stems = el.querySelectorAll('.stem path, .stem rect');
+        if (c) {
+            el.setAttribute('fill', c);
+            stems.forEach(s => s.setAttribute('stroke', c));
+        } else {
+            el.removeAttribute('fill');
+            stems.forEach(s => s.removeAttribute('stroke'));
+        }
+    });
+}
+
+// Colour the toolbar voice legend dots to match VOICE_COLORS (once).
+function paintVoiceLegend() {
+    document.querySelectorAll('#voice-legend .vl-item').forEach(el => {
+        el.style.color = VOICE_COLORS[el.dataset.voice] || '';
+    });
+}
+paintVoiceLegend();
+
+// Toggle re-tints the currently rendered realization in place.
+document.getElementById('cb-color-voices')?.addEventListener('change', () => {
+    colorVoices(document.querySelector('#wrap-real svg'));
+});
 
 // ── Chord click handlers ──────────────────────────────────
 

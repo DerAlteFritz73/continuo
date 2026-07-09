@@ -407,7 +407,7 @@ class MusicXmlSerializer
                                              false, $acc, $sDq, $sEntry['type'], $sEntry['dot']);
                 $gIdx = $origGlobalIdx[$firstIdx] ?? null;
                 if ($gIdx !== null) {
-                    $noteEl->setAttribute('xml:id', 'chord-' . $gIdx);
+                    $noteEl->setAttribute('id', 'chord-' . $gIdx);
                 }
                 $el->appendChild($noteEl);
                 $v1BeamItems[] = ['el' => $noteEl, 'dur' => $dur, 'isRest' => false];
@@ -418,10 +418,14 @@ class MusicXmlSerializer
                     && abs($aByIdx[$firstIdx]['entry']['dq'] - $sDq) < 0.001) {
                     $aEntry = $aByIdx[$firstIdx]['entry'];
                     $aAcc   = $this->resolveAccidental($aEntry['note'], $accV1, $keyFifths);
-                    $el->appendChild($this->noteElement(
+                    $aNoteEl = $this->noteElement(
                         $dom, $aEntry['note'], 1, $score->divisions, 1,
                         true /* chord */, $aAcc, $sDq, $sEntry['type'], $sEntry['dot']
-                    ));
+                    );
+                    if ($gIdx !== null) {
+                        $aNoteEl->setAttribute('id', 'chord-' . $gIdx . '-alto');
+                    }
+                    $el->appendChild($aNoteEl);
                     $aByIdx[$firstIdx]['placed'] = true;
                 }
 
@@ -431,10 +435,14 @@ class MusicXmlSerializer
                     && abs($tByIdx[$firstIdx]['entry']['dq'] - $sDq) < 0.001) {
                     $tEntry = $tByIdx[$firstIdx]['entry'];
                     $tAcc   = $this->resolveAccidental($tEntry['note'], $accV1, $keyFifths);
-                    $el->appendChild($this->noteElement(
+                    $tNoteEl = $this->noteElement(
                         $dom, $tEntry['note'], 1, $score->divisions, 1,
                         true /* chord */, $tAcc, $sDq, $sEntry['type'], $sEntry['dot']
-                    ));
+                    );
+                    if ($gIdx !== null) {
+                        $tNoteEl->setAttribute('id', 'chord-' . $gIdx . '-tenor');
+                    }
+                    $el->appendChild($tNoteEl);
                     $tByIdx[$firstIdx]['placed'] = true;
                 }
             }
@@ -452,8 +460,9 @@ class MusicXmlSerializer
         // as <chord/> elements immediately after the primary note.
         // Returns the cursor tick position at the end of the last note written.
         $writeVoiceStream = function(
-            array $stream, int $voiceNum, array &$beamItems, ?string $stem = null
-        ) use ($el, $dom, $score, $keyFifths): int {
+            array $stream, int $voiceNum, array &$beamItems, ?string $stem = null,
+            string $primaryVoice = ''
+        ) use ($el, $dom, $score, $keyFifths, $origGlobalIdx): int {
             $accState = [];
             $posTicks = 0;
             foreach ($stream as $u) {
@@ -470,6 +479,10 @@ class MusicXmlSerializer
                     $dom, $entry['note'], $voiceNum, $score->divisions, 1,
                     false, $acc, $entry['dq'], $entry['type'], $entry['dot'], $stem
                 );
+                $gIdx = $origGlobalIdx[$entry['origIdxs'][0]] ?? null;
+                if ($gIdx !== null && $primaryVoice !== '') {
+                    $noteEl->setAttribute('id', 'chord-' . $gIdx . '-' . $primaryVoice);
+                }
                 $el->appendChild($noteEl);
                 $dur        = $this->durationTicks($entry['dq'], $score->divisions);
                 $beamItems[] = ['el' => $noteEl, 'dur' => $dur, 'isRest' => false];
@@ -477,11 +490,17 @@ class MusicXmlSerializer
 
                 // Coincident chord members (same position, same duration, different voice source)
                 foreach ($u['chordMembers'] ?? [] as $cm) {
-                    $cmAcc = $this->resolveAccidental($cm['note'], $accState, $keyFifths);
-                    $el->appendChild($this->noteElement(
+                    $cmAcc  = $this->resolveAccidental($cm['note'], $accState, $keyFifths);
+                    $cmEl   = $this->noteElement(
                         $dom, $cm['note'], $voiceNum, $score->divisions, 1,
                         true /* chord */, $cmAcc, $cm['dq'], $cm['type'], $cm['dot']
-                    ));
+                    );
+                    $cmGIdx = $origGlobalIdx[$cm['origIdxs'][0]] ?? null;
+                    $cmVoice = $cm['voiceLabel'] ?? $primaryVoice;
+                    if ($cmGIdx !== null && $cmVoice !== '') {
+                        $cmEl->setAttribute('id', 'chord-' . $cmGIdx . '-' . $cmVoice);
+                    }
+                    $el->appendChild($cmEl);
                 }
             }
             return $posTicks;
@@ -517,7 +536,9 @@ class MusicXmlSerializer
             if (isset($altoByPos[$key])) {
                 $ak = $altoByPos[$key];
                 if (abs($unplacedAlto[$ak]['entry']['dq'] - $tu['entry']['dq']) < 0.001) {
-                    $unplacedAlto[$ak]['chordMembers'][] = $tu['entry'];
+                    $cmEntry = $tu['entry'];
+                    $cmEntry['voiceLabel'] = 'tenor';   // absorbed tenor keeps its own id/colour
+                    $unplacedAlto[$ak]['chordMembers'][] = $cmEntry;
                     continue; // absorbed into voice 2
                 }
             }
@@ -533,7 +554,7 @@ class MusicXmlSerializer
         if (!empty($unplacedAlto)) {
             $this->appendBackup($el, $dom, $lastVoiceEnd);
             $v2BeamItems  = [];
-            $lastVoiceEnd = $writeVoiceStream($unplacedAlto, 2, $v2BeamItems);
+            $lastVoiceEnd = $writeVoiceStream($unplacedAlto, 2, $v2BeamItems, null, 'alto');
             $this->applyBeams($v2BeamItems, $beats, $beatType, $score->divisions);
         }
 
@@ -541,7 +562,7 @@ class MusicXmlSerializer
         if (!empty($unplacedTenor)) {
             $this->appendBackup($el, $dom, $lastVoiceEnd);
             $v3BeamItems  = [];
-            $lastVoiceEnd = $writeVoiceStream($unplacedTenor, 3, $v3BeamItems, 'down');
+            $lastVoiceEnd = $writeVoiceStream($unplacedTenor, 3, $v3BeamItems, 'down', 'tenor');
             $this->applyBeams($v3BeamItems, $beats, $beatType, $score->divisions);
         }
 

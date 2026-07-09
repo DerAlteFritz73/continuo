@@ -240,9 +240,10 @@ function showResult(data) {
     resultPanel.classList.add('visible');
     resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    // Download button
+    // Download button — export the LIVE realization (currentXml), so any manual
+    // RH edits are included; fall back to the freshly-realized XML.
     downloadBtn.onclick = () => {
-        const blob = new Blob([data.xml], { type: 'application/vnd.recordare.musicxml+xml' });
+        const blob = new Blob([currentXml || data.xml], { type: 'application/vnd.recordare.musicxml+xml' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
