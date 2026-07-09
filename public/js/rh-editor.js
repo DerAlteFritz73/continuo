@@ -145,21 +145,27 @@ function rhDivisions() {
     return d ? parseInt(d.textContent, 10) : 8;
 }
 
-// Voice-1 entries of a measure (up to the first <backup>), each = a primary note
-// /rest plus its <chord/> members, with its onset in ticks.
-function rhVoice1Entries(measureEl) {
+// Entries of one voice in a measure, each = a primary note/rest plus its
+// <chord/> members, with its onset in ticks. A global cursor tracks position
+// across backup/forward so any voice's onsets come out right.
+function rhVoiceEntries(measureEl, voice) {
     const entries = []; let onset = 0, cur = null;
     for (const ch of Array.from(measureEl.children)) {
-        if (ch.tagName === 'backup') break;               // voice 1 ends here
+        if (ch.tagName === 'backup')  { onset -= +(ch.querySelector('duration')?.textContent || 0); cur = null; continue; }
         if (ch.tagName === 'forward') { onset += +(ch.querySelector('duration')?.textContent || 0); cur = null; continue; }
         if (ch.tagName !== 'note') continue;
+        const isChord = !!ch.querySelector('chord');
         const dur = +(ch.querySelector('duration')?.textContent || 0);
-        if (ch.querySelector('chord') && cur) { cur.members.push(ch); continue; }
-        cur = { onset, primary: ch, members: [], dur };
-        entries.push(cur); onset += dur;
+        const v = ch.querySelector('voice')?.textContent || '1';
+        if (v === voice) {
+            if (isChord && cur) cur.members.push(ch);
+            else { cur = { onset, primary: ch, members: [], dur }; entries.push(cur); }
+        }
+        if (!isChord) onset += dur;   // primary notes of every voice advance the cursor
     }
     return entries;
 }
+function rhVoice1Entries(m) { return rhVoiceEntries(m, '1'); }
 // Greedy binary decomposition of a tick gap into [type, ticks] rest values.
 function rhDecompose(ticks, div) {
     const vals = [['half', div * 2], ['quarter', div], ['eighth', div / 2], ['16th', div / 4], ['32nd', div / 8]];
@@ -167,12 +173,18 @@ function rhDecompose(ticks, div) {
     for (const [t, d] of vals) { while (d >= 1 && rem >= d) { out.push([t, d]); rem -= d; } }
     return out;
 }
-function rhMakeRest(typeName, ticks) {
+function rhMakeRest(typeName, ticks, voice) {
     const n = rhDoc.createElement('note');
     n.appendChild(rhDoc.createElement('rest'));
     const mk = (tag, txt) => { const e = rhDoc.createElement(tag); e.textContent = txt; n.appendChild(e); };
-    mk('duration', String(ticks)); mk('voice', '1'); mk('type', typeName); mk('staff', '1');
+    mk('duration', String(ticks)); mk('voice', voice); mk('type', typeName); mk('staff', '1');
     return n;
+}
+// A silent gap (used by non-soprano voices, which may be under-full).
+function rhMakeForward(ticks) {
+    const f = rhDoc.createElement('forward');
+    const d = rhDoc.createElement('duration'); d.textContent = String(ticks); f.appendChild(d);
+    return f;
 }
 // Change the current chord ENTRY's duration (Finale changes the whole entry).
 // Reflows voice 1 within the measure: shorten → fill with rest(s); lengthen →
@@ -188,15 +200,24 @@ function rhSetDuration(numKey) {
 
     const note = rhFindNote(rhSelId); if (!note) return;
     const measure = note.closest('measure'); if (!measure) return;
-    if ((note.querySelector('voice')?.textContent || '1') !== '1') return; // v1 entries only
+    const voice = note.querySelector('voice')?.textContent || '1';
 
-    const entries = rhVoice1Entries(measure);
+    const entries = rhVoiceEntries(measure, voice);
     const idx = entries.findIndex(e => e.primary === note || e.members.includes(note));
     if (idx < 0) return;
     const entry = entries[idx];
+    const measureDur = rhVoice1Entries(measure).reduce((s, e) => s + e.dur, 0);
+
+    // Balance rule: voice 1 (soprano) must fill the bar exactly; the other
+    // voices may be UNDER-full (silent gaps) but never OVER-full. Clamp so the
+    // new value can't overflow — voice 1 up to the bar end (absorbing following
+    // entries), other voices only up to the next note in that voice.
+    const nextOnset    = (idx + 1 < entries.length) ? entries[idx + 1].onset : measureDur;
     const followingSum = entries.slice(idx + 1).reduce((s, e) => s + e.dur, 0);
-    const finalTicks = Math.min(newTicks, entry.dur + followingSum); // don't overflow the bar
-    let delta = finalTicks - entry.dur;
+    const cap = (voice === '1') ? (entry.dur + followingSum) : (nextOnset - entry.onset);
+    const finalTicks = Math.min(newTicks, cap);
+    if (finalTicks <= 0) return;
+    const delta = finalTicks - entry.dur;
 
     // Apply new duration/type to the entry's notes; clear their dots/beams.
     [entry.primary, ...entry.members].forEach(n => {
@@ -206,21 +227,40 @@ function rhSetDuration(numKey) {
     });
     const refEl = entry.members.length ? entry.members[entry.members.length - 1] : entry.primary;
 
-    if (delta < 0) {
-        rhDecompose(-delta, div).map(([t, tk]) => rhMakeRest(t, tk)).reverse()
-            .forEach(rest => refEl.after(rest));
-    } else if (delta > 0) {
-        let need = delta;
-        for (const f of entries.slice(idx + 1)) {
-            if (need <= 0) break;
-            [f.primary, ...f.members].forEach(x => x.remove());
-            need -= f.dur;
+    if (voice === '1') {
+        // Soprano stays balanced: fill freed time with rest(s); when lengthening,
+        // absorb following entries (overshoot → a trailing rest).
+        if (delta < 0) {
+            rhDecompose(-delta, div).map(([t, tk]) => rhMakeRest(t, tk, voice)).reverse()
+                .forEach(rest => refEl.after(rest));
+        } else if (delta > 0) {
+            let need = delta;
+            for (const f of entries.slice(idx + 1)) {
+                if (need <= 0) break;
+                [f.primary, ...f.members].forEach(x => x.remove());
+                need -= f.dur;
+            }
+            if (need < 0) rhDecompose(-need, div).map(([t, tk]) => rhMakeRest(t, tk, voice)).reverse()
+                .forEach(rest => refEl.after(rest));
         }
-        if (need < 0) rhDecompose(-need, div).map(([t, tk]) => rhMakeRest(t, tk)).reverse()
-            .forEach(rest => refEl.after(rest));
+    } else {
+        // Alto/tenor may be under-full: shorten → leave a SILENT gap (forward),
+        // never a filler rest; lengthen → consume the following gap (already
+        // clamped so it can't overrun the next note).
+        if (delta < 0) {
+            refEl.after(rhMakeForward(-delta));
+        } else if (delta > 0) {
+            let need = delta, sib = refEl.nextElementSibling;
+            while (need > 0 && sib && sib.tagName === 'forward') {
+                const d = sib.querySelector('duration');
+                const have = +(d.textContent || 0);
+                if (have <= need) { need -= have; const nx = sib.nextElementSibling; sib.remove(); sib = nx; }
+                else { d.textContent = String(have - need); need = 0; }
+            }
+        }
     }
-    // Clear any remaining beams in the measure's voice 1 (avoid broken groups).
-    rhVoice1Entries(measure).forEach(e =>
+    // Clear any remaining beams in the edited voice (avoid broken groups).
+    rhVoiceEntries(measure, voice).forEach(e =>
         [e.primary, ...e.members].forEach(n => n.querySelectorAll('beam').forEach(b => b.remove())));
     rhApply();
 }
@@ -230,7 +270,8 @@ function rhToggleBeam() {
     if (!rhSelId) return;
     const note = rhFindNote(rhSelId); const measure = note && note.closest('measure');
     if (!measure) return;
-    const entries = rhVoice1Entries(measure);
+    const voice = note.querySelector('voice')?.textContent || '1';
+    const entries = rhVoiceEntries(measure, voice);
     const idx = entries.findIndex(e => e.primary === note || e.members.includes(note));
     if (idx < 0 || idx + 1 >= entries.length) return;
     const a = entries[idx].primary, b = entries[idx + 1].primary;
