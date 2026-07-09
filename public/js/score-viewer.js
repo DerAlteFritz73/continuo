@@ -758,7 +758,12 @@ function attachChordClickHandlers(svgEl) {
 
         const on    = () => { clearTimeout(leaveTimer); ensureRect().style.display = ''; };
         const off   = () => { leaveTimer = setTimeout(() => { if (rect) rect.style.display = 'none'; }, 50); };
-        const click = (e) => { e.stopPropagation(); off(); openChordInspector(chordDataStore[idx], idx); };
+        const click = (e) => {
+            // In RH-edit mode the editor owns clicks (select a voice notehead);
+            // don't pop the chord analyzer.
+            if (typeof rhEditMode !== 'undefined' && rhEditMode) return;
+            e.stopPropagation(); off(); openChordInspector(chordDataStore[idx], idx);
+        };
 
         els.forEach(el => {
             el.classList.add('chord-clickable');
