@@ -132,6 +132,118 @@ function rhDiatonic(dir) {
     if (rhSetPitch(rhSelId, letter, rhKeyAlter(letter, rhKeyFifths()), oct)) rhApply();
 }
 
+// ── Duration editing (Finale number keys) ────────────────────────────────────
+// Duration presets: number key → [type, ratio-relative-to-a-quarter].
+const RH_DUR = {
+    '1': ['64th', 1 / 16], '2': ['32nd', 1 / 8], '3': ['16th', 1 / 4], '4': ['eighth', 1 / 2],
+    '5': ['quarter', 1], '6': ['half', 2], '7': ['whole', 4], '8': ['breve', 8],
+};
+// Divisions of the REALIZATION part (P1). NB the melody part (PMEL) comes first
+// in the document and may use a different value, so scope the lookup to P1.
+function rhDivisions() {
+    const d = rhDoc && (rhDoc.querySelector('part[id="P1"] divisions') || rhDoc.querySelector('divisions'));
+    return d ? parseInt(d.textContent, 10) : 8;
+}
+
+// Voice-1 entries of a measure (up to the first <backup>), each = a primary note
+// /rest plus its <chord/> members, with its onset in ticks.
+function rhVoice1Entries(measureEl) {
+    const entries = []; let onset = 0, cur = null;
+    for (const ch of Array.from(measureEl.children)) {
+        if (ch.tagName === 'backup') break;               // voice 1 ends here
+        if (ch.tagName === 'forward') { onset += +(ch.querySelector('duration')?.textContent || 0); cur = null; continue; }
+        if (ch.tagName !== 'note') continue;
+        const dur = +(ch.querySelector('duration')?.textContent || 0);
+        if (ch.querySelector('chord') && cur) { cur.members.push(ch); continue; }
+        cur = { onset, primary: ch, members: [], dur };
+        entries.push(cur); onset += dur;
+    }
+    return entries;
+}
+// Greedy binary decomposition of a tick gap into [type, ticks] rest values.
+function rhDecompose(ticks, div) {
+    const vals = [['half', div * 2], ['quarter', div], ['eighth', div / 2], ['16th', div / 4], ['32nd', div / 8]];
+    const out = []; let rem = ticks;
+    for (const [t, d] of vals) { while (d >= 1 && rem >= d) { out.push([t, d]); rem -= d; } }
+    return out;
+}
+function rhMakeRest(typeName, ticks) {
+    const n = rhDoc.createElement('note');
+    n.appendChild(rhDoc.createElement('rest'));
+    const mk = (tag, txt) => { const e = rhDoc.createElement(tag); e.textContent = txt; n.appendChild(e); };
+    mk('duration', String(ticks)); mk('voice', '1'); mk('type', typeName); mk('staff', '1');
+    return n;
+}
+// Change the current chord ENTRY's duration (Finale changes the whole entry).
+// Reflows voice 1 within the measure: shorten → fill with rest(s); lengthen →
+// absorb following entries (clamped to the measure end). Beams in the measure's
+// voice 1 are cleared to avoid stale/broken groups.
+function rhSetDuration(numKey) {
+    if (!rhSelId) return;
+    const preset = RH_DUR[numKey]; if (!preset) return;
+    const [typeName, ratio] = preset;
+    const div = rhDivisions();
+    const newTicks = div * ratio;
+    if (!Number.isInteger(newTicks) || newTicks <= 0) return;   // e.g. 64th at divisions=8
+
+    const note = rhFindNote(rhSelId); if (!note) return;
+    const measure = note.closest('measure'); if (!measure) return;
+    if ((note.querySelector('voice')?.textContent || '1') !== '1') return; // v1 entries only
+
+    const entries = rhVoice1Entries(measure);
+    const idx = entries.findIndex(e => e.primary === note || e.members.includes(note));
+    if (idx < 0) return;
+    const entry = entries[idx];
+    const followingSum = entries.slice(idx + 1).reduce((s, e) => s + e.dur, 0);
+    const finalTicks = Math.min(newTicks, entry.dur + followingSum); // don't overflow the bar
+    let delta = finalTicks - entry.dur;
+
+    // Apply new duration/type to the entry's notes; clear their dots/beams.
+    [entry.primary, ...entry.members].forEach(n => {
+        n.querySelector('duration').textContent = String(finalTicks);
+        const ty = n.querySelector('type'); if (ty) ty.textContent = typeName;
+        n.querySelectorAll('dot, beam').forEach(x => x.remove());
+    });
+    const refEl = entry.members.length ? entry.members[entry.members.length - 1] : entry.primary;
+
+    if (delta < 0) {
+        rhDecompose(-delta, div).map(([t, tk]) => rhMakeRest(t, tk)).reverse()
+            .forEach(rest => refEl.after(rest));
+    } else if (delta > 0) {
+        let need = delta;
+        for (const f of entries.slice(idx + 1)) {
+            if (need <= 0) break;
+            [f.primary, ...f.members].forEach(x => x.remove());
+            need -= f.dur;
+        }
+        if (need < 0) rhDecompose(-need, div).map(([t, tk]) => rhMakeRest(t, tk)).reverse()
+            .forEach(rest => refEl.after(rest));
+    }
+    // Clear any remaining beams in the measure's voice 1 (avoid broken groups).
+    rhVoice1Entries(measure).forEach(e =>
+        [e.primary, ...e.members].forEach(n => n.querySelectorAll('beam').forEach(b => b.remove())));
+    rhApply();
+}
+
+// Toggle a beam between the current voice-1 entry and the next (Finale "/").
+function rhToggleBeam() {
+    if (!rhSelId) return;
+    const note = rhFindNote(rhSelId); const measure = note && note.closest('measure');
+    if (!measure) return;
+    const entries = rhVoice1Entries(measure);
+    const idx = entries.findIndex(e => e.primary === note || e.members.includes(note));
+    if (idx < 0 || idx + 1 >= entries.length) return;
+    const a = entries[idx].primary, b = entries[idx + 1].primary;
+    if (a.querySelector('beam') || b.querySelector('beam')) {
+        a.querySelectorAll('beam').forEach(x => x.remove());
+        b.querySelectorAll('beam').forEach(x => x.remove());
+    } else {
+        const mk = (el, val) => { const bm = rhDoc.createElement('beam'); bm.setAttribute('number', '1'); bm.textContent = val; el.appendChild(bm); };
+        mk(a, 'begin'); mk(b, 'end');
+    }
+    rhApply();
+}
+
 // ── Editing operations ───────────────────────────────────────────────────────
 function rhNudge(deltaSemitones) {
     if (!rhSelId) return;
@@ -217,6 +329,24 @@ function rhHighlight() {
     const NS = 'http://www.w3.org/2000/svg';
     const layer = document.createElementNS(NS, 'g');
     layer.setAttribute('class', 'rh-sel-layer');
+
+    // Edit box: frame the current measure (Finale's "editing frame").
+    const measEl = el.closest('.measure') || el.closest('g[id^="meas-"]');
+    if (measEl) {
+        const mb = svgBBoxInRoot(svg, measEl);
+        const mpad = b.h * 0.6;
+        const frame = document.createElementNS(NS, 'rect');
+        frame.setAttribute('x', mb.x - mpad); frame.setAttribute('y', mb.y - mpad);
+        frame.setAttribute('width', mb.w + mpad * 2); frame.setAttribute('height', mb.h + mpad * 2);
+        frame.setAttribute('rx', mpad * 0.5);
+        frame.setAttribute('fill', 'rgba(37,99,235,0.05)');
+        frame.setAttribute('stroke', '#2563eb');
+        frame.setAttribute('stroke-width', Math.max(b.h * 0.08, 0.8));
+        frame.setAttribute('stroke-dasharray', (b.h * 0.4) + ' ' + (b.h * 0.3));
+        frame.setAttribute('opacity', '0.8');
+        layer.appendChild(frame);
+    }
+
     const r = document.createElementNS(NS, 'rect');
     const pad = b.h * 0.25;
     r.setAttribute('x', b.x - pad); r.setAttribute('y', b.y - pad);
@@ -261,7 +391,7 @@ function rhShowPopover() {
       + '<button data-rh="octup">8ve ▲</button><button data-rh="octdown">8ve ▼</button>'
       + '<button data-rh="sharp">♯</button><button data-rh="flat">♭</button>'
       + '<button data-rh="del" style="color:#f87171">✕ del</button></div>'
-      + '<div style="margin-top:0.35rem;opacity:.6;font-size:0.68rem">←/→ note · ↑/↓ step · ⇧↑/↓ 8ve · +/− semitone · A–G · Del</div>';
+      + '<div style="margin-top:0.35rem;opacity:.6;font-size:0.68rem">←/→ note · ↑/↓ step · ⇧↑/↓ 8ve · +/− semitone · A–G · 1–8 dur (4=♪ 5=♩ 6=𝅗𝅥) · / beam · Del</div>';
     pop.querySelectorAll('button').forEach(btn => {
         btn.style.cssText = 'padding:0.2rem 0.4rem;font-size:0.75rem;background:var(--surface-alt,#2a2f3a);'
             + 'color:inherit;border:1px solid var(--border,#3a3f4b);border-radius:3px;cursor:pointer';
@@ -324,9 +454,11 @@ document.addEventListener('keydown', function (e) {
         case 'Delete': case 'Backspace': rhDelete(); break;
         case '+': case '=': rhSetAlter(1);  break;
         case '-': case '_': rhSetAlter(-1); break;
+        case '/': rhToggleBeam(); break;
         case 'Escape': rhSelId = null; rhHighlight(); rhHidePopover(); break;
         default:
-            if (/^[a-gA-G]$/.test(e.key)) rhSetLetter(e.key.toUpperCase());
+            if (/^[1-8]$/.test(e.key) && !e.ctrlKey && !e.metaKey) rhSetDuration(e.key);
+            else if (/^[a-gA-G]$/.test(e.key)) rhSetLetter(e.key.toUpperCase());
             else handled = false;
     }
     if (handled) e.preventDefault();
