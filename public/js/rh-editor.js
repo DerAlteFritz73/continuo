@@ -186,6 +186,83 @@ function rhMakeForward(ticks) {
     const d = rhDoc.createElement('duration'); d.textContent = String(ticks); f.appendChild(d);
     return f;
 }
+function rhMakeBackup(ticks) {
+    const b = rhDoc.createElement('backup');
+    const d = rhDoc.createElement('duration'); d.textContent = String(ticks); b.appendChild(d);
+    return b;
+}
+function rhSetVoiceStaff(el, v) {
+    const vo = el.querySelector('voice'); if (vo) vo.textContent = String(v);
+    const st = el.querySelector('staff'); if (st) st.textContent = '1';
+}
+function rhSetChordMember(el, isMember) {
+    const has = el.querySelector('chord');
+    if (isMember && !has) el.insertBefore(rhDoc.createElement('chord'), el.firstChild);
+    else if (!isMember && has) has.remove();
+}
+
+// Rebuild staff-1 (RH voices 1/2/3) of a measure from a per-voice model, placed
+// before the bass. Voice 1 is balanced (gaps/tail filled with rests); voices 2/3
+// are under-full (gaps are silent <forward>s, no trailing rest). Bass (staff 2)
+// is left untouched; its leading <backup> is retimed to the last RH voice's end.
+// model = { 1:[{onset,dur,notes:[el…]}], 2:[…], 3:[…] } (entries sorted by onset;
+// each entry's first note is the primary, the rest are chord members).
+function rhEmitRH(measureEl, model, div, measureDur) {
+    const backups = measureEl.querySelectorAll(':scope > backup');
+    const bassBackup = backups.length ? backups[backups.length - 1] : null;
+
+    // Detach existing RH content (staff-1 notes, all forwards, non-bass backups);
+    // the note elements survive in the model and are re-appended below.
+    Array.from(measureEl.children).forEach(ch => {
+        if (ch === bassBackup) return;
+        if (ch.tagName === 'forward' || ch.tagName === 'backup') ch.remove();
+        else if (ch.tagName === 'note' && (ch.querySelector('staff')?.textContent || '1') === '1') ch.remove();
+    });
+
+    const frag = []; let cursor = 0;
+    const emitVoice = (v, entries, balanced) => {
+        for (const e of entries) {
+            if (e.onset > cursor) {
+                const gap = e.onset - cursor;
+                if (balanced) rhDecompose(gap, div).forEach(([t, tk]) => frag.push(rhMakeRest(t, tk, String(v))));
+                else frag.push(rhMakeForward(gap));
+                cursor = e.onset;
+            }
+            e.notes.forEach((el, i) => {
+                rhSetVoiceStaff(el, v); rhSetChordMember(el, i > 0);
+                el.querySelectorAll('beam').forEach(bm => bm.remove());
+                frag.push(el);
+            });
+            cursor = e.onset + e.dur;
+        }
+        if (balanced && cursor < measureDur) {
+            rhDecompose(measureDur - cursor, div).forEach(([t, tk]) => frag.push(rhMakeRest(t, tk, String(v))));
+            cursor = measureDur;
+        }
+    };
+
+    emitVoice(1, model[1] || [], true);
+    for (const v of [2, 3]) {
+        if (model[v] && model[v].length) { frag.push(rhMakeBackup(cursor)); cursor = 0; emitVoice(v, model[v], false); }
+    }
+
+    if (bassBackup) {
+        frag.forEach(n => measureEl.insertBefore(n, bassBackup));
+        const bd = bassBackup.querySelector('duration'); if (bd) bd.textContent = String(cursor);
+    } else {
+        frag.forEach(n => measureEl.appendChild(n));
+    }
+}
+
+// Build the RH model {1,2,3} of a measure from the current DOM.
+function rhBuildModel(measureEl) {
+    const model = {};
+    for (const v of [1, 2, 3]) {
+        model[v] = rhVoiceEntries(measureEl, String(v))
+            .map(e => ({ onset: e.onset, dur: e.dur, notes: [e.primary, ...e.members] }));
+    }
+    return model;
+}
 // Change the current chord ENTRY's duration (Finale changes the whole entry).
 // Reflows voice 1 within the measure: shorten → fill with rest(s); lengthen →
 // absorb following entries (clamped to the measure end). Beams in the measure's
@@ -201,6 +278,34 @@ function rhSetDuration(numKey) {
     const note = rhFindNote(rhSelId); if (!note) return;
     const measure = note.closest('measure'); if (!measure) return;
     const voice = note.querySelector('voice')?.textContent || '1';
+    const idVoice = rhVoiceOf(rhSelId);   // 'soprano' | 'alto' | 'tenor'
+
+    // Independent rhythm: an alto/tenor that currently shares the soprano's
+    // chord (voice-1 chord member) is SPLIT into its own MusicXML voice (2/3)
+    // when given a different duration — the soprano keeps its value and voice 1
+    // stays balanced, while the split voice may be under-full.
+    if (voice === '1' && note.querySelector('chord') && (idVoice === 'alto' || idVoice === 'tenor')) {
+        const target = idVoice === 'tenor' ? 3 : 2;
+        const v1 = rhVoiceEntries(measure, '1');
+        const e = v1.find(x => x.primary === note || x.members.includes(note));
+        if (!e) return;
+        const measureDur = v1.reduce((s, x) => s + x.dur, 0);
+        const finalTicks = Math.min(newTicks, measureDur - e.onset);
+        if (finalTicks <= 0) return;
+
+        const model = rhBuildModel(measure);
+        const src = model[1].find(x => x.notes.includes(note));
+        if (src) src.notes = src.notes.filter(n => n !== note);        // drop from the chord
+        note.querySelector('duration').textContent = String(finalTicks);
+        const ty = note.querySelector('type'); if (ty) ty.textContent = typeName;
+        note.querySelectorAll('dot').forEach(x => x.remove());
+        model[target].push({ onset: e.onset, dur: finalTicks, notes: [note] });
+        model[target].sort((a, b) => a.onset - b.onset);
+
+        rhEmitRH(measure, model, div, measureDur);
+        rhApply();
+        return;
+    }
 
     const entries = rhVoiceEntries(measure, voice);
     const idx = entries.findIndex(e => e.primary === note || e.members.includes(note));
