@@ -243,6 +243,7 @@ function showResult(data) {
     // Download button — export the LIVE realization (currentXml), so any manual
     // RH edits are included; fall back to the freshly-realized XML.
     downloadBtn.onclick = () => {
+        if (typeof window.rhSyncXml === 'function') window.rhSyncXml(); // capture in-progress RH edits
         const blob = new Blob([currentXml || data.xml], { type: 'application/vnd.recordare.musicxml+xml' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');

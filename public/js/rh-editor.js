@@ -17,6 +17,8 @@ const RH_ACC_NAME = { '-2': 'double-flat', '-1': 'flat', '0': 'natural', '1': 's
 let rhEditMode = false;
 let rhSelId    = null;      // id of the selected note element, e.g. "chord-42-alto"
 let rhDoc      = null;      // parsed realization MusicXML (kept in sync with currentXml)
+let rhEditTk   = null;      // dedicated Verovio toolkit that renders ONE measure while editing
+let rhCurMeasure = null;    // measure number currently shown in the edit box
 
 function rhMidiOf(p) { return (p.octave + 1) * 12 + RH_STEP_SEMI[p.step] + p.alter; }
 function rhSpell(midi) {
@@ -25,6 +27,11 @@ function rhSpell(midi) {
     return { step, alter, octave: Math.floor(midi / 12) - 1 };
 }
 function rhVoiceOf(id) { return (typeof voiceOfNoteId === 'function') ? voiceOfNoteId(id) : null; }
+
+// Flush the working DOM into currentXml (deferred during editing for speed).
+// Exposed so the Download button can capture in-progress edits.
+function rhSyncXml() { if (rhDoc) currentXml = new XMLSerializer().serializeToString(rhDoc); }
+window.rhSyncXml = rhSyncXml;
 
 // Parse currentXml into a working DOM. Called when edit mode is enabled (fresh
 // each time, so a re-realization is picked up).
@@ -82,11 +89,21 @@ function rhSetPitch(id, step, alter, octave) {
 // Serialize the working DOM back into currentXml and re-render the realization,
 // then restore the selection highlight + popover on the same note id.
 //
-// Fast path: reuse the existing Verovio toolkit (loadData + render the current
-// page only) instead of rebuilding it and re-paginating the whole score — the
-// difference between a sluggish and an instant edit, so many keystrokes in a row
-// stay snappy (Finale "Speedy Entry" feel). Falls back to a full initScore.
+// Fast path: while editing we render ONLY the current measure into a small,
+// dedicated toolkit (the "edit box"). Reloading the whole score would reparse
+// ~2.4 MB / 23 pages (~5 s) and rebuild the per-note time map (~5 s) on EVERY
+// keystroke — instead a one-measure excerpt loads in tens of ms and skips the
+// heavy overlays. rhDoc stays the source of truth; the full score is restored
+// when edit mode is switched off (see the cb-edit-rh handler).
 async function rhApply() {
+    if (rhEditMode && rhCurMeasure && typeof verovio !== 'undefined') {
+        // Don't reserialize the whole 2.4 MB doc every keystroke — rhDoc is the
+        // source of truth; currentXml is synced on exit / before download.
+        rhRenderExcerpt(rhCurMeasure);
+        requestAnimationFrame(() => { rhHighlight(); rhShowPopover(); });
+        return;
+    }
+    // Full render (view mode / fallback).
     currentXml = new XMLSerializer().serializeToString(rhDoc);
     const s = (typeof scores !== 'undefined') ? scores.real : null;
     if (s && s.tk) {
@@ -102,6 +119,63 @@ async function rhApply() {
         await initScore('real', currentXml, true);
     }
     requestAnimationFrame(() => { rhHighlight(); rhShowPopover(); });
+}
+
+// Build a standalone one-measure MusicXML excerpt of the realization (P1 only),
+// injecting the running attributes (divisions, key, time, staves, clefs) so it
+// renders as a proper grand staff. Note ids are preserved on the clones.
+function rhBuildMeasureExcerpt(mnum) {
+    const measures = [...rhDoc.querySelectorAll('part[id="P1"] measure')];
+    let div = '8', keyEl = null, timeEl = null, clefs = [], staves = '2';
+    let target = null;
+    for (const m of measures) {
+        const a = m.querySelector('attributes');
+        if (a) {
+            const d = a.querySelector('divisions'); if (d) div = d.textContent;
+            const k = a.querySelector('key');   if (k) keyEl = k;
+            const t = a.querySelector('time');  if (t) timeEl = t;
+            const c = a.querySelectorAll('clef'); if (c.length) clefs = [...c];
+            const s = a.querySelector('staves'); if (s) staves = s.textContent;
+        }
+        if (m.getAttribute('number') === String(mnum)) { target = m; break; }
+    }
+    if (!target) return null;
+
+    const doc = document.implementation.createDocument('', '', null);
+    const root = doc.createElement('score-partwise'); root.setAttribute('version', '4.0'); doc.appendChild(root);
+    const pl = doc.createElement('part-list'); const sp = doc.createElement('score-part'); sp.setAttribute('id', 'P1');
+    const pn = doc.createElement('part-name'); pn.textContent = 'Realization'; sp.appendChild(pn); pl.appendChild(sp); root.appendChild(pl);
+    const part = doc.createElement('part'); part.setAttribute('id', 'P1'); root.appendChild(part);
+    const meas = doc.createElement('measure'); meas.setAttribute('number', String(mnum)); part.appendChild(meas);
+
+    const attr = doc.createElement('attributes');
+    const dv = doc.createElement('divisions'); dv.textContent = div; attr.appendChild(dv);
+    if (keyEl)  attr.appendChild(doc.importNode(keyEl, true));
+    if (timeEl) attr.appendChild(doc.importNode(timeEl, true));
+    const st = doc.createElement('staves'); st.textContent = staves; attr.appendChild(st);
+    clefs.forEach(c => attr.appendChild(doc.importNode(c, true)));
+    meas.appendChild(attr);
+    for (const ch of Array.from(target.children)) {
+        if (ch.tagName === 'attributes') continue;
+        meas.appendChild(doc.importNode(ch, true));
+    }
+    return new XMLSerializer().serializeToString(doc);
+}
+
+// Render one measure into #wrap-real via the dedicated edit toolkit. Fast: small
+// data, single page, no chord-map/roman/phrase overlays — only voice colouring.
+function rhRenderExcerpt(mnum) {
+    const xml = rhBuildMeasureExcerpt(mnum);
+    const wrap = document.getElementById('wrap-real');
+    if (!xml || !wrap) return;
+    if (!rhEditTk) {
+        rhEditTk = new verovio.toolkit();
+        rhEditTk.setOptions({ pageWidth: 2100, scale: 45, adjustPageHeight: true, breaks: 'auto', spacingSystem: 30 });
+    }
+    rhEditTk.loadData(xml);
+    wrap.innerHTML = rhEditTk.renderToSVG(1);
+    rhCurMeasure = String(mnum);
+    colorVoices(wrap.querySelector('svg'));
 }
 
 // Key signature of the realization (first <fifths>), for in-key diatonic steps.
@@ -443,26 +517,32 @@ function rhDelete() {
     rhApply();
     rhHidePopover();
 }
-// Move the selection to the same voice of the previous/next chord.
+// Move the selection to the same voice of the previous/next chord. Scans rhDoc
+// (source of truth) so it can cross measures even when only one is rendered.
 function rhMoveChord(dir) {
-    if (!rhSelId) return;
+    if (!rhSelId || !rhDoc) return;
     const m = rhSelId.match(/^chord-(\d+)(?:-(alto|tenor))?$/);
     if (!m) return;
     const suffix = m[2] ? '-' + m[2] : '';
-    const svg = document.querySelector('#wrap-real svg');
-    if (!svg) return;
     for (let n = parseInt(m[1], 10) + dir; n >= 0 && n < 100000; n += dir) {
-        // Prefer the same voice; fall back to the soprano of that chord.
         for (const id of ['chord-' + n + suffix, 'chord-' + n]) {
-            if (svg.querySelector('.note[id="' + id + '"]')) { rhSelect(id); return; }
+            if (rhDoc.querySelector('note[id="' + id + '"]')) { rhSelect(id); return; }
         }
-        // Stop scanning once we run past the last chord on the page.
-        if (!svg.querySelector('.note[id^="chord-' + n + '"]')) break;
+        if (!rhDoc.querySelector('note[id^="chord-' + n + '"]')) break;
     }
 }
 
 // ── Selection highlight + popover ─────────────────────────────────────────────
-function rhSelect(id) { rhSelId = id; rhHighlight(); rhShowPopover(); }
+// Select a note; while editing, swap the edit box to that note's measure first.
+function rhSelect(id) {
+    rhSelId = id;
+    if (rhEditMode && rhDoc) {
+        const mnum = rhFindNote(id)?.closest('measure')?.getAttribute('number');
+        if (mnum && mnum !== rhCurMeasure && typeof verovio !== 'undefined') rhRenderExcerpt(mnum);
+    }
+    rhHighlight();
+    rhShowPopover();
+}
 
 function rhHighlight() {
     const svg = document.querySelector('#wrap-real svg');
@@ -563,8 +643,17 @@ document.getElementById('cb-edit-rh')?.addEventListener('change', function () {
     document.body.classList.toggle('rh-editing', rhEditMode);
     if (rhEditMode) {
         rhParseDoc();
+        // Stay on the full score until the user picks a note; the first
+        // selection swaps in the fast one-measure edit box.
     } else {
-        rhSelId = null; rhHighlight(); rhHidePopover();
+        rhSelId = null; rhCurMeasure = null; rhHidePopover();
+        rhSyncXml();   // flush pending edits into currentXml
+        // Restore the full score with all edits (one heavier render, on exit).
+        const s = (typeof scores !== 'undefined') ? scores.real : null;
+        if (currentXml && s && s.tk) {
+            try { s.tk.loadData(currentXml); s.total = s.tk.getPageCount() || s.total; renderScorePage('real'); }
+            catch (e) { if (typeof initScore === 'function') initScore('real', currentXml, true); }
+        }
     }
 });
 
