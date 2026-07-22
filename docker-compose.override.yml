@@ -11,6 +11,7 @@ services:
       - .:/var/www/continuo                      # live source mount
       - /var/www/continuo/vendor                 # keep vendor from image
       - /var/www/continuo/public/build           # keep built assets from image
+      - ./docker/nginx/pma.htpasswd:/etc/nginx/pma.htpasswd:ro   # basic auth for /pma/ (gitignored)
     ports:
       - "8080:80"
     depends_on:
@@ -41,8 +42,9 @@ services:
     restart: unless-stopped
     environment:
       PMA_HOST: db
-      PMA_USER: root
-      PMA_PASSWORD: root
+      # No PMA_USER/PMA_PASSWORD on purpose: that auto-logged every visitor in
+      # as MariaDB root. Log in with DB credentials instead. The control user
+      # below is only for phpMyAdmin's own config storage (pmadb).
       PMA_ABSOLUTE_URI: https://continuo.kreilos.fr/pma/
       PMA_CONTROLHOST: db
       PMA_CONTROLUSER: root

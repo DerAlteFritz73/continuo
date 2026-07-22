@@ -19,6 +19,9 @@ yarn-error.log
 # PDFs
 public/*.pdf
 
+# nginx basic-auth credentials for /pma/ (bind-mounted, never committed)
+/docker/nginx/pma.htpasswd
+
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.cache/
