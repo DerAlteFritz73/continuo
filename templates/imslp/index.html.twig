@@ -655,7 +655,7 @@ textarea.ai-input { line-height: 1.5; }
                             <div class="register-chip{{ rc > 0 ? ' on' : '' }}"
                                  role="spinbutton" tabindex="0"
                                  data-letter="{{ letter }}" data-count="{{ rc }}"
-                                 aria-valuemin="0" aria-valuemax="3" aria-valuenow="{{ rc }}"
+                                 aria-valuemin="0" aria-valuemax="9" aria-valuenow="{{ rc }}"
                                  aria-label="{{ ('imslp.register_' ~ key)|trans }}"
                                  title="{{ ('imslp.register_' ~ key)|trans }} — {{ 'imslp.register_stepper_hint'|trans }}">
                                 <span class="rc-letter">{{ letter }}</span>
@@ -905,7 +905,7 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
 // Each chip holds a 0–3 count; the hidden input carries the letter repeated
 // that many times (e.g. count 2 → "SS"), which the server counts back into a
 // canonical multiset. Empty (count 0) inputs are disabled on submit elsewhere.
-const RC_MAX = 3;
+const RC_MAX = 9;
 function rcSync(chip) {
     const n = Math.max(0, Math.min(RC_MAX, parseInt(chip.dataset.count || '0', 10) || 0));
     chip.dataset.count = n;
@@ -932,7 +932,7 @@ document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
         if (e.key === 'ArrowUp' || e.key === '+') { e.preventDefault(); rcStep(chip, 1, false); }
         else if (e.key === 'ArrowDown' || e.key === '-') { e.preventDefault(); rcStep(chip, -1, false); }
         else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rcStep(chip, e.shiftKey ? -1 : 1, true); }
-        else if (/^[0-3]$/.test(e.key)) { e.preventDefault(); rcSet(chip, parseInt(e.key, 10)); }
+        else if (/^[0-9]$/.test(e.key)) { e.preventDefault(); rcSet(chip, parseInt(e.key, 10)); }
         else return;                                       // ignore other keys (tab, etc.)
         chip.classList.remove('ai-filled');
     });

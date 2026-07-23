@@ -394,7 +394,7 @@ imslp:
     register_alto: "Haute-contre (alto)"
     register_tenor: "Taille (ténor)"
     register_bass: "Basse"
-    register_stepper_hint: "cliquer pour ajouter une voix (0–3), maj+clic pour retirer"
+    register_stepper_hint: "cliquer pour ajouter une voix (0–9), maj+clic pour retirer"
     register_group_hint: "Cliquez un registre pour ajouter des voix — p. ex. deux D = SSATB"
     search_include_manuscripts: "Inclure les manuscrits"
     search_year_from_label: "Année de"

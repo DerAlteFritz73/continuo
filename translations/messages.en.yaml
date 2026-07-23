@@ -383,7 +383,7 @@ imslp:
     register_alto: "Alto (haute-contre)"
     register_tenor: "Tenor (taille)"
     register_bass: "Bass (basse)"
-    register_stepper_hint: "click to add a voice (0–3), shift-click to remove"
+    register_stepper_hint: "click to add a voice (0–9), shift-click to remove"
     register_group_hint: "Click a register to add voices — e.g. two S = SSATB"
     search_include_manuscripts: "Include manuscripts"
     search_year_from_label: "Year from"
