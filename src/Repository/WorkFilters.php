@@ -16,8 +16,12 @@ readonly class WorkFilters
         // Abstract ensemble filters (parsed from instrumentation, see InstrumentationParser):
         //   partCount      — number of parts the work must accommodate ("5 instruments")
         //   voiceRegisters — SATB letters the work must all contain ("SB" = dessus + basse)
+        //   exactRegisters — when true, the work's register multiset must EQUAL
+        //                    voiceRegisters exactly (SSTTB → only SSTTB works),
+        //                    instead of the default "contains at least" match.
         public ?int   $partCount       = null,
         public string $voiceRegisters  = '',
+        public bool   $exactRegisters  = false,
     ) {}
 
     public function isEmpty(): bool

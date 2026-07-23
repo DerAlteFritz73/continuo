@@ -385,6 +385,8 @@ imslp:
     register_bass: "Bass (basse)"
     register_stepper_hint: "click to add a voice (0–9), shift-click to remove"
     register_group_hint: "Click a register to add voices — e.g. two S = SSATB"
+    register_exact_match: "Exact match"
+    register_exact_match_hint: "Return only works with exactly this ensemble (no extra voices); off = works containing at least these voices"
     search_include_manuscripts: "Include manuscripts"
     search_year_from_label: "Year from"
     search_year_to_label: "to"

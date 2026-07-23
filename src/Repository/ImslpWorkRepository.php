@@ -505,23 +505,35 @@ class ImslpWorkRepository extends ServiceEntityRepository
                ->setParameter('partCount', $f->partCount);
         }
 
-        // voice registers — the work must contain AT LEAST the requested multiplicity
-        //   of each register. Stored values are canonical multisets ordered S→A→T→B
-        //   with repetition ("SSATB"), so "≥k of X" is a LIKE on k repeated letters:
-        //     "SB"   → contains S and B                (LIKE '%S%' AND '%B%')
-        //     "SSATB"→ contains ≥2 S, ≥1 A/T/B         (LIKE '%SS%' AND '%A%' AND '%T%' AND '%B%')
-        //   Single-letter chip input (each register once) reduces to the old subset match.
+        // voice registers — two modes over the stored canonical multiset (ordered
+        //   S→A→T→B with repetition, e.g. "SSATB"):
+        //
+        //   exact   (exactRegisters=true): the work's ensemble must EQUAL the request.
+        //     "SSTTB" → only works whose voice_registers is exactly "SSTTB"
+        //     (2 sopranos, 2 tenors, 1 bass, no altos, nothing more). Both sides are
+        //     canonical, so a plain equality suffices.
+        //
+        //   contains (default): the work must have AT LEAST the requested multiplicity
+        //     of each register — "≥k of X" is a LIKE on k repeated letters:
+        //       "SB"    → contains S and B          (LIKE '%S%' AND '%B%')
+        //       "SSATB" → ≥2 S, ≥1 A/T/B            (LIKE '%SS%' AND '%A%' AND '%T%' AND '%B%')
+        //     extra registers (e.g. an alto) are allowed.
         if ($f->voiceRegisters !== '') {
             $clean = strtoupper(preg_replace('/[^SATBsatb]/', '', $f->voiceRegisters));
-            $need  = [];
-            foreach (str_split($clean) as $ch) {
-                $need[$ch] = ($need[$ch] ?? 0) + 1;
-            }
-            $i = 0;
-            foreach ($need as $ch => $k) {
-                $qb->andWhere("w.voiceRegisters LIKE :vreg$i")
-                   ->setParameter("vreg$i", '%' . str_repeat($ch, $k) . '%');
-                $i++;
+            if ($f->exactRegisters) {
+                $qb->andWhere('w.voiceRegisters = :vregExact')
+                   ->setParameter('vregExact', $clean);
+            } else {
+                $need = [];
+                foreach (str_split($clean) as $ch) {
+                    $need[$ch] = ($need[$ch] ?? 0) + 1;
+                }
+                $i = 0;
+                foreach ($need as $ch => $k) {
+                    $qb->andWhere("w.voiceRegisters LIKE :vreg$i")
+                       ->setParameter("vreg$i", '%' . str_repeat($ch, $k) . '%');
+                    $i++;
+                }
             }
         }
 

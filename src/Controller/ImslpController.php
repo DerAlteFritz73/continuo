@@ -57,6 +57,7 @@ class ImslpController extends AbstractController
             yearTo:          ($v = trim($params->getString('year_to')))   !== '' ? (int) $v : null,
             partCount:       ($v = trim($params->getString('part_count'))) !== '' ? (int) $v : null,
             voiceRegisters:  self::normalizeRegisters($params->all('voice_registers')),
+            exactRegisters:  $params->getString('exact_registers') === '1',
         );
 
         // Use ImslpSearchService to delegate search/filter logic and caching

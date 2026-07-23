@@ -396,6 +396,8 @@ imslp:
     register_bass: "Basse"
     register_stepper_hint: "cliquer pour ajouter une voix (0–9), maj+clic pour retirer"
     register_group_hint: "Cliquez un registre pour ajouter des voix — p. ex. deux D = SSATB"
+    register_exact_match: "Correspondance exacte"
+    register_exact_match_hint: "N'afficher que les œuvres avec exactement cet effectif (sans voix supplémentaire) ; décoché = œuvres contenant au moins ces voix"
     search_include_manuscripts: "Inclure les manuscrits"
     search_year_from_label: "Année de"
     search_year_to_label: "à"

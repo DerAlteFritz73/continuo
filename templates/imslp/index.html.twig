@@ -665,6 +665,12 @@ textarea.ai-input { line-height: 1.5; }
                         {% endfor %}
                     </div>
                     <div class="register-group-hint">{{ 'imslp.register_group_hint'|trans }}</div>
+                    <label for="f-exact-registers" class="checkbox-label" style="margin-top:.45rem"
+                           title="{{ 'imslp.register_exact_match_hint'|trans }}">
+                        <input type="checkbox" id="f-exact-registers" name="exact_registers" value="1"
+                               {% if filters.exactRegisters %}checked{% endif %}>
+                        {{ 'imslp.register_exact_match'|trans }}
+                    </label>
                 </div>
                 <div class="search-field checkbox-field">
                     <!-- Hidden field ensures unchecked checkbox sends 0 instead of missing parameter -->
@@ -713,7 +719,8 @@ textarea.ai-input { line-height: 1.5; }
         year_from:       filters.yearFrom        ?: null,
         year_to:         filters.yearTo          ?: null,
         part_count:      filters.partCount        ?: null,
-        'voice_registers[]': filters.voiceRegisters ? filters.voiceRegisters|split('') : null
+        'voice_registers[]': filters.voiceRegisters ? filters.voiceRegisters|split('') : null,
+        exact_registers: filters.exactRegisters ? '1' : null
     } %}
 
     {# ════════════════════════════════════════════════════════════════
@@ -1028,10 +1035,14 @@ document.getElementById('search-form').addEventListener('submit', function () {
                 el.classList.remove('ai-filled');
             }
         }
-        // Also clear the include_manuscripts checkbox
+        // Also clear the include_manuscripts + exact-registers checkboxes
         const chkInclude = document.getElementById('f-include-manuscripts');
         if (chkInclude) {
             chkInclude.checked = false;
+        }
+        const chkExact = document.getElementById('f-exact-registers');
+        if (chkExact) {
+            chkExact.checked = false;
         }
         // Clear register steppers back to 0
         document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
