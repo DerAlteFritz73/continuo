@@ -319,6 +319,55 @@ textarea.ai-input { line-height: 1.5; }
     margin-bottom: 1.5rem;
 }
 
+/* ── Register (SATB) count-stepper chip group ── */
+.register-group { display: flex; gap: .35rem; }
+.register-chip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2.1rem;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #1e1e1e;
+    color: #9a8a78;
+    font-weight: 600;
+    font-size: .9rem;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.register-chip:hover { border-color: #c8a96e88; }
+/* count ≥ 1 → active */
+.register-chip.on {
+    border-color: #c8a96e;
+    background: #c8a96e22;
+    color: #e6d3a8;
+}
+.register-chip:focus-visible { outline: 2px solid #c8a96e; outline-offset: 1px; }
+/* multiplicity badge (shown only when count ≥ 2) */
+.rc-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: #c8a96e;
+    color: #1a1a1a;
+    font-size: .62rem;
+    line-height: 15px;
+    text-align: center;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px #1a1a1a;
+}
+.rc-count:empty { display: none; }
+/* AI-populated chips get a distinct accent (matches .ai-filled elsewhere) */
+.register-chip.ai-filled { border-color: #6ea9c8; }
+.register-group-hint { margin-top: .35rem; font-size: .7rem; color: #6a6258; }
+
 /* ── Section divider ── */
 .section-divider {
     border: none;
@@ -590,6 +639,33 @@ textarea.ai-input { line-height: 1.5; }
                     <input type="text" id="f-key" name="key"
                            value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
                 </div>
+                <div class="search-field narrow">
+                    <label for="f-part-count">{{ 'imslp.search_parts_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
+                    <input type="number" id="f-part-count" name="part_count"
+                           value="{{ filters.partCount ?: '' }}" placeholder="{{ 'imslp.search_parts_placeholder'|trans }}" min="1" max="40">
+                </div>
+                <div class="search-field">
+                    <label>{{ 'imslp.search_registers_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
+                    <div class="register-group" id="f-registers">
+                        {% for letter, key in {'S': 'soprano', 'A': 'alto', 'T': 'tenor', 'B': 'bass'} %}
+                            {% set rc = filters.voiceRegisters is empty ? 0
+                                        : filters.voiceRegisters|split('')|filter(c => c == letter)|length %}
+                            {% set hv = '' %}
+                            {% if rc > 0 %}{% for i in 1..rc %}{% set hv = hv ~ letter %}{% endfor %}{% endif %}
+                            <div class="register-chip{{ rc > 0 ? ' on' : '' }}"
+                                 role="spinbutton" tabindex="0"
+                                 data-letter="{{ letter }}" data-count="{{ rc }}"
+                                 aria-valuemin="0" aria-valuemax="3" aria-valuenow="{{ rc }}"
+                                 aria-label="{{ ('imslp.register_' ~ key)|trans }}"
+                                 title="{{ ('imslp.register_' ~ key)|trans }} — {{ 'imslp.register_stepper_hint'|trans }}">
+                                <span class="rc-letter">{{ letter }}</span>
+                                <span class="rc-count" aria-hidden="true">{{ rc > 1 ? rc : '' }}</span>
+                                <input type="hidden" name="voice_registers[]" value="{{ hv }}">
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="register-group-hint">{{ 'imslp.register_group_hint'|trans }}</div>
+                </div>
                 <div class="search-field checkbox-field">
                     <!-- Hidden field ensures unchecked checkbox sends 0 instead of missing parameter -->
                     <input type="hidden" name="include_manuscripts" value="0">
@@ -635,7 +711,9 @@ textarea.ai-input { line-height: 1.5; }
         key:             filters.key             ?: null,
         include_manuscripts: filters.includeManuscripts ? '1' : '0',
         year_from:       filters.yearFrom        ?: null,
-        year_to:         filters.yearTo          ?: null
+        year_to:         filters.yearTo          ?: null,
+        part_count:      filters.partCount        ?: null,
+        'voice_registers[]': filters.voiceRegisters ? filters.voiceRegisters|split('') : null
     } %}
 
     {# ════════════════════════════════════════════════════════════════
@@ -823,6 +901,43 @@ fetch('{{ path('app_imslp_sync_status') }}?json')
     })
     .catch(() => { document.getElementById('db-status').textContent = ''; });
 
+// ── Register count steppers (SATB multiplicity) ──
+// Each chip holds a 0–3 count; the hidden input carries the letter repeated
+// that many times (e.g. count 2 → "SS"), which the server counts back into a
+// canonical multiset. Empty (count 0) inputs are disabled on submit elsewhere.
+const RC_MAX = 3;
+function rcSync(chip) {
+    const n = Math.max(0, Math.min(RC_MAX, parseInt(chip.dataset.count || '0', 10) || 0));
+    chip.dataset.count = n;
+    chip.classList.toggle('on', n > 0);
+    chip.setAttribute('aria-valuenow', n);
+    const badge = chip.querySelector('.rc-count');
+    if (badge) badge.textContent = n > 1 ? n : '';        // show number only for ≥2
+    const hidden = chip.querySelector('input[type=hidden]');
+    if (hidden) hidden.value = chip.dataset.letter.repeat(n);
+}
+function rcSet(chip, n) { chip.dataset.count = n; rcSync(chip); }
+function rcStep(chip, delta, wrap) {
+    let n = (parseInt(chip.dataset.count || '0', 10) || 0) + delta;
+    if (wrap) { if (n > RC_MAX) n = 0; else if (n < 0) n = RC_MAX; }
+    rcSet(chip, n);
+}
+document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+    rcSync(chip);
+    chip.addEventListener('click', e => {
+        rcStep(chip, e.shiftKey ? -1 : 1, true);          // click +1, shift-click −1 (wrap)
+        chip.classList.remove('ai-filled');
+    });
+    chip.addEventListener('keydown', e => {
+        if (e.key === 'ArrowUp' || e.key === '+') { e.preventDefault(); rcStep(chip, 1, false); }
+        else if (e.key === 'ArrowDown' || e.key === '-') { e.preventDefault(); rcStep(chip, -1, false); }
+        else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rcStep(chip, e.shiftKey ? -1 : 1, true); }
+        else if (/^[0-3]$/.test(e.key)) { e.preventDefault(); rcSet(chip, parseInt(e.key, 10)); }
+        else return;                                       // ignore other keys (tab, etc.)
+        chip.classList.remove('ai-filled');
+    });
+});
+
 // ── Search form: reinitialize all params before each submission ──
 document.getElementById('search-form').addEventListener('submit', function () {
     // Disable empty fields so they don't get sent
@@ -904,6 +1019,7 @@ document.getElementById('search-form').addEventListener('submit', function () {
             key:             'f-key',
             year_from:       'f-year-from',
             year_to:         'f-year-to',
+            part_count:      'f-part-count',
         };
         for (const elId of Object.values(map)) {
             const el = document.getElementById(elId);
@@ -917,6 +1033,11 @@ document.getElementById('search-form').addEventListener('submit', function () {
         if (chkInclude) {
             chkInclude.checked = false;
         }
+        // Clear register steppers back to 0
+        document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+            chip.classList.remove('ai-filled');
+            rcSet(chip, 0);
+        });
 
         // Now fill in only the values that came from AI
         for (const [key, elId] of Object.entries(map)) {
@@ -928,6 +1049,17 @@ document.getElementById('search-form').addEventListener('submit', function () {
                 }
             }
         }
+        // Register steppers from a "voice_registers" multiset like "SSATB":
+        // set each chip's count to how many times its letter appears.
+        if (filters.voice_registers) {
+            const wanted = String(filters.voice_registers).toUpperCase();
+            document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+                const n = (wanted.match(new RegExp(chip.dataset.letter, 'g')) || []).length;
+                rcSet(chip, n);
+                if (n > 0) chip.classList.add('ai-filled');
+            });
+        }
+
         // composer / title go into the q field
         if (filters.composer && !filters.title) {
             const q = document.getElementById('q');

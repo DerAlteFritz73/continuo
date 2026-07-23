@@ -59,6 +59,17 @@ class ImslpAiSearchService
                                 'type'        => 'string',
                                 'description' => 'Lowercase genre/form as used in IMSLP tags: sonatas, concertos, cantatas, motets, masses, fugues, suites, trios, quartets, quintets, operas, songs, dances, variations, preludes, fantasias, études, symphonies, overtures, etc.',
                             ],
+                            'part_count' => [
+                                'type'        => 'integer',
+                                'description' => 'Number of independent parts/voices/instruments when the query specifies an abstract ensemble size rather than named instruments — common for Renaissance "for voices or instruments" repertoire. '
+                                    . 'e.g. "5 instruments"→5, "a 4 voci"→4, "1 dessus et basse" / "one treble and bass"→2, "trio"→3.',
+                            ],
+                            'voice_registers' => [
+                                'type'        => 'string',
+                                'description' => 'Vocal registers the work must contain, using the letters S(oprano/dessus) A(lto/haute-contre) T(enor/taille) B(ass/basse), no separators, ordered S→A→T→B. '
+                                    . 'REPEAT a letter to require multiplicity: "two sopranos, alto, tenor, bass"→"SSATB", "2 dessus 1 taille 1 basse"→"SSTB", "double SATB choir"→"SSAATTBB". '
+                                    . 'Use ONLY when the query names registers rather than instruments. e.g. "dessus et basse" / "soprano and bass"→"SB", "SATB choir"→"SATB", "for tenor and bass"→"TB".',
+                            ],
                             'key' => [
                                 'type'        => 'string',
                                 'description' => 'Musical key exactly as written in scores, e.g. "D minor", "G major", "B-flat major", "F-sharp minor".',

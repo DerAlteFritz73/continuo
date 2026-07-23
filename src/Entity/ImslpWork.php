@@ -10,6 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'imslp_work')]
 #[ORM\Index(columns: ['composer'], name: 'idx_imslp_work_composer')]
 #[ORM\Index(columns: ['page_id'], name: 'idx_imslp_work_page_id')]
+#[ORM\Index(columns: ['part_count_min'], name: 'idx_imslp_work_part_count_min')]
+#[ORM\Index(columns: ['part_count_max'], name: 'idx_imslp_work_part_count_max')]
+#[ORM\Index(columns: ['voice_registers'], name: 'idx_imslp_work_voice_registers')]
 class ImslpWork
 {
     #[ORM\Id]
@@ -96,6 +99,18 @@ class ImslpWork
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $firstPerfLocation = null;
+
+    // Abstract ensemble descriptor parsed from `instrumentation` (see InstrumentationParser).
+    // Lets users search by part count / register ("5 instruments", "1 dessus et basse")
+    // instead of naming instruments — important for unscored Renaissance repertoire.
+    #[ORM\Column(name: 'part_count_min', type: Types::INTEGER, nullable: true)]
+    private ?int $partCountMin = null;
+
+    #[ORM\Column(name: 'part_count_max', type: Types::INTEGER, nullable: true)]
+    private ?int $partCountMax = null;
+
+    #[ORM\Column(name: 'voice_registers', length: 16, nullable: true)]
+    private ?string $voiceRegisters = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $filesJson = null;
@@ -190,6 +205,15 @@ class ImslpWork
 
     public function getFirstPerfLocation(): ?string { return $this->firstPerfLocation; }
     public function setFirstPerfLocation(?string $v): void { $this->firstPerfLocation = $v; }
+
+    public function getPartCountMin(): ?int { return $this->partCountMin; }
+    public function setPartCountMin(?int $v): void { $this->partCountMin = $v; }
+
+    public function getPartCountMax(): ?int { return $this->partCountMax; }
+    public function setPartCountMax(?int $v): void { $this->partCountMax = $v; }
+
+    public function getVoiceRegisters(): ?string { return $this->voiceRegisters; }
+    public function setVoiceRegisters(?string $v): void { $this->voiceRegisters = $v; }
 
     public function getFilesJson(): ?array { return $this->filesJson; }
     public function setFilesJson(?array $v): void { $this->filesJson = $v; }
