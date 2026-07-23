@@ -496,6 +496,35 @@ class ImslpWorkRepository extends ServiceEntityRepository
             }
         }
 
+        // part count — the work's parsed part range must contain the requested count.
+        //   A work stored as "4-6 voices" ([min=4,max=6]) matches a request for 5;
+        //   an exact "4 voices" ([4,4]) matches only 4. Works with no parsed count
+        //   (part_count_min IS NULL) are excluded.
+        if ($f->partCount !== null) {
+            $qb->andWhere('w.partCountMin IS NOT NULL AND w.partCountMin <= :partCount AND w.partCountMax >= :partCount')
+               ->setParameter('partCount', $f->partCount);
+        }
+
+        // voice registers — the work must contain AT LEAST the requested multiplicity
+        //   of each register. Stored values are canonical multisets ordered S→A→T→B
+        //   with repetition ("SSATB"), so "≥k of X" is a LIKE on k repeated letters:
+        //     "SB"   → contains S and B                (LIKE '%S%' AND '%B%')
+        //     "SSATB"→ contains ≥2 S, ≥1 A/T/B         (LIKE '%SS%' AND '%A%' AND '%T%' AND '%B%')
+        //   Single-letter chip input (each register once) reduces to the old subset match.
+        if ($f->voiceRegisters !== '') {
+            $clean = strtoupper(preg_replace('/[^SATBsatb]/', '', $f->voiceRegisters));
+            $need  = [];
+            foreach (str_split($clean) as $ch) {
+                $need[$ch] = ($need[$ch] ?? 0) + 1;
+            }
+            $i = 0;
+            foreach ($need as $ch => $k) {
+                $qb->andWhere("w.voiceRegisters LIKE :vreg$i")
+                   ->setParameter("vreg$i", '%' . str_repeat($ch, $k) . '%');
+                $i++;
+            }
+        }
+
         // style — only works with a known matching style; null = excluded
         if ($f->style !== '') {
             $qb->andWhere('w.pieceStyle = :style')

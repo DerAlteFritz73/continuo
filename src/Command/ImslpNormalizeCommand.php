@@ -34,7 +34,10 @@ class ImslpNormalizeCommand extends Command
              ->addOption('stop-file', null, InputOption::VALUE_REQUIRED,
                 'Path to a stop-file; exits gracefully when the file appears', '')
              ->addOption('mode', null, InputOption::VALUE_REQUIRED,
-                'What to backfill: editions|categories|duration|firstperf|composer_id|all', 'all');
+                'What to backfill: editions|categories|duration|firstperf|composer_id|instrumentation|all', 'all')
+             ->addOption('force', null, InputOption::VALUE_NONE,
+                'Instrumentation mode: re-parse ALL rows with instrumentation text, overwriting existing '
+                . 'part_count/voice_registers (use after changing InstrumentationParser)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -43,8 +46,9 @@ class ImslpNormalizeCommand extends Command
         $delay    = (int) $input->getOption('delay');
         $stopFile = (string) $input->getOption('stop-file');
         $mode     = strtolower((string) $input->getOption('mode'));
+        $force    = (bool) $input->getOption('force');
 
-        $validModes = ['editions', 'categories', 'duration', 'firstperf', 'composer_id', 'all'];
+        $validModes = ['editions', 'categories', 'duration', 'firstperf', 'composer_id', 'instrumentation', 'all'];
         if (!in_array($mode, $validModes, true)) {
             $output->writeln('<error>Invalid mode. Use: ' . implode('|', $validModes) . '</error>');
             return Command::FAILURE;
@@ -71,6 +75,10 @@ class ImslpNormalizeCommand extends Command
 
         if ($mode === 'all' || $mode === 'firstperf') {
             $done += $this->runFirstPerf($output, $limit, $delay, $stopFile, $done);
+        }
+
+        if ($mode === 'all' || $mode === 'instrumentation') {
+            $done += $this->runInstrumentation($output, $limit, $delay, $stopFile, $done, $force);
         }
 
         $output->writeln(sprintf('[%s] normalize complete. Total records processed: %d', $this->ts(), $done));
@@ -294,6 +302,68 @@ class ImslpNormalizeCommand extends Command
         }
 
         $output->writeln(sprintf('[%s] firstperf: done, %d works processed.', $this->ts(), $done));
+        return $done;
+    }
+
+    private function runInstrumentation(OutputInterface $output, int $limit, int $delay, string $stopFile, int $globalDone, bool $force = false): int
+    {
+        // Rows with instrumentation text but no parsed ensemble descriptor yet.
+        // Works whose text yields nothing (e.g. "lute") stay NULL and will be
+        // re-scanned on a later run — the parse is cheap and network-free.
+        //
+        // --force re-parses EVERY row with instrumentation text, overwriting any
+        // existing descriptor — needed after changing InstrumentationParser so the
+        // new logic reaches rows the old parser already stamped.
+        $where = $force
+            ? "instrumentation IS NOT NULL AND instrumentation <> ''"
+            : "instrumentation IS NOT NULL AND instrumentation <> ''
+                  AND part_count_min IS NULL AND part_count_max IS NULL AND voice_registers IS NULL";
+
+        $count = (int) $this->db->fetchOne("SELECT COUNT(*) FROM imslp_work WHERE $where");
+        $output->writeln(sprintf('[%s] instrumentation: %d works to process.', $this->ts(), $count));
+        $toProcess = ($limit > 0) ? min($limit - $globalDone, $count) : $count;
+
+        $done   = 0;
+        $offset = 0;
+
+        while ($done < $toProcess) {
+            if ($stopFile && file_exists($stopFile)) {
+                @unlink($stopFile);
+                $output->writeln(sprintf('[%s] instrumentation: stopped via stop-file.', $this->ts()));
+                break;
+            }
+
+            $chunkSize = min(self::CHUNK, $toProcess - $done);
+            $rows      = $this->db->fetchAllAssociative(
+                sprintf(
+                    "SELECT id, instrumentation FROM imslp_work
+                     WHERE $where
+                     ORDER BY id
+                     LIMIT %d OFFSET %d",
+                    $chunkSize, $offset
+                )
+            );
+            if (empty($rows)) break;
+
+            foreach ($rows as $row) {
+                $e = $this->imslp->parseInstrumentation($row['instrumentation']);
+                $this->db->executeStatement(
+                    'UPDATE imslp_work SET part_count_min = ?, part_count_max = ?, voice_registers = ? WHERE id = ?',
+                    [$e['part_count_min'], $e['part_count_max'], $e['voice_registers'], (int) $row['id']]
+                );
+                $done++;
+            }
+            // Rows that parse to all-NULL still match $where, so advance OFFSET
+            // to walk past them rather than re-selecting the same first chunk.
+            $offset += count($rows);
+
+            if ($done % 500 === 0) {
+                $output->writeln(sprintf('[%s] instrumentation: %d / %d processed.', $this->ts(), $done, $toProcess));
+            }
+            if ($delay > 0) usleep($delay * 1000);
+        }
+
+        $output->writeln(sprintf('[%s] instrumentation: done, %d works processed.', $this->ts(), $done));
         return $done;
     }
 

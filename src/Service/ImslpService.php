@@ -18,6 +18,7 @@ class ImslpService
         private readonly EntityManagerInterface $em,
         private readonly Connection $db,
         private readonly CacheInterface $cache,
+        private readonly InstrumentationParser $instrumentationParser = new InstrumentationParser(),
     ) {}
 
     // -------------------------------------------------------------------------
@@ -508,6 +509,7 @@ class ImslpService
         // Parse new normalised fields
         $durationSeconds  = $this->parseDurationSeconds($parsed['averageDuration'] ?? '');
         [$firstPerfDate, $firstPerfLocation] = $this->parseFirstPerformance($parsed['firstPerformance'] ?? '');
+        $ensemble         = $this->instrumentationParser->parse($parsed['instrumentation'] ?? '');
 
         // Resolve composer_id
         $composerId = $this->db->fetchOne(
@@ -547,6 +549,9 @@ class ImslpService
                 duration_seconds    = ?,
                 first_perf_date     = ?,
                 first_perf_location = ?,
+                part_count_min      = ?,
+                part_count_max      = ?,
+                voice_registers     = ?,
                 detail_synced_at    = ?
              WHERE page_id = ?',
             [
@@ -571,6 +576,9 @@ class ImslpService
                 $durationSeconds,
                 mb_substr($firstPerfDate ?? '', 0, 50) ?: null,
                 mb_substr($firstPerfLocation ?? '', 0, 255) ?: null,
+                $ensemble['part_count_min'],
+                $ensemble['part_count_max'],
+                $ensemble['voice_registers'],
                 $now,
                 $work->getPageId(),
             ]
@@ -798,6 +806,16 @@ class ImslpService
         }
 
         return [$date, $location];
+    }
+
+    /**
+     * Parses the free-text instrumentation string into an abstract ensemble
+     * descriptor: ['part_count_min', 'part_count_max', 'voice_registers'].
+     * @see InstrumentationParser
+     */
+    public function parseInstrumentation(string $instrumentation): array
+    {
+        return $this->instrumentationParser->parse($instrumentation);
     }
 
     private function markDetailSynced(int $pageId): void

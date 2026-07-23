@@ -13,6 +13,11 @@ readonly class WorkFilters
         public bool   $includeManuscripts = true,
         public ?int   $yearFrom        = null,
         public ?int   $yearTo          = null,
+        // Abstract ensemble filters (parsed from instrumentation, see InstrumentationParser):
+        //   partCount      — number of parts the work must accommodate ("5 instruments")
+        //   voiceRegisters — SATB letters the work must all contain ("SB" = dessus + basse)
+        public ?int   $partCount       = null,
+        public string $voiceRegisters  = '',
     ) {}
 
     public function isEmpty(): bool
@@ -24,6 +29,8 @@ readonly class WorkFilters
             && $this->language        === ''
             && $this->includeManuscripts === true
             && $this->yearFrom        === null
-            && $this->yearTo          === null;
+            && $this->yearTo          === null
+            && $this->partCount       === null
+            && $this->voiceRegisters  === '';
     }
 }

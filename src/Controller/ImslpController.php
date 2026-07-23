@@ -55,6 +55,8 @@ class ImslpController extends AbstractController
             includeManuscripts: $params->getString('include_manuscripts', '1') === '1',
             yearFrom:        ($v = trim($params->getString('year_from'))) !== '' ? (int) $v : null,
             yearTo:          ($v = trim($params->getString('year_to')))   !== '' ? (int) $v : null,
+            partCount:       ($v = trim($params->getString('part_count'))) !== '' ? (int) $v : null,
+            voiceRegisters:  self::normalizeRegisters($params->all('voice_registers')),
         );
 
         // Use ImslpSearchService to delegate search/filter logic and caching
@@ -91,6 +93,28 @@ class ImslpController extends AbstractController
             'languages' => $this->cachedDistinctLanguages(),
             'mode'      => $mode,
         ]);
+    }
+
+    /**
+     * Normalises checkbox / AI register input into a canonical SATB-ordered
+     * MULTISET. Accepts an array (voice_registers[]) or a plain string ("SSATB");
+     * keeps only S/A/T/B letters, orders them S→A→T→B, and PRESERVES multiplicity
+     * so "two sopranos + ATB" (AI → "SSATB") stays distinct from "SATB". Chip input
+     * (each register at most once) is unaffected.
+     */
+    private static function normalizeRegisters(array|string $raw): string
+    {
+        $joined = is_array($raw) ? implode('', $raw) : $raw;
+        $letters = str_split(strtoupper(preg_replace('/[^SATBsatb]/', '', $joined)) ?: '');
+        $counts = ['S' => 0, 'A' => 0, 'T' => 0, 'B' => 0];
+        foreach ($letters as $ch) {
+            if (isset($counts[$ch])) $counts[$ch]++;
+        }
+        $out = '';
+        foreach (['S', 'A', 'T', 'B'] as $ch) {
+            $out .= str_repeat($ch, $counts[$ch]);
+        }
+        return $out;
     }
 
     #[Route('/ai-search', name: 'app_imslp_ai_search', methods: ['POST'])]
