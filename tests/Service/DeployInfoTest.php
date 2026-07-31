@@ -86,4 +86,42 @@ class DeployInfoTest extends TestCase
 
         $this->assertNull((new DeployInfo($this->dir, null))->getDeployedAt());
     }
+
+    public function testVersionComesFromTheEnvironmentWhenSet(): void
+    {
+        $this->writeReflog(1785526351);
+
+        $info = new DeployInfo($this->dir, null, 'abc1234');
+
+        $this->assertSame('abc1234', $info->getVersion());
+    }
+
+    public function testLongVersionIsTruncated(): void
+    {
+        $info = new DeployInfo($this->dir, null, str_repeat('a', 40));
+
+        $this->assertSame(str_repeat('a', 12), $info->getVersion());
+    }
+
+    public function testVersionFallsBackToTheShortReflogSha(): void
+    {
+        $this->writeReflog(1785526351);
+
+        // writeReflog() records def456 as the new SHA; only a full 40-char hash
+        // is accepted, so this shape must be rejected.
+        $this->assertNull((new DeployInfo($this->dir, null, ''))->getVersion());
+
+        file_put_contents(
+            $this->dir . '/.git/logs/HEAD',
+            "0000000000000000000000000000000000000000 fe92ab1c0ffee0ddba11deadbeef0123456789ab "
+            . "Chuck <c@example.com> 1785526351 +0200\tcommit: real\n"
+        );
+
+        $this->assertSame('fe92ab1', (new DeployInfo($this->dir, null, null))->getVersion());
+    }
+
+    public function testVersionIsNullWithoutAnySource(): void
+    {
+        $this->assertNull((new DeployInfo($this->dir, null, null))->getVersion());
+    }
 }

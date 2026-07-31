@@ -23,10 +23,13 @@ class DeployInfo
 {
     private bool $resolved = false;
     private ?\DateTimeImmutable $deployedAt = null;
+    private bool $versionResolved = false;
+    private ?string $version = null;
 
     public function __construct(
         private readonly string  $projectDir,
         private readonly ?string $deployedAtEnv = null,
+        private readonly ?string $versionEnv = null,
     ) {}
 
     public function getDeployedAt(): ?\DateTimeImmutable
@@ -41,6 +44,45 @@ class DeployInfo
             ?? $this->fromGitReflog();
 
         return $this->deployedAt;
+    }
+
+    /**
+     * Short commit hash of what is running — the only version number that
+     * cannot drift from the code, since it *is* the code. Same two sources as
+     * the date: baked in at build time, or read from the reflog in dev.
+     */
+    public function getVersion(): ?string
+    {
+        if ($this->versionResolved) {
+            return $this->version;
+        }
+        $this->versionResolved = true;
+
+        $env = trim((string) $this->versionEnv);
+        if ($env !== '') {
+            $this->version = substr($env, 0, 12);
+
+            return $this->version;
+        }
+
+        $this->version = $this->versionFromGitReflog();
+
+        return $this->version;
+    }
+
+    private function versionFromGitReflog(): ?string
+    {
+        $head = $this->lastReflogEntry();
+        if ($head === null) {
+            return null;
+        }
+
+        // "<old-sha> <new-sha> <name> <email> <ts> <tz>" — the second field.
+        $parts = explode(' ', $head);
+
+        return isset($parts[1]) && preg_match('/^[0-9a-f]{40}$/', $parts[1])
+            ? substr($parts[1], 0, 7)
+            : null;
     }
 
     private function fromEnv(): ?\DateTimeImmutable
@@ -74,7 +116,7 @@ class DeployInfo
      *   <old-sha> <new-sha> <name> <email> <unix-ts> <tz>\t<message>
      * The timestamp is the sixth-from-last field before the tab.
      */
-    private function fromGitReflog(): ?\DateTimeImmutable
+    private function lastReflogEntry(): ?string
     {
         $path = $this->projectDir . '/.git/logs/HEAD';
         if (!is_file($path) || !is_readable($path)) {
@@ -82,11 +124,17 @@ class DeployInfo
         }
 
         $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if (!$lines) {
+
+        return $lines ? explode("\t", end($lines))[0] : null;
+    }
+
+    private function fromGitReflog(): ?\DateTimeImmutable
+    {
+        $head = $this->lastReflogEntry();
+        if ($head === null) {
             return null;
         }
 
-        $head = explode("\t", end($lines))[0];
         if (!preg_match('/\s(\d{9,})\s([+-]\d{4})$/', $head, $m)) {
             return null;
         }

@@ -37,6 +37,10 @@ class Comment
     #[ORM\Column(length: 45, nullable: true)]
     private ?string $ipAddress = null;
 
+    /** Short commit hash the visitor was looking at when they wrote this. */
+    #[ORM\Column(length: 12, nullable: true)]
+    private ?string $appVersion = null;
+
     /** Whether the notification e-mail went out; null = not attempted yet. */
     #[ORM\Column(type: Types::BOOLEAN, nullable: true)]
     private ?bool $notified = null;
@@ -65,6 +69,9 @@ class Comment
 
     public function getIpAddress(): ?string { return $this->ipAddress; }
     public function setIpAddress(?string $v): void { $this->ipAddress = $v; }
+
+    public function getAppVersion(): ?string { return $this->appVersion; }
+    public function setAppVersion(?string $v): void { $this->appVersion = $v; }
 
     public function isNotified(): ?bool { return $this->notified; }
     public function setNotified(?bool $v): void { $this->notified = $v; }

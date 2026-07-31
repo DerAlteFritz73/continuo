@@ -595,3 +595,4 @@ docs:
 # ── Zápatí ─────────────────────────────────────────────────────────────────
 footer:
     deployed: "Poslední nasazení:"
+    version: "Verze (commit)"

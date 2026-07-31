@@ -3,5 +3,6 @@
 <p class="deploy-stamp">
     {{ 'footer.deployed'|trans }}
     <time datetime="{{ deploy.deployedAt|date('c') }}">{{ deploy.deployedAt|date('Y-m-d H:i', 'UTC') }} UTC</time>
+    {% if deploy.version %}<span class="deploy-rev" title="{{ 'footer.version'|trans }}">· {{ deploy.version }}</span>{% endif %}
 </p>
 {% endif %}

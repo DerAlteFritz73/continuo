@@ -598,3 +598,4 @@ docs:
 # ── Fußzeile ───────────────────────────────────────────────────────────────
 footer:
     deployed: "Letztes Deployment:"
+    version: "Version (Commit)"

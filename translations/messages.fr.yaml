@@ -646,3 +646,4 @@ docs:
 # ── Pied de page ───────────────────────────────────────────────────────────
 footer:
     deployed: "Dernier déploiement :"
+    version: "Version (commit)"

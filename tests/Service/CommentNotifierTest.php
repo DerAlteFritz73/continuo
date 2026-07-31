@@ -24,6 +24,7 @@ class CommentNotifierTest extends TestCase
         $comment->setBody($body);
         $comment->setLocale('fr');
         $comment->setIpAddress('203.0.113.7');
+        $comment->setAppVersion('fe92ab1');
 
         return $comment;
     }
@@ -70,6 +71,9 @@ class CommentNotifierTest extends TestCase
 
         $this->assertStringContainsString('The 6/4 in bar 12 looks wrong.', $sent->getTextBody());
         $this->assertStringContainsString('203.0.113.7', $sent->getTextBody());
+        // Which build the visitor was on — the first thing you want in a report.
+        $this->assertStringContainsString('fe92ab1', $sent->getTextBody());
+        $this->assertStringContainsString('fe92ab1', $sent->getHtmlBody());
         $this->assertStringContainsString('The 6/4 in bar 12 looks wrong.', $sent->getHtmlBody());
     }
 

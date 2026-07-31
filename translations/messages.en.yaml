@@ -635,3 +635,4 @@ docs:
 # ── Footer ─────────────────────────────────────────────────────────────────
 footer:
     deployed: "Last deploy:"
+    version: "Version (commit)"

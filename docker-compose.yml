@@ -4,6 +4,7 @@ services:
       context: .
       args:
         BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_REV: ${BUILD_REV:-}
     restart: unless-stopped
     ports:
       - "8080:80"

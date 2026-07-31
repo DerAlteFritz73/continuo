@@ -77,8 +77,11 @@ ENV APP_ENV=prod
 # Last line of the stage on purpose: it changes on every build and would
 # otherwise invalidate the layers above it.
 #   docker compose build --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" app
+#   docker compose build --build-arg BUILD_DATE=... --build-arg BUILD_REV=$(git rev-parse --short HEAD) app
 ARG BUILD_DATE=""
+ARG BUILD_REV=""
 ENV APP_DEPLOYED_AT=$BUILD_DATE
+ENV APP_VERSION=$BUILD_REV
 
 EXPOSE 80
 

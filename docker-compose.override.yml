@@ -5,6 +5,7 @@ services:
       target: production   # still build the full image locally
       args:
         BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_REV: ${BUILD_REV:-}
     environment:
       APP_ENV: dev
       APP_SECRET: continuo_dev_secret

@@ -36,6 +36,7 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $deployedAtEnv: '%env(string:default::APP_DEPLOYED_AT)%'
+            $versionEnv: '%env(string:default::APP_VERSION)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

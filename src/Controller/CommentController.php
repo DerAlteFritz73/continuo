@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Comment;
 use App\Repository\CommentRepository;
 use App\Service\CommentNotifier;
+use App\Service\DeployInfo;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,6 +25,7 @@ class CommentController extends AbstractController
         private readonly CommentRepository      $comments,
         private readonly ValidatorInterface     $validator,
         private readonly CommentNotifier        $notifier,
+        private readonly DeployInfo             $deployInfo,
         private readonly TranslatorInterface    $translator,
     ) {}
 
@@ -40,6 +42,8 @@ class CommentController extends AbstractController
         $comment->setBody((string) $request->request->get('body', ''));
         $comment->setLocale($request->getLocale());
         $comment->setIpAddress($request->getClientIp());
+        // Ties the report to the exact build the visitor was looking at.
+        $comment->setAppVersion($this->deployInfo->getVersion());
 
         $violations = $this->validator->validate($comment);
         if (count($violations) > 0) {

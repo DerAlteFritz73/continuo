@@ -64,6 +64,7 @@ class CommentNotifier
             'Date:    ' . $comment->getCreatedAt()->format('Y-m-d H:i:s'),
             'Locale:  ' . ($comment->getLocale() ?? '—'),
             'IP:      ' . ($comment->getIpAddress() ?? '—'),
+            'Build:   ' . ($comment->getAppVersion() ?? '—'),
             'Comment #' . ($comment->getId() ?? '?'),
             '',
             str_repeat('-', 60),
@@ -84,6 +85,7 @@ class CommentNotifier
             . '<tr><td><strong>Date</strong></td><td>%2$s</td></tr>'
             . '<tr><td><strong>Locale</strong></td><td>%3$s</td></tr>'
             . '<tr><td><strong>IP</strong></td><td>%4$s</td></tr>'
+            . '<tr><td><strong>Build</strong></td><td><code>%7$s</code></td></tr>'
             . '<tr><td><strong>ID</strong></td><td>#%5$s</td></tr>'
             . '</table>'
             . '<blockquote style="margin:1.2em 0;padding:.8em 1.2em;border-left:3px solid #c8a96e;'
@@ -95,6 +97,7 @@ class CommentNotifier
             $e($comment->getIpAddress()),
             $e((string) ($comment->getId() ?? '?')),
             nl2br($e($comment->getBody())),
+            $e($comment->getAppVersion()),
         );
     }
 }
