@@ -14,6 +14,8 @@ params:
     voices_label: "Number of voices"
     voices_4: "4 voices — full realization (soprano + alto + tenor + bass)"
     voices_3: "3 voices — whenever possible (alto + soprano + bass)"
+    voices_4_short: "4 voices"
+    voices_3_short: "3 voices"
 
 # ── Upload card ──────────────────────────────────────────────────────────────
 upload:
@@ -24,6 +26,8 @@ upload:
     clear_btn: "Clear"
     sample_hint: "load sample file"
     progress: "Analyzing bass line and realizing harmony…"
+    tab_compose: "Enter notes"
+    tab_import: "Import"
 
 # ── Audio tonality detection ─────────────────────────────────────────────────
 audio:
@@ -75,6 +79,11 @@ viewer:
     click_hint: "▶ Click any note or chord to inspect its harmony & decision tree"
     rendering: "Rendering score…"
     show_computed: "Show computed figures"
+    passages_heading: "Detected phrases"
+    display_options: "Display options"
+    colour_voices: "Colour voices"
+    edit_rh: "Edit right hand"
+    score_pan_hint: "Swipe to pan · pinch to zoom"
 
 # ── Chord inspector ──────────────────────────────────────────────────────────
 inspector:
@@ -425,7 +434,7 @@ imslp:
     # Section labels
     section_composers: "Composers"
     section_works_with_title: "Works with \"%q\" in title"
-    section_works_matching_search: "Results matching \"%q\""
+    section_works_matching_search: "Results matching \"%q%\""
     section_filtered: "filtered"
     no_title_matches: "No title matches found."
 
@@ -566,6 +575,16 @@ imslp:
     sync_login_back: "Back to browser"
     sync_login_invalid_password: "Invalid password. Please try again."
 
+    # Advanced filter panel
+    filters_advanced: "Advanced filters"
+    filters_group_context: "Musical context"
+    filters_group_forces: "Forces"
+    filters_group_precision: "Precision"
+    filters_reset: "Reset filters"
+    filters_active: "Active filters:"
+    filters_remove: "Remove this filter"
+    register_exact_pointer: "Exact matching is toggled under “Precision”."
+
 # ── Comments ────────────────────────────────────────────────────────────────
 comment:
     title: "Leave a comment"
@@ -585,3 +604,30 @@ comment:
         body_too_long: "Your comment is too long (5000 characters maximum)."
         rate_limited: "Too many comments sent from here. Please try again later."
         network: "Your comment could not be sent. Please try again."
+
+# ── Main navigation (tabs) ──────────────────────────────────────────────────
+nav:
+    aria_label: "Main sections"
+    tab_realize: "Realize"
+    tab_settings: "Advanced settings"
+    tab_docs: "Documentation"
+    imslp: "Browse IMSLP scores"
+    tab_realize_short: "Realize"
+    tab_settings_short: "Settings"
+    tab_docs_short: "Docs"
+
+# ── Advanced settings pane ──────────────────────────────────────────────────
+settings:
+    rules_title: "Voice-leading rules"
+    rules_intro: >
+        The rules the engine applies when placing the upper voices, loaded from the
+        database and ordered by priority. Open one to read its original wording, its
+        translation and the code that implements it.
+    rules_filter_placeholder: "Filter by name, source or wording…"
+    rules_only_enabled: "Enabled only"
+    rules_no_match: "No rule matches this filter."
+    rules_count: "%shown% of %total%"
+
+# ── Documentation pane ──────────────────────────────────────────────────────
+docs:
+    toc_label: "Documentation contents"

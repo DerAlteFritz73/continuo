@@ -388,8 +388,7 @@ async function applyFigureEdit() {
         const file       = new File([blob], 'score.xml', { type: 'application/xml' });
         const fd         = new FormData();
         fd.append('musicxml', file);
-        const voicesEl   = document.querySelector('input[name="voices"]:checked');
-        fd.append('voices', voicesEl ? voicesEl.value : '4');
+        fd.append('voices', selectedVoices());
 
         const resp = await fetch('/realize/preview', {
             method: 'POST',

@@ -552,6 +552,9 @@ function selectPassage(pIdx) {
     if (pIdx == null || pIdx < 0 || pIdx >= passageStore.length) return;
     selectedPassageIdx = pIdx;
     updatePassagePanelVisibility();
+    // The panel is collapsed by default; picking a phrase should reveal its card.
+    const panel = document.getElementById('passages-panel');
+    if (panel) panel.open = true;
 
     const s      = scores.real;
     const phrase = passageStore[pIdx];

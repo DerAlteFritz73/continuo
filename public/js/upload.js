@@ -3,15 +3,6 @@
 const dropZone    = document.getElementById('drop-zone');
 const fileInput   = document.getElementById('file-input');
 
-// ── Params panel toggle ───────────────────────────────────────────────────
-const paramsBtn   = document.getElementById('params-btn');
-const paramsPanel = document.getElementById('params-panel');
-paramsBtn.addEventListener('click', () => {
-    const open = paramsPanel.style.display === 'none';
-    paramsPanel.style.display = open ? '' : 'none';
-    paramsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-});
-
 const realizeBtn  = document.getElementById('realize-btn');
 const clearBtn    = document.getElementById('clear-btn');
 const fileNameEl  = document.getElementById('file-name-display');
@@ -115,6 +106,8 @@ form.addEventListener('submit', async ev => {
 
     try {
         const fd = new FormData(form);
+        // Voice count lives in the shared config bar, outside this form.
+        fd.set('voices', selectedVoices());
 
         const resp = await fetch(form.action, {
             method: 'POST',
@@ -454,3 +447,10 @@ document.querySelectorAll('#input-tabs .input-tab').forEach(tab => {
         if (pane) pane.classList.add('active');
     });
 });
+
+// On a phone, open on Import rather than note entry: the editor is driven by
+// arrow keys, Tab and single-key shortcuts, none of which a touch keyboard
+// offers. The Compose tab stays one tap away.
+if (window.matchMedia('(max-width: 640px)').matches) {
+    document.querySelector('#input-tabs .input-tab[data-pane="pane-import"]')?.click();
+}

@@ -13,6 +13,8 @@ params:
     voices_label: "Počet hlasů"
     voices_4: "4 hlasy — plná realizace (soprán + alt + tenor + bas)"
     voices_3: "3 hlasy — pokud možno (alt + soprán + bas)"
+    voices_4_short: "4 hlasy"
+    voices_3_short: "3 hlasy"
 
 # ── Upload card ──────────────────────────────────────────────────────────────
 upload:
@@ -23,6 +25,8 @@ upload:
     clear_btn: "Vymazat"
     sample_hint: "načíst ukázkový soubor"
     progress: "Analyzuji basovou linku a realizuji harmonii…"
+    tab_compose: "Zadat noty"
+    tab_import: "Importovat"
 
 # ── Detekce tóniny z audia ───────────────────────────────────────────────────
 audio:
@@ -74,6 +78,11 @@ viewer:
     click_hint: "▶ Klikněte na notu nebo akord pro zobrazení harmonie a rozhodovacího stromu"
     rendering: "Renderuji partituru…"
     show_computed: "Zobrazit vypočtené cifry"
+    passages_heading: "Zjištěné fráze"
+    display_options: "Možnosti zobrazení"
+    colour_voices: "Obarvit hlasy"
+    edit_rh: "Upravit pravou ruku"
+    score_pan_hint: "Táhnutím posunete · sevřením přiblížíte"
 
 # ── Chord inspector ──────────────────────────────────────────────────────────
 inspector:
@@ -404,7 +413,7 @@ imslp:
     # Section labels
     section_composers: "Skladatelé"
     section_works_with_title: 'Díla s „%q" v názvu'
-    section_works_matching_search: 'Výsledky pro „%q"'
+    section_works_matching_search: 'Výsledky pro „%q%"'
     section_filtered: "filtrováno"
     no_title_matches: "Žádné shody v názvech."
 
@@ -526,6 +535,16 @@ imslp:
     sync_log_unavailable: "(log není dostupný)"
     sync_last_sync: "Poslední sync:"
 
+    # Advanced filter panel
+    filters_advanced: "Pokročilé filtry"
+    filters_group_context: "Hudební kontext"
+    filters_group_forces: "Obsazení"
+    filters_group_precision: "Přesnost"
+    filters_reset: "Vymazat filtry"
+    filters_active: "Aktivní filtry:"
+    filters_remove: "Odebrat tento filtr"
+    register_exact_pointer: "Přesnou shodu přepnete v sekci „Přesnost“."
+
 # ── Komentáře ───────────────────────────────────────────────────────────────
 comment:
     title: "Zanechte komentář"
@@ -545,3 +564,30 @@ comment:
         body_too_long: "Váš komentář je příliš dlouhý (maximálně 5000 znaků)."
         rate_limited: "Z tohoto místa bylo odesláno příliš mnoho komentářů. Zkuste to prosím později."
         network: "Váš komentář se nepodařilo odeslat. Zkuste to prosím znovu."
+
+# ── Hlavní navigace (záložky) ───────────────────────────────────────────────
+nav:
+    aria_label: "Hlavní sekce"
+    tab_realize: "Realizovat"
+    tab_settings: "Pokročilá nastavení"
+    tab_docs: "Dokumentace"
+    imslp: "Procházet noty IMSLP"
+    tab_realize_short: "Realizovat"
+    tab_settings_short: "Nastavení"
+    tab_docs_short: "Dokumentace"
+
+# ── Záložka Pokročilá nastavení ─────────────────────────────────────────────
+settings:
+    rules_title: "Pravidla vedení hlasů"
+    rules_intro: >
+        Pravidla, která nástroj používá při umísťování horních hlasů; načítají se
+        z databáze a řadí podle priority. Otevřete pravidlo a přečtěte si jeho
+        původní znění, překlad i kód, který jej implementuje.
+    rules_filter_placeholder: "Filtrovat podle názvu, zdroje nebo znění…"
+    rules_only_enabled: "Pouze aktivní"
+    rules_no_match: "Žádné pravidlo neodpovídá filtru."
+    rules_count: "%shown% z %total%"
+
+# ── Záložka Dokumentace ─────────────────────────────────────────────────────
+docs:
+    toc_label: "Obsah dokumentace"

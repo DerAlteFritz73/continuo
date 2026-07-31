@@ -6,21 +6,51 @@
     <title>{% block title %}Basso Continuo Realizer{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.1em%22 font-size=%2296%22>𝄢</text></svg>">
     <style>
-    .lang-switcher{position:fixed;top:.9rem;right:1.2rem;display:flex;gap:.2rem;z-index:500;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 2.4rem)}
+    /* Language switcher — a row of pills on a wide screen, a compact "FR ▾"
+       menu on a phone, where four fixed pills used to overhang the right edge
+       and sit on top of the tab bar. One markup, no duplicated links. */
+    .lang-switcher{position:fixed;top:.9rem;right:1.2rem;z-index:500}
+    .lang-current{display:none}
+    .lang-list{display:flex;gap:.2rem;flex-wrap:wrap;justify-content:flex-end}
     .lang-pill{font-size:.7rem;font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;color:#6a7a92;text-decoration:none;border:1px solid #2a3244;padding:.17rem .48rem;border-radius:4px;transition:color .15s,border-color .15s,background .15s;white-space:nowrap}
     .lang-pill:hover{color:#c8a96e;border-color:#c8a96e}
     .lang-pill.active{color:#c8a96e;border-color:#c8a96e;background:rgba(200,169,110,.12)}
-    @media(max-width:540px){.lang-switcher{top:.55rem;right:.2rem;gap:.1rem;max-width:calc(100% - .4rem)}.lang-pill{font-size:.6rem;padding:.1rem .25rem}}
+
+    @media(max-width:640px){
+        /* Absolute, not fixed: the tab bar is sticky at top:0, and a fixed
+           switcher sat on top of the third tab as soon as the page scrolled. */
+        .lang-switcher{position:absolute;top:.5rem;right:.6rem}
+        .lang-current{display:inline-flex;align-items:center;gap:.3rem;list-style:none;cursor:pointer;
+            font-size:.72rem;font-family:sans-serif;text-transform:uppercase;letter-spacing:.05em;
+            color:#c8a96e;background:#161923;border:1px solid #2a3244;border-radius:6px;
+            padding:.45rem .7rem;min-height:44px;user-select:none}
+        .lang-current::-webkit-details-marker{display:none}
+        .lang-chevron{font-size:.6rem;transition:transform .18s}
+        .lang-switcher[open] .lang-chevron{transform:rotate(180deg)}
+        .lang-list{display:none}
+        .lang-switcher[open] .lang-list{display:flex;flex-direction:column;gap:.25rem;
+            position:absolute;top:calc(100% + .35rem);right:0;
+            background:#161923;border:1px solid #2a3244;border-radius:8px;padding:.35rem;
+            box-shadow:0 8px 24px rgba(0,0,0,.55)}
+        /* Full 44 px touch targets inside the menu. */
+        .lang-switcher[open] .lang-pill{display:flex;align-items:center;justify-content:center;
+            min-width:56px;min-height:44px;font-size:.78rem;border-color:transparent}
+    }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
-    <nav class="lang-switcher" aria-label="Language">
-        {% for loc, label in {'en': 'EN', 'fr': 'FR', 'de': 'DE', 'cs': 'CS'} %}
-        <a class="lang-pill{% if app.request.locale == loc %} active{% endif %}"
-           href="{{ path('app_language', {locale: loc}) }}">{{ label }}</a>
-        {% endfor %}
-    </nav>
+    <details class="lang-switcher" aria-label="Language">
+        <summary class="lang-current">
+            {{ app.request.locale|upper }}<span class="lang-chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="lang-list">
+            {% for loc, label in {'en': 'EN', 'fr': 'FR', 'de': 'DE', 'cs': 'CS'} %}
+            <a class="lang-pill{% if app.request.locale == loc %} active{% endif %}"
+               href="{{ path('app_language', {locale: loc}) }}">{{ label }}</a>
+            {% endfor %}
+        </div>
+    </details>
     {% block body %}{% endblock %}
 </body>
 </html>

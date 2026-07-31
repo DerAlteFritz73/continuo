@@ -15,6 +15,8 @@ params:
     voices_label: "Nombre de voix"
     voices_4: "4 voix — réalisation complète (soprano + alto + ténor + basse)"
     voices_3: "3 voix"
+    voices_4_short: "4 voix"
+    voices_3_short: "3 voix"
 
 # ── Upload card ──────────────────────────────────────────────────────────────
 upload:
@@ -25,6 +27,8 @@ upload:
     clear_btn: "Effacer"
     sample_hint: "charger un exemple"
     progress: "Analyse de la basse et réalisation harmonique en cours…"
+    tab_compose: "Saisir les notes"
+    tab_import: "Importer"
 
 # ── Détection de tonalité audio ──────────────────────────────────────────────
 audio:
@@ -77,6 +81,11 @@ viewer:
      ou un accord pour inspecter son harmonie et son arbre de décision"
     rendering: "Rendu de la partition en cours…"
     show_computed: "Afficher les chiffrages calculés"
+    passages_heading: "Phrases détectées"
+    display_options: "Options d'affichage"
+    colour_voices: "Colorer les voix"
+    edit_rh: "Éditer la main droite"
+    score_pan_hint: "Glissez pour naviguer · pincez pour zoomer"
 
 # ── Chord inspector ──────────────────────────────────────────────────────────
 inspector:
@@ -436,7 +445,7 @@ imslp:
     # Section labels
     section_composers: "Compositeurs"
     section_works_with_title: "Œuvres avec « %q » dans le titre"
-    section_works_matching_search: "Résultats correspondant à « %q »"
+    section_works_matching_search: "Résultats correspondant à « %q% »"
     section_filtered: "filtré"
     no_title_matches: "Aucun titre correspondant."
 
@@ -577,6 +586,16 @@ imslp:
     sync_login_back: "Retour au navigateur"
     sync_login_invalid_password: "Mot de passe invalide. Veuillez réessayer."
 
+    # Advanced filter panel
+    filters_advanced: "Filtres avancés"
+    filters_group_context: "Contexte musical"
+    filters_group_forces: "Effectif"
+    filters_group_precision: "Précision"
+    filters_reset: "Réinitialiser les filtres"
+    filters_active: "Filtres actifs :"
+    filters_remove: "Retirer ce filtre"
+    register_exact_pointer: "La correspondance exacte se règle sous « Précision »."
+
 # ── Commentaires ────────────────────────────────────────────────────────────
 comment:
     title: "Laisser un commentaire"
@@ -596,3 +615,30 @@ comment:
         body_too_long: "Votre commentaire est trop long (5000 caractères maximum)."
         rate_limited: "Trop de commentaires envoyés depuis cet endroit. Veuillez réessayer plus tard."
         network: "Votre commentaire n'a pas pu être envoyé. Veuillez réessayer."
+
+# ── Navigation principale (onglets) ─────────────────────────────────────────
+nav:
+    aria_label: "Sections principales"
+    tab_realize: "Réaliser"
+    tab_settings: "Réglages avancés"
+    tab_docs: "Documentation"
+    imslp: "Parcourir les partitions IMSLP"
+    tab_realize_short: "Réaliser"
+    tab_settings_short: "Réglages"
+    tab_docs_short: "Doc"
+
+# ── Onglet Réglages avancés ─────────────────────────────────────────────────
+settings:
+    rules_title: "Règles de conduite des voix"
+    rules_intro: >
+        Les règles appliquées par le moteur pour placer les voix supérieures, chargées
+        depuis la base et classées par priorité. Ouvrez-en une pour lire son énoncé
+        original, sa traduction et le code qui l'implémente.
+    rules_filter_placeholder: "Filtrer par nom, source ou énoncé…"
+    rules_only_enabled: "Actives seulement"
+    rules_no_match: "Aucune règle ne correspond à ce filtre."
+    rules_count: "%shown% sur %total%"
+
+# ── Onglet Documentation ────────────────────────────────────────────────────
+docs:
+    toc_label: "Sommaire de la documentation"

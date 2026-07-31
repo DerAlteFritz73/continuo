@@ -17,13 +17,15 @@
 <link rel="stylesheet" href="/css/chord-inspector.css">
 <link rel="stylesheet" href="/css/playback.css">
 <link rel="stylesheet" href="/css/layout.css">
+<link rel="stylesheet" href="/css/tabs.css">
+<link rel="stylesheet" href="/css/comment.css">
 {% endblock %}
 
 {% block body %}
 <div class="wrapper">
 
     <!-- Header -->
-    <header class="site-header">
+    <header class="site-header compact">
         <p class="subtitle">{{ 'app.subtitle'|trans }}</p>
         <h1>{{ 'app.title'|trans }}</h1>
         <div class="staff-deco">
@@ -32,14 +34,55 @@
             <div class="line"></div>
         </div>
         <p class="desc">{{ 'app.desc'|trans }}</p>
+        <a class="imslp-link" href="{{ path('app_imslp') }}">⌕ {{ 'nav.imslp'|trans }}</a>
     </header>
+
+    <!-- ══ Main navigation: the realizer flow, the rules, the documentation ══
+         Panes are all rendered server-side and switched client-side (tabs.js),
+         so leaving for the documentation and coming back keeps the score. -->
+    <nav class="main-tabs" id="main-tabs" role="tablist" aria-label="{{ 'nav.aria_label'|trans }}">
+        <button class="main-tab active" type="button" role="tab" id="mt-realize" aria-label="{{ 'nav.tab_realize'|trans }}"
+                data-pane="tab-realize" aria-controls="tab-realize" aria-selected="true">
+            <span aria-hidden="true">♩</span>
+            <span class="tab-full">{{ 'nav.tab_realize'|trans }}</span>
+            <span class="tab-short">{{ 'nav.tab_realize_short'|trans }}</span>
+        </button>
+        <button class="main-tab" type="button" role="tab" id="mt-settings" aria-label="{{ 'nav.tab_settings'|trans }}"
+                data-pane="tab-settings" aria-controls="tab-settings" aria-selected="false" tabindex="-1">
+            <span aria-hidden="true">⚙</span>
+            <span class="tab-full">{{ 'nav.tab_settings'|trans }}</span>
+            <span class="tab-short">{{ 'nav.tab_settings_short'|trans }}</span>
+            <span class="main-tab-count">{{ rules|length }}</span>
+        </button>
+        <button class="main-tab" type="button" role="tab" id="mt-docs" aria-label="{{ 'nav.tab_docs'|trans }}"
+                data-pane="tab-docs" aria-controls="tab-docs" aria-selected="false" tabindex="-1">
+            <span aria-hidden="true">▤</span>
+            <span class="tab-full">{{ 'nav.tab_docs'|trans }}</span>
+            <span class="tab-short">{{ 'nav.tab_docs_short'|trans }}</span>
+        </button>
+    </nav>
+
+<!-- ══════════ PANE 1 — Realize ══════════ -->
+<section class="main-pane active" id="tab-realize" role="tabpanel" aria-labelledby="mt-realize">
 
     <!-- Input card: Compose / Import tabs -->
     <div class="card" id="input-card">
 
         <div class="input-tabs" id="input-tabs">
-            <div class="input-tab active" data-pane="pane-compose">♩ Enter notes</div>
-            <div class="input-tab"        data-pane="pane-import">⬆ Import</div>
+            <div class="input-tab active" data-pane="pane-compose">♩ {{ 'upload.tab_compose'|trans }}</div>
+            <div class="input-tab"        data-pane="pane-import">⬆ {{ 'upload.tab_import'|trans }}</div>
+        </div>
+
+        <!-- Realization config shared by both input modes. Single source of
+             truth for the voice count (upload.js, bass-editor.js and
+             chord-inspector.js all read #cfg-voices). -->
+        <div class="cfg-bar">
+            <label class="cfg-label" for="cfg-voices">{{ 'params.voices_label'|trans }}</label>
+            <select class="ed-ctrl-select" id="cfg-voices" name="voices">
+                <option value="4" selected title="{{ 'params.voices_4'|trans }}">{{ 'params.voices_4_short'|trans }}</option>
+                <option value="3"          title="{{ 'params.voices_3'|trans }}">{{ 'params.voices_3_short'|trans }}</option>
+            </select>
+            <span class="cfg-hint" id="cfg-voices-hint">{{ 'params.voices_4'|trans }}</span>
         </div>
 
         <!-- ── Compose pane (speedy entry) ── -->
@@ -149,9 +192,6 @@
                         <button type="button" class="btn btn-secondary" id="clear-btn" style="display:none">
                             {{ 'upload.clear_btn'|trans }}
                         </button>
-                        <button type="button" class="btn btn-params" id="params-btn" aria-expanded="false" aria-controls="params-panel">
-                            ⚙ {{ 'params.btn'|trans }}
-                        </button>
                         <span id="sample-hint" style="font-size:0.82rem;color:var(--muted);margin-left:0.25rem">
                             &larr; or
                             <a href="#" id="load-sample-btn"
@@ -161,20 +201,6 @@
                         </span>
                     </div>
 
-                    <!-- Params panel (collapsed by default) -->
-                    <div class="params-panel" id="params-panel" style="display:none">
-                        <fieldset class="params-fieldset">
-                            <legend class="params-legend">{{ 'params.voices_label'|trans }}</legend>
-                            <label class="params-radio">
-                                <input type="radio" name="voices" value="4" checked>
-                                {{ 'params.voices_4'|trans }}
-                            </label>
-                            <label class="params-radio">
-                                <input type="radio" name="voices" value="3">
-                                {{ 'params.voices_3'|trans }}
-                            </label>
-                        </fieldset>
-                    </div>
                 </form>
 
             </div>
@@ -190,42 +216,6 @@
 
     <!-- Result Panel -->
     <div id="result-panel">
-        <div class="card">
-            <div class="card-title">{{ 'result.card_title'|trans }}</div>
-
-            <div class="alert alert-success" id="success-msg">
-                <span>✓</span>
-                <span>{{ 'result.success_msg'|trans }}</span>
-            </div>
-
-            <!-- Summary grid -->
-            <div class="summary-grid" id="summary-grid">
-                <!-- populated by JS -->
-            </div>
-
-            <!-- Top chords -->
-            <div id="chord-section" style="display:none">
-                <p style="font-size:0.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">{{ 'result.top_chords'|trans }}</p>
-                <div class="chord-pills" id="chord-pills"></div>
-            </div>
-
-            <!-- XML preview -->
-            <div>
-                <p style="font-size:0.82rem;color:var(--muted);margin-top:1rem;text-transform:uppercase;letter-spacing:.06em">{{ 'result.output_preview'|trans }}</p>
-                <div class="xml-preview" id="xml-preview"></div>
-            </div>
-
-            <!-- Actions -->
-            <div class="btn-row">
-                <button class="btn btn-dl" id="download-btn">
-                    ⬇ {{ 'result.download_btn'|trans }}
-                </button>
-                <button class="btn btn-secondary" id="new-btn">
-                    ↩ {{ 'result.new_btn'|trans }}
-                </button>
-            </div>
-        </div>
-
         <!-- Score Viewer Card -->
         <div class="card" id="score-viewer-card" style="display:none">
             <div class="card-title">{{ 'viewer.card_title'|trans }}</div>
@@ -283,6 +273,7 @@
                         <span>{{ 'viewer.waiting'|trans }}</span>
                     </div>
                 </div>
+                <p class="score-pan-hint">{{ 'viewer.score_pan_hint'|trans }}</p>
             </div>
 
             <!-- Realization pane -->
@@ -290,6 +281,10 @@
                 <p id="click-hint" style="display:none;font-size:0.78rem;color:var(--muted);text-align:center;margin-bottom:0.5rem">
                     {{ 'viewer.click_hint'|trans }}
                 </p>
+                <!-- On a phone these four toggles wrapped into an unreadable
+                     three-line block; folded here, always open on a wide screen. -->
+                <details class="display-fold" id="display-fold">
+                    <summary class="display-fold-summary">⚙ {{ 'viewer.display_options'|trans }}</summary>
                 <div class="real-toolbar">
                     <label class="cb-label">
                         <input type="checkbox" id="cb-show-computed">
@@ -298,7 +293,7 @@
                     </label>
                     <label class="cb-label">
                         <input type="checkbox" id="cb-color-voices" checked>
-                        Colour voices
+                        {{ 'viewer.colour_voices'|trans }}
                     </label>
                     <span id="voice-legend" style="display:inline-flex;gap:0.6rem;align-items:center;font-size:0.75rem">
                         <span class="vl-item" data-voice="soprano">● soprano</span>
@@ -307,15 +302,18 @@
                     </span>
                     <label class="cb-label">
                         <input type="checkbox" id="cb-edit-rh">
-                        ✎ Edit RH
+                        ✎ {{ 'viewer.edit_rh'|trans }}
                     </label>
                 </div>
+                </details>
 
-                <!-- Passages panel -->
-                <div id="passages-panel" style="display:none;padding:0.75rem;border:1px solid var(--border);border-radius:4px;margin-bottom:0.75rem;background:var(--surface-alt)">
-                    <div style="font-size:0.75rem;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;font-weight:500">Passages detected</div>
-                    <div id="passages-list" style="display:flex;flex-direction:column;gap:0.5rem"></div>
-                </div>
+                <!-- Passages panel — collapsed; selecting a phrase opens it -->
+                <details id="passages-panel" class="fold" style="display:none">
+                    <summary class="fold-summary">{{ 'viewer.passages_heading'|trans }}</summary>
+                    <div class="fold-body">
+                        <div id="passages-list" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+                    </div>
+                </details>
                 <div class="page-nav" id="nav-real" style="display:none">
                     <button class="page-nav-btn" id="prev-real" disabled>&#8592;</button>
                     <span id="lbl-real">1 / 1</span>
@@ -327,138 +325,187 @@
                         <span>{{ 'viewer.waiting'|trans }}</span>
                     </div>
                 </div>
+                <p class="score-pan-hint">{{ 'viewer.score_pan_hint'|trans }}</p>
             </div>
         </div>
+
+        <!-- Summary & export — collapsed to keep the flow condensed -->
+        <details class="card fold" id="summary-fold">
+            <summary class="fold-summary">{{ 'result.card_title'|trans }}</summary>
+            <div class="fold-body">
+
+                <div class="alert alert-success" id="success-msg">
+                    <span>✓</span>
+                    <span>{{ 'result.success_msg'|trans }}</span>
+                </div>
+
+                <!-- Summary grid -->
+                <div class="summary-grid" id="summary-grid">
+                    <!-- populated by JS -->
+                </div>
+
+                <!-- Top chords -->
+                <div id="chord-section" style="display:none">
+                    <p style="font-size:0.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">{{ 'result.top_chords'|trans }}</p>
+                    <div class="chord-pills" id="chord-pills"></div>
+                </div>
+
+                <!-- XML preview -->
+                <div>
+                    <p style="font-size:0.82rem;color:var(--muted);margin-top:1rem;text-transform:uppercase;letter-spacing:.06em">{{ 'result.output_preview'|trans }}</p>
+                    <div class="xml-preview" id="xml-preview"></div>
+                </div>
+
+                <!-- Actions -->
+                <div class="btn-row">
+                    <button class="btn btn-dl" id="download-btn">
+                        ⬇ {{ 'result.download_btn'|trans }}
+                    </button>
+                    <button class="btn btn-secondary" id="new-btn">
+                        ↩ {{ 'result.new_btn'|trans }}
+                    </button>
+                </div>
+            </div>
+        </details>
     </div>
 
-    <!-- Accordion: How it works -->
-    <details class="accordion">
-        <summary class="accordion-header">
-            <span>{{ 'how_it_works.heading'|trans }}</span>
-            <span class="accordion-chevron">▼</span>
-        </summary>
-        <div class="accordion-body">
-            <h4>{{ 'how_it_works.algo_heading'|trans }}</h4>
-            <p>{{ 'how_it_works.algo_intro'|trans }}</p>
-            <ul>
-                <li><strong>Francesco Gasparini</strong> — <em>{{ 'how_it_works.algo_gasparini'|trans }}</em></li>
-                <li><strong>Denis Delair</strong> — <em>{{ 'how_it_works.algo_delair'|trans }}</em></li>
-            </ul>
+    {{ include('continuo/_comment_form.html.twig') }}
 
-            <h4>{{ 'how_it_works.pipeline_heading'|trans }}</h4>
-            <ul>
-                <li><strong>1.</strong> {{ 'how_it_works.step1'|trans }}</li>
-                <li><strong>2.</strong> {{ 'how_it_works.step2'|trans }}</li>
-                <li><strong>3.</strong> {{ 'how_it_works.step3'|trans }}
-                    <ul>
-                        <li>{{ 'how_it_works.step3_a'|trans }}</li>
-                        <li>{{ 'how_it_works.step3_b'|trans }}</li>
-                        <li>{{ 'how_it_works.step3_c'|trans }}</li>
-                        <li>{{ 'how_it_works.step3_d'|trans }}</li>
-                        <li>{{ 'how_it_works.step3_e'|trans }}</li>
-                    </ul>
-                </li>
-                <li><strong>4.</strong> {{ 'how_it_works.step4'|trans }}</li>
-                <li><strong>5.</strong> {{ 'how_it_works.step5'|trans }}
-                    <ul>
-                        <li>{{ 'how_it_works.step5_a'|trans }}</li>
-                        <li>{{ 'how_it_works.step5_b'|trans }}</li>
-                        <li>{{ 'how_it_works.step5_c'|trans }}</li>
-                    </ul>
-                </li>
-                <li><strong>6.</strong> {{ 'how_it_works.step6'|trans }}</li>
-            </ul>
+</section>
 
-            <h4>{{ 'how_it_works.fb_heading'|trans }}</h4>
-            <table class="fb-ref">
-              <tbody>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_triads'|trans }}</td></tr>
-                <tr><td>(none) / 5</td><td class="fb-int">5</td><td>{{ 'how_it_works.fb_none'|trans }}</td></tr>
-                <tr><td>6</td><td class="fb-int">6</td><td>{{ 'how_it_works.fb_6'|trans }}</td></tr>
-                <tr><td>6 4</td><td class="fb-int">6 4</td><td>{{ 'how_it_works.fb_64'|trans }}</td></tr>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_sevenths'|trans }}</td></tr>
-                <tr><td>7</td><td class="fb-int">7 5</td><td>{{ 'how_it_works.fb_7'|trans }}</td></tr>
-                <tr><td>6 5</td><td class="fb-int">6 5</td><td>{{ 'how_it_works.fb_65'|trans }}</td></tr>
-                <tr><td>♭5</td><td class="fb-int">♭5 6</td><td>{{ 'how_it_works.fb_b5'|trans }}</td></tr>
-                <tr><td>4 3</td><td class="fb-int">4 3</td><td>{{ 'how_it_works.fb_43'|trans }}</td></tr>
-                <tr><td>2 <small>(= 4 2)</small></td><td class="fb-int">4 2</td><td>{{ 'how_it_works.fb_2'|trans }}</td></tr>
-                <tr><td>♯4</td><td class="fb-int">♯4 2</td><td>{{ 'how_it_works.fb_sharp4'|trans }}</td></tr>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_ninths'|trans }}</td></tr>
-                <tr><td>9</td><td class="fb-int">9 5</td><td>{{ 'how_it_works.fb_9'|trans }}</td></tr>
-                <tr><td>9 7</td><td class="fb-int">9 7 5</td><td>{{ 'how_it_works.fb_97'|trans }}</td></tr>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_suspensions'|trans }}</td></tr>
-                <tr><td>7 6</td><td class="fb-int">7 6</td><td>{{ 'how_it_works.fb_76'|trans }}</td></tr>
-                <tr><td>5 4</td><td class="fb-int">5 4</td><td>{{ 'how_it_works.fb_54'|trans }}</td></tr>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_chromatic'|trans }}</td></tr>
-                <tr><td>♯5</td><td class="fb-int">♯5 7 9</td><td>{{ 'how_it_works.fb_sharp5'|trans }}</td></tr>
-                <tr><td>♭7</td><td class="fb-int">♭7 5</td><td>{{ 'how_it_works.fb_b7'|trans }}</td></tr>
-                <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_special'|trans }}</td></tr>
-                <tr><td>8</td><td class="fb-int">8</td><td>{{ 'how_it_works.fb_8'|trans }}</td></tr>
-                <tr><td>♯ / ♭ / ♮</td><td class="fb-int"></td><td>{{ 'how_it_works.fb_acc'|trans }}</td></tr>
-              </tbody>
-            </table>
+<!-- ══════════ PANE 2 — Advanced settings: the voice-leading rules ══════════ -->
+<section class="main-pane" id="tab-settings" role="tabpanel" aria-labelledby="mt-settings" hidden>
+    <div class="card">
+        <h2 class="card-title">{{ 'settings.rules_title'|trans }}</h2>
+        <p class="pane-intro">{{ 'settings.rules_intro'|trans }}</p>
+
+        <div class="rules-toolbar">
+            <input type="search" class="rules-filter" id="rules-filter"
+                   placeholder="{{ 'settings.rules_filter_placeholder'|trans }}"
+                   autocomplete="off" spellcheck="false">
+            <label class="cb-label">
+                <input type="checkbox" id="rules-only-enabled" checked>
+                {{ 'settings.rules_only_enabled'|trans }}
+            </label>
+            <span class="rules-count" id="rules-count"></span>
         </div>
-    </details>
 
-    <!-- Accordion: Bibliography -->
-    <details class="accordion" style="margin-top:1rem">
-        <summary class="accordion-header">
-            <span>{{ 'bibliography.heading'|trans }}</span>
-            <span class="accordion-chevron">▼</span>
-        </summary>
-        <div class="accordion-body">
-            <ul>
-                <li><strong>Gasparini, F.</strong> (1729). <em><a href="https://imslp.org/wiki/L%27Armonico_Pratico_al_Cimbalo_(Gasparini%2C_Francesco)" target="_blank" rel="noopener">L'Armonico Pratico al Cimbalo</a></em>. 3rd ed. Venice. [Trans. F. Stillings, 1963. Yale University Press.]</li>
-                <li><strong>St. Lambert, M. de</strong> (1707). <em><a href="https://imslp.org/wiki/Nouveau_trait%C3%A9_de_l%27accompagnement_(Saint-Lambert%2C_Michel_de)" target="_blank" rel="noopener">Nouveau Traité de l'Accompagnement du Clavecin, de l'Orgue et des autres Instruments</a></em>. Paris: Ballard.</li>
-                <li><strong>Delair, D.</strong> (1690). <em><a href="https://gallica.bnf.fr/ark:/12148/bpt6k324883j" target="_blank" rel="noopener">Traité d'Accompagnement pour le Théorbe et le Clavecin</a></em>. Paris. <small>(via Gallica)</small></li>
-                <li><strong>Heinichen, J.D.</strong> (1728). <em><a href="https://imslp.org/wiki/Der_General-Bass_in_der_Composition_(Heinichen%2C_Johann_David)" target="_blank" rel="noopener">Der General-Bass in der Composition</a></em>. Dresden.</li>
-                <li><strong>Fux, J.J.</strong> (1725). <em><a href="https://imslp.org/wiki/Gradus_ad_Parnassum_(Fux%2C_Johann_Joseph)" target="_blank" rel="noopener">Gradus ad Parnassum</a></em>. Vienna. [Trans. A. Mann, 1943. Norton.]</li>
-                <li><strong>Rameau, J.-P.</strong> (1722). <em><a href="https://imslp.org/wiki/Trait%C3%A9_de_l%27harmonie_r%C3%A9duite_%C3%A0_ses_principes_naturels_(Rameau%2C_Jean-Philippe)" target="_blank" rel="noopener">Traité de l'harmonie réduite à ses principes naturels</a></em>. Paris.</li>
-                <li><strong>Telemann, G.M.</strong> (1773). <em><a href="https://imslp.org/wiki/Unterricht_im_Generalba%C3%9F-Spielen_(Telemann%2C_Georg_Michael)" target="_blank" rel="noopener">Unterricht im Generalbaß-Spielen</a></em>. Hamburg: M.C. Bock. [Quoted in T. Christensen 1992.]</li>
-                <li><strong>Christensen, T.</strong> (1992). "<a href="https://www.jstor.org/stable/932911" target="_blank" rel="noopener">The <em>Règle de l'octave</em> in Thorough-Bass Theory and Practice</a>." <em>Acta Musicologica</em>, 64/2, pp. 112–145.</li>
-                <li><strong>Christensen, J.B.</strong> (2002). <em><a href="https://openlibrary.org/works/OL6084240W" target="_blank" rel="noopener">18th Century Continuo Playing: A Historical Guide to the Basics</a></em>. Kassel: Bärenreiter.</li>
-                <li><strong>Wead, A. &amp; Knopke, I.</strong> (2007). "<a href="https://docs.google.com/viewer?url=https%3A%2F%2Fquod.lib.umich.edu%2Fcgi%2Fp%2Fpod%2Fdod-idx%2Fa-computer-based-implementation-of-basso-continuo-rules.pdf%3Fc%3Dicmc%3Bidno%3Dbbp2372.2007.150" target="_blank" rel="noopener">A Computer-Based Implementation of Basso Continuo Rules for Figured Bass Realizations</a>." <em>Proceedings of the International Computer Music Conference (ICMC)</em>, Copenhagen.</li>
-            </ul>
-        </div>
-    </details>
-
-    <!-- Accordion: Voice Leading Rules -->
-    <details class="accordion" style="margin-top:1rem">
-        <summary class="accordion-header">
-            <span>Voice Leading Rules ({{ rules|length }})</span>
-            <span class="accordion-chevron">▼</span>
-        </summary>
-        <div class="accordion-body">
-            <div class="rules-list">
-            {% for rule in rules %}
-                <details class="rule-card">
-                    <summary>
-                        <div class="rule-card-left">
-                            <span class="rule-name">{{ rule.name|replace({'_': ' '})|title }}</span>
-                            <span class="rule-source">{{ rule.source }}</span>
+                <div class="rules-list">
+                {% for rule in rules %}
+                    <details class="rule-card">
+                        <summary>
+                            <div class="rule-card-left">
+                                <span class="rule-name">{{ rule.name|replace({'_': ' '})|title }}</span>
+                                <span class="rule-source">{{ rule.source }}</span>
+                            </div>
+                            <div class="rule-card-right">
+                                <span class="rule-priority">P{{ rule.priority }}</span>
+                                <span class="rule-badge {% if rule.enabled %}rule-enabled{% else %}rule-disabled{% endif %}">
+                                    {{ rule.enabled ? 'enabled' : 'disabled' }}
+                                </span>
+                            </div>
+                        </summary>
+                        <div class="rule-card-body">
+                            <p class="rule-original">{{ rule.definition }}</p>
+                            <p class="rule-translation">{{ rule.translation }}</p>
+                            <details class="rule-impl-toggle">
+                                <summary>Implementation</summary>
+                                <pre class="rule-code">{{ rule.implementation }}</pre>
+                            </details>
                         </div>
-                        <div class="rule-card-right">
-                            <span class="rule-priority">P{{ rule.priority }}</span>
-                            <span class="rule-badge {% if rule.enabled %}rule-enabled{% else %}rule-disabled{% endif %}">
-                                {{ rule.enabled ? 'enabled' : 'disabled' }}
-                            </span>
-                        </div>
-                    </summary>
-                    <div class="rule-card-body">
-                        <p class="rule-original">{{ rule.definition }}</p>
-                        <p class="rule-translation">{{ rule.translation }}</p>
-                        <details class="rule-impl-toggle">
-                            <summary>Implementation</summary>
-                            <pre class="rule-code">{{ rule.implementation }}</pre>
-                        </details>
-                    </div>
-                </details>
-            {% else %}
-                <p style="color:var(--muted);font-size:0.85rem">No rules found. Run <code>php bin/console app:seed-voice-leading-rules</code> to seed the database.</p>
-            {% endfor %}
-            </div>
+                    </details>
+                {% else %}
+                    <p style="color:var(--muted);font-size:0.85rem">No rules found. Run <code>php bin/console app:seed-voice-leading-rules</code> to seed the database.</p>
+                {% endfor %}
+                </div>
+    </div>
+</section>
+
+<!-- ══════════ PANE 3 — Documentation ══════════ -->
+<section class="main-pane" id="tab-docs" role="tabpanel" aria-labelledby="mt-docs" hidden>
+    <div class="docs-layout">
+        <nav class="docs-toc" aria-label="{{ 'docs.toc_label'|trans }}">
+            <a href="#doc-algo">{{ 'how_it_works.algo_heading'|trans }}</a>
+            <a href="#doc-pipeline">{{ 'how_it_works.pipeline_heading'|trans }}</a>
+            <a href="#doc-figures">{{ 'how_it_works.fb_heading'|trans }}</a>
+            <a href="#doc-biblio">{{ 'bibliography.heading'|trans }}</a>
+        </nav>
+        <div class="docs-body">
+                    <h4 id="doc-algo">{{ 'how_it_works.algo_heading'|trans }}</h4>
+                    <p>{{ 'how_it_works.algo_intro'|trans }}</p>
+                    <ul>
+                        <li><strong>Francesco Gasparini</strong> — <em>{{ 'how_it_works.algo_gasparini'|trans }}</em></li>
+                        <li><strong>Denis Delair</strong> — <em>{{ 'how_it_works.algo_delair'|trans }}</em></li>
+                    </ul>
+
+                    <h4 id="doc-pipeline">{{ 'how_it_works.pipeline_heading'|trans }}</h4>
+                    <ul>
+                        <li><strong>1.</strong> {{ 'how_it_works.step1'|trans }}</li>
+                        <li><strong>2.</strong> {{ 'how_it_works.step2'|trans }}</li>
+                        <li><strong>3.</strong> {{ 'how_it_works.step3'|trans }}
+                            <ul>
+                                <li>{{ 'how_it_works.step3_a'|trans }}</li>
+                                <li>{{ 'how_it_works.step3_b'|trans }}</li>
+                                <li>{{ 'how_it_works.step3_c'|trans }}</li>
+                                <li>{{ 'how_it_works.step3_d'|trans }}</li>
+                                <li>{{ 'how_it_works.step3_e'|trans }}</li>
+                            </ul>
+                        </li>
+                        <li><strong>4.</strong> {{ 'how_it_works.step4'|trans }}</li>
+                        <li><strong>5.</strong> {{ 'how_it_works.step5'|trans }}
+                            <ul>
+                                <li>{{ 'how_it_works.step5_a'|trans }}</li>
+                                <li>{{ 'how_it_works.step5_b'|trans }}</li>
+                                <li>{{ 'how_it_works.step5_c'|trans }}</li>
+                            </ul>
+                        </li>
+                        <li><strong>6.</strong> {{ 'how_it_works.step6'|trans }}</li>
+                    </ul>
+
+                    <h4 id="doc-figures">{{ 'how_it_works.fb_heading'|trans }}</h4>
+                    <table class="fb-ref">
+                      <tbody>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_triads'|trans }}</td></tr>
+                        <tr><td>(none) / 5</td><td class="fb-int">5</td><td>{{ 'how_it_works.fb_none'|trans }}</td></tr>
+                        <tr><td>6</td><td class="fb-int">6</td><td>{{ 'how_it_works.fb_6'|trans }}</td></tr>
+                        <tr><td>6 4</td><td class="fb-int">6 4</td><td>{{ 'how_it_works.fb_64'|trans }}</td></tr>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_sevenths'|trans }}</td></tr>
+                        <tr><td>7</td><td class="fb-int">7 5</td><td>{{ 'how_it_works.fb_7'|trans }}</td></tr>
+                        <tr><td>6 5</td><td class="fb-int">6 5</td><td>{{ 'how_it_works.fb_65'|trans }}</td></tr>
+                        <tr><td>♭5</td><td class="fb-int">♭5 6</td><td>{{ 'how_it_works.fb_b5'|trans }}</td></tr>
+                        <tr><td>4 3</td><td class="fb-int">4 3</td><td>{{ 'how_it_works.fb_43'|trans }}</td></tr>
+                        <tr><td>2 <small>(= 4 2)</small></td><td class="fb-int">4 2</td><td>{{ 'how_it_works.fb_2'|trans }}</td></tr>
+                        <tr><td>♯4</td><td class="fb-int">♯4 2</td><td>{{ 'how_it_works.fb_sharp4'|trans }}</td></tr>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_ninths'|trans }}</td></tr>
+                        <tr><td>9</td><td class="fb-int">9 5</td><td>{{ 'how_it_works.fb_9'|trans }}</td></tr>
+                        <tr><td>9 7</td><td class="fb-int">9 7 5</td><td>{{ 'how_it_works.fb_97'|trans }}</td></tr>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_suspensions'|trans }}</td></tr>
+                        <tr><td>7 6</td><td class="fb-int">7 6</td><td>{{ 'how_it_works.fb_76'|trans }}</td></tr>
+                        <tr><td>5 4</td><td class="fb-int">5 4</td><td>{{ 'how_it_works.fb_54'|trans }}</td></tr>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_chromatic'|trans }}</td></tr>
+                        <tr><td>♯5</td><td class="fb-int">♯5 7 9</td><td>{{ 'how_it_works.fb_sharp5'|trans }}</td></tr>
+                        <tr><td>♭7</td><td class="fb-int">♭7 5</td><td>{{ 'how_it_works.fb_b7'|trans }}</td></tr>
+                        <tr class="fb-sec"><td colspan="3">{{ 'how_it_works.fb_sec_special'|trans }}</td></tr>
+                        <tr><td>8</td><td class="fb-int">8</td><td>{{ 'how_it_works.fb_8'|trans }}</td></tr>
+                        <tr><td>♯ / ♭ / ♮</td><td class="fb-int"></td><td>{{ 'how_it_works.fb_acc'|trans }}</td></tr>
+                      </tbody>
+                    </table>
+            <h4 id="doc-biblio">{{ 'bibliography.heading'|trans }}</h4>
+                    <ul>
+                        <li><strong>Gasparini, F.</strong> (1729). <em><a href="https://imslp.org/wiki/L%27Armonico_Pratico_al_Cimbalo_(Gasparini%2C_Francesco)" target="_blank" rel="noopener">L'Armonico Pratico al Cimbalo</a></em>. 3rd ed. Venice. [Trans. F. Stillings, 1963. Yale University Press.]</li>
+                        <li><strong>St. Lambert, M. de</strong> (1707). <em><a href="https://imslp.org/wiki/Nouveau_trait%C3%A9_de_l%27accompagnement_(Saint-Lambert%2C_Michel_de)" target="_blank" rel="noopener">Nouveau Traité de l'Accompagnement du Clavecin, de l'Orgue et des autres Instruments</a></em>. Paris: Ballard.</li>
+                        <li><strong>Delair, D.</strong> (1690). <em><a href="https://gallica.bnf.fr/ark:/12148/bpt6k324883j" target="_blank" rel="noopener">Traité d'Accompagnement pour le Théorbe et le Clavecin</a></em>. Paris. <small>(via Gallica)</small></li>
+                        <li><strong>Heinichen, J.D.</strong> (1728). <em><a href="https://imslp.org/wiki/Der_General-Bass_in_der_Composition_(Heinichen%2C_Johann_David)" target="_blank" rel="noopener">Der General-Bass in der Composition</a></em>. Dresden.</li>
+                        <li><strong>Fux, J.J.</strong> (1725). <em><a href="https://imslp.org/wiki/Gradus_ad_Parnassum_(Fux%2C_Johann_Joseph)" target="_blank" rel="noopener">Gradus ad Parnassum</a></em>. Vienna. [Trans. A. Mann, 1943. Norton.]</li>
+                        <li><strong>Rameau, J.-P.</strong> (1722). <em><a href="https://imslp.org/wiki/Trait%C3%A9_de_l%27harmonie_r%C3%A9duite_%C3%A0_ses_principes_naturels_(Rameau%2C_Jean-Philippe)" target="_blank" rel="noopener">Traité de l'harmonie réduite à ses principes naturels</a></em>. Paris.</li>
+                        <li><strong>Telemann, G.M.</strong> (1773). <em><a href="https://imslp.org/wiki/Unterricht_im_Generalba%C3%9F-Spielen_(Telemann%2C_Georg_Michael)" target="_blank" rel="noopener">Unterricht im Generalbaß-Spielen</a></em>. Hamburg: M.C. Bock. [Quoted in T. Christensen 1992.]</li>
+                        <li><strong>Christensen, T.</strong> (1992). "<a href="https://www.jstor.org/stable/932911" target="_blank" rel="noopener">The <em>Règle de l'octave</em> in Thorough-Bass Theory and Practice</a>." <em>Acta Musicologica</em>, 64/2, pp. 112–145.</li>
+                        <li><strong>Christensen, J.B.</strong> (2002). <em><a href="https://openlibrary.org/works/OL6084240W" target="_blank" rel="noopener">18th Century Continuo Playing: A Historical Guide to the Basics</a></em>. Kassel: Bärenreiter.</li>
+                        <li><strong>Wead, A. &amp; Knopke, I.</strong> (2007). "<a href="https://docs.google.com/viewer?url=https%3A%2F%2Fquod.lib.umich.edu%2Fcgi%2Fp%2Fpod%2Fdod-idx%2Fa-computer-based-implementation-of-basso-continuo-rules.pdf%3Fc%3Dicmc%3Bidno%3Dbbp2372.2007.150" target="_blank" rel="noopener">A Computer-Based Implementation of Basso Continuo Rules for Figured Bass Realizations</a>." <em>Proceedings of the International Computer Music Conference (ICMC)</em>, Copenhagen.</li>
+                    </ul>
         </div>
-    </details>
+    </div>
+</section>
 
 </div><!-- .wrapper -->
 
@@ -552,6 +599,17 @@ const TRANS = {
     lbl_figured_bass:   {{ 'inspector.lbl_figured_bass'|trans|json_encode|raw }},
     lbl_chord_symbol:   {{ 'inspector.lbl_chord_symbol'|trans|json_encode|raw }},
     lbl_figures_source: {{ 'inspector.lbl_figures_source'|trans|json_encode|raw }},
+
+    rules_no_match:  {{ 'settings.rules_no_match'|trans|json_encode|raw }},
+    rules_count:     {{ 'settings.rules_count'|trans|json_encode|raw }},
+
+    comment_submit:         {{ 'comment.submit'|trans|json_encode|raw }},
+    comment_sending:        {{ 'comment.sending'|trans|json_encode|raw }},
+    comment_success:        {{ 'comment.success'|trans|json_encode|raw }},
+    comment_email_required: {{ 'comment.error.email_required'|trans|json_encode|raw }},
+    comment_email_invalid:  {{ 'comment.error.email_invalid'|trans|json_encode|raw }},
+    comment_body_required:  {{ 'comment.error.body_required'|trans|json_encode|raw }},
+    comment_network:        {{ 'comment.error.network'|trans|json_encode|raw }},
 };
 
 </script>
@@ -563,4 +621,6 @@ const TRANS = {
 <script src="/js/playback.js"></script>
 <script src="/js/bass-editor.js"></script>
 <script src="/js/rh-editor.js"></script>
+<script src="/js/tabs.js"></script>
+<script src="/js/comment.js"></script>
 {% endblock %}

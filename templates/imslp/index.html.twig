@@ -504,6 +504,7 @@ textarea.ai-input { line-height: 1.5; }
 .empty-state { text-align: center; padding: 3rem 2rem; color: #6a6058; }
 .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
 .empty-state h2 { font-family: 'Playfair Display', serif; color: #8a8070; margin-bottom: .5rem; }
+.abbrev-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .abbrev-table { margin: 1rem auto 0; border-collapse: collapse; font-size: .82rem; }
 .abbrev-table td { padding: .25rem .7rem; text-align: left; }
 .abbrev-table td:nth-child(odd) {
@@ -563,6 +564,191 @@ textarea.ai-input { line-height: 1.5; }
     .empty-state { padding: 2rem 1rem; }
     .abbrev-table { font-size: .72rem; }
 }
+/* ── Simple search: composer/title + Search, always visible ── */
+.search-simple {
+    display: flex;
+    align-items: flex-end;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+.search-simple .search-field { flex: 1 1 20rem; }
+
+/* ── Advanced filters panel ── */
+.adv-filters {
+    margin-top: .85rem;
+    border-top: 1px solid #2a2622;
+    padding-top: .6rem;
+}
+.adv-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    cursor: pointer;
+    list-style: none;
+    font-size: .82rem;
+    color: #8a7f74;
+    user-select: none;
+    padding: .2rem 0;
+}
+.adv-summary::-webkit-details-marker { display: none; }
+.adv-summary:hover { color: #c8a96e; }
+.adv-chevron { font-size: .7rem; transition: transform .18s; }
+.adv-filters[open] .adv-chevron { transform: rotate(180deg); }
+.adv-count {
+    font-size: .7rem;
+    font-weight: 600;
+    padding: .05rem .45rem;
+    border-radius: 999px;
+    background: rgba(200,169,110,.16);
+    color: #c8a96e;
+}
+.adv-count[hidden] { display: none; }
+
+.adv-body { padding-top: .9rem; }
+
+.adv-group {
+    border: 1px solid #3a352e;
+    border-radius: 8px;
+    padding: .85rem 1rem 1rem;
+    margin-bottom: .8rem;
+}
+.adv-group > legend {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: #c8a96e;
+    padding: 0 .45rem;
+}
+/* Top-align: the register stepper block is taller than the plain inputs, and
+   bottom-aligning would drop the other labels to its baseline. */
+.adv-group .search-row { margin-bottom: 0; align-items: flex-start; }
+
+/* The precision group is a list of toggles, not a row of inputs. */
+.adv-group-precision .search-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .8rem;
+}
+.adv-group-precision .search-field.checkbox-field {
+    display: block;
+    flex: 1 1 auto;
+}
+.adv-group-precision .checkbox-label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: .88rem;
+    color: #e8e0d4;
+}
+.adv-group-precision .field-note { margin-left: 1.85rem; }
+
+.fld-star { color: #c8a96e; font-size: .8em; }
+.field-note, .adv-note {
+    font-size: .72rem;
+    color: #6a6058;
+    margin: .35rem 0 0;
+    line-height: 1.5;
+}
+.register-exact-note { display: block; margin-top: .2rem; color: #6a6058; }
+
+.adv-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+.btn-reset {
+    background: none;
+    border: 1px solid #2a2622;
+    border-radius: 6px;
+    color: #8a7f74;
+    font-family: inherit;
+    font-size: .8rem;
+    padding: .5rem 1rem;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+}
+.btn-reset:hover { color: #c8a96e; border-color: #c8a96e; }
+
+/* ── Active filter chips, visible while the panel is folded ── */
+.active-filters {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+    margin: .9rem 0 0;
+    font-size: .75rem;
+}
+.active-filters-label { color: #6a6058; text-transform: uppercase; letter-spacing: .07em; }
+.active-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .55rem;
+    border: 1px solid #3a332c;
+    border-radius: 999px;
+    background: #1e1a16;
+    color: #c9bfb4;
+}
+.active-chip b { color: #c8a96e; font-weight: 600; }
+.active-chip a { color: #6a6058; text-decoration: none; font-size: .9em; }
+.active-chip a:hover { color: #e07070; }
+
+@media (max-width: 600px) {
+    .search-simple .search-field { flex: 1 1 100%; }
+    .adv-group { padding: .7rem .7rem .8rem; }
+    .adv-actions { justify-content: stretch; }
+    .adv-actions .btn-search, .adv-actions .btn-reset { flex: 1 1 100%; }
+}
+/* ══════════════════════════════════════════════════════════
+   MOBILE (≤ 640 px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+    .wrapper { padding: 3rem 1rem 2rem; }
+    .back-link { min-height: 44px; display: inline-flex; align-items: center; }
+
+    /* 16px keeps iOS from zooming the page on focus. */
+    .search-field input,
+    .search-field select,
+    .ai-input { font-size: 16px; min-height: 44px; }
+    .btn-search, .btn-ai, .btn-reset { min-height: 46px; width: 100%; justify-content: center; }
+    .search-simple { flex-direction: column; align-items: stretch; }
+    .adv-summary { min-height: 44px; }
+
+    /* Years side by side rather than two full-width rows. */
+    .adv-group .search-row { gap: .6rem; }
+    .adv-group .search-field.narrow { flex: 1 1 40%; min-width: 0; }
+
+    /* Register steppers as proper touch targets. */
+    .register-group { gap: .4rem; }
+    .register-chip { min-width: 52px; min-height: 48px; }
+
+    .search-field.checkbox-field input[type="checkbox"] { width: 24px; height: 24px; }
+    .adv-group-precision .checkbox-label { min-height: 44px; }
+    .adv-group-precision .field-note { margin-left: 2.2rem; }
+
+    /* Full-width stacked actions at the foot of the panel. Not sticky: a
+       sticky bar overlaid the Genre field while scrolling, and the simple
+       search bar above already keeps a Search button permanently in view. */
+    .adv-actions {
+        flex-direction: column-reverse;
+        gap: .5rem;
+        padding-top: .4rem;
+    }
+
+    /* Active-filter chips scroll on their own axis, never the page. */
+    .active-filters {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: .3rem;
+    }
+    .active-filters::-webkit-scrollbar { display: none; }
+    .active-filters > * { flex: 0 0 auto; }
+    .active-chip { min-height: 34px; }
+    .active-chip a { padding: 0 .2rem; }
+}
 </style>
 {% endblock %}
 
@@ -599,115 +785,191 @@ textarea.ai-input { line-height: 1.5; }
         <form method="post" action="{{ path('app_imslp') }}" id="search-form">
             {# Reset page to 1 on new searches; don't carry over composer param #}
             <input type="hidden" name="page" value="1">
-            {# Row 1: title/composer + instrumentation + style #}
-            <div class="search-row" style="margin-bottom:.6rem">
+
+            {# ── Simple search: always visible ── #}
+            <div class="search-simple">
                 <div class="search-field">
                     <label for="q">{{ 'imslp.search_composer_title_label'|trans }}</label>
                     <input type="text" id="q" name="q"
                            value="{{ mode == 'composer' ? composer : q }}"
                            placeholder="{{ 'imslp.search_composer_title_placeholder'|trans }}" autofocus>
                 </div>
-                <div class="search-field">
-                    <label for="instrumentation">{{ 'imslp.search_instrumentation_label'|trans }}</label>
-                    <input type="text" id="f-instrumentation" name="instrumentation"
-                           value="{{ filters.instrumentation }}" placeholder="{{ 'imslp.search_instrumentation_placeholder'|trans }}">
-                </div>
-                <div class="search-field medium">
-                    <label for="f-style">{{ 'imslp.search_period_label'|trans }}</label>
-                    <select id="f-style" name="style">
-                        <option value="">{{ 'imslp.search_period_any'|trans }}</option>
-                        {% set activeStyle = filters.style ?: composerStyle|default('') %}
-                        {% for s in styles %}
-                        <option value="{{ s }}" {% if s == activeStyle %}selected{% endif %}>{{ s }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            {# Row 2: advanced filters #}
-            <div class="search-row">
-                <div class="search-field">
-                    <label for="f-genre">{{ 'imslp.search_genre_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
-                    <input type="text" id="f-genre" name="genre"
-                           value="{{ filters.genre }}" placeholder="{{ 'imslp.search_genre_placeholder'|trans }}"
-                           list="genre-list" autocomplete="off">
-                    <datalist id="genre-list">
-                        {% for g in genres %}<option value="{{ g }}">{% endfor %}
-                    </datalist>
-                </div>
-                <div class="search-field medium">
-                    <label for="f-key">{{ 'imslp.search_key_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
-                    <input type="text" id="f-key" name="key"
-                           value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
-                </div>
-                <div class="search-field narrow">
-                    <label for="f-part-count">{{ 'imslp.search_parts_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
-                    <input type="number" id="f-part-count" name="part_count"
-                           value="{{ filters.partCount ?: '' }}" placeholder="{{ 'imslp.search_parts_placeholder'|trans }}" min="1" max="40">
-                </div>
-                <div class="search-field">
-                    <label>{{ 'imslp.search_registers_label'|trans }} <span style="color:#c8a96e;font-size:.8em">*</span></label>
-                    <div class="register-group" id="f-registers">
-                        {% for letter, key in {'S': 'soprano', 'A': 'alto', 'T': 'tenor', 'B': 'bass'} %}
-                            {% set rc = filters.voiceRegisters is empty ? 0
-                                        : filters.voiceRegisters|split('')|filter(c => c == letter)|length %}
-                            {% set hv = '' %}
-                            {% if rc > 0 %}{% for i in 1..rc %}{% set hv = hv ~ letter %}{% endfor %}{% endif %}
-                            <div class="register-chip{{ rc > 0 ? ' on' : '' }}"
-                                 role="spinbutton" tabindex="0"
-                                 data-letter="{{ letter }}" data-count="{{ rc }}"
-                                 aria-valuemin="0" aria-valuemax="9" aria-valuenow="{{ rc }}"
-                                 aria-label="{{ ('imslp.register_' ~ key)|trans }}"
-                                 title="{{ ('imslp.register_' ~ key)|trans }} — {{ 'imslp.register_stepper_hint'|trans }}">
-                                <span class="rc-letter">{{ letter }}</span>
-                                <span class="rc-count" aria-hidden="true">{{ rc > 0 ? rc : '' }}</span>
-                                <input type="hidden" name="voice_registers[]" value="{{ hv }}">
-                            </div>
-                        {% endfor %}
-                    </div>
-                    <div class="register-group-hint">{{ 'imslp.register_group_hint'|trans }}</div>
-                    <label for="f-exact-registers" class="checkbox-label" style="margin-top:.45rem"
-                           title="{{ 'imslp.register_exact_match_hint'|trans }}">
-                        <input type="checkbox" id="f-exact-registers" name="exact_registers" value="1"
-                               {% if filters.exactRegisters %}checked{% endif %}>
-                        {{ 'imslp.register_exact_match'|trans }}
-                    </label>
-                </div>
-                <div class="search-field checkbox-field">
-                    <!-- Hidden field ensures unchecked checkbox sends 0 instead of missing parameter -->
-                    <input type="hidden" name="include_manuscripts" value="0">
-                    <label for="f-include-manuscripts" class="checkbox-label">
-                        <input type="checkbox" id="f-include-manuscripts" name="include_manuscripts" value="1"
-                               {% if filters.includeManuscripts %}checked{% endif %}>
-                        {{ 'imslp.search_include_manuscripts'|trans }}
-                    </label>
-                </div>
-                <div class="search-field narrow">
-                    <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
-                    <input type="number" id="f-year-from" name="year_from"
-                           value="{{ filters.yearFrom ?: '' }}" placeholder="1600" min="800" max="2100">
-                </div>
-                <div class="search-field narrow">
-                    <label for="f-year-to">{{ 'imslp.search_year_to_label'|trans }}</label>
-                    <input type="number" id="f-year-to" name="year_to"
-                           value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
-                </div>
-            </div>
-            {# Search button at the end #}
-            <div style="display:flex;align-items:center;gap:1rem;margin-top:.8rem">
                 <button type="submit" class="btn-search" id="btn-search">
                     <span class="btn-spinner" aria-hidden="true"></span>
                     <span class="btn-label">{{ 'imslp.search_btn'|trans }}</span>
                 </button>
-                <p style="font-size:.75rem;color:#6a6058;margin:0">
-                    <span style="color:#c8a96e">*</span> {{ 'imslp.search_data_accuracy_note'|trans }}
-                </p>
             </div>
+
+            {# ── Advanced filters: folded away, opened when any is set ──
+               The panel stays in the DOM when collapsed, so every field is
+               still submitted with the form. #}
+            <details class="adv-filters" id="adv-filters"{% if not filters.isEmpty() %} open{% endif %}>
+                <summary class="adv-summary">
+                    <span class="adv-summary-label">{{ 'imslp.filters_advanced'|trans }}</span>
+                    <span class="adv-count" id="adv-count" hidden></span>
+                    <span class="adv-chevron" aria-hidden="true">▾</span>
+                </summary>
+
+                <div class="adv-body">
+                    {# ① Musical context #}
+                    <fieldset class="adv-group">
+                        <legend>{{ 'imslp.filters_group_context'|trans }}</legend>
+                        <div class="search-row">
+                            <div class="search-field medium">
+                                <label for="f-style">{{ 'imslp.search_period_label'|trans }}</label>
+                                <select id="f-style" name="style">
+                                    <option value="">{{ 'imslp.search_period_any'|trans }}</option>
+                                    {% set activeStyle = filters.style ?: composerStyle|default('') %}
+                                    {% for s in styles %}
+                                    <option value="{{ s }}" {% if s == activeStyle %}selected{% endif %}>{{ s }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="search-field">
+                                <label for="f-genre">{{ 'imslp.search_genre_label'|trans }} <span class="fld-star">*</span></label>
+                                <input type="text" id="f-genre" name="genre"
+                                       value="{{ filters.genre }}" placeholder="{{ 'imslp.search_genre_placeholder'|trans }}"
+                                       list="genre-list" autocomplete="off">
+                                <datalist id="genre-list">
+                                    {% for g in genres %}<option value="{{ g }}">{% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="search-field medium">
+                                <label for="f-key">{{ 'imslp.search_key_label'|trans }} <span class="fld-star">*</span></label>
+                                <input type="text" id="f-key" name="key"
+                                       value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
+                            </div>
+                            <div class="search-field narrow">
+                                <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
+                                <input type="number" id="f-year-from" name="year_from"
+                                       value="{{ filters.yearFrom ?: '' }}" placeholder="1600" min="800" max="2100">
+                            </div>
+                            <div class="search-field narrow">
+                                <label for="f-year-to">{{ 'imslp.search_year_to_label'|trans }}</label>
+                                <input type="number" id="f-year-to" name="year_to"
+                                       value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    {# ② Forces #}
+                    <fieldset class="adv-group">
+                        <legend>{{ 'imslp.filters_group_forces'|trans }}</legend>
+                        <div class="search-row">
+                            <div class="search-field">
+                                <label for="f-instrumentation">{{ 'imslp.search_instrumentation_label'|trans }}</label>
+                                <input type="text" id="f-instrumentation" name="instrumentation"
+                                       value="{{ filters.instrumentation }}" placeholder="{{ 'imslp.search_instrumentation_placeholder'|trans }}">
+                            </div>
+                            <div class="search-field narrow">
+                                <label for="f-part-count">{{ 'imslp.search_parts_label'|trans }} <span class="fld-star">*</span></label>
+                                <input type="number" id="f-part-count" name="part_count"
+                                       value="{{ filters.partCount ?: '' }}" placeholder="{{ 'imslp.search_parts_placeholder'|trans }}" min="1" max="40">
+                            </div>
+                            <div class="search-field">
+                                <label>{{ 'imslp.search_registers_label'|trans }} <span class="fld-star">*</span></label>
+                                <div class="register-group" id="f-registers">
+                                    {% for letter, key in {'S': 'soprano', 'A': 'alto', 'T': 'tenor', 'B': 'bass'} %}
+                                        {% set rc = filters.voiceRegisters is empty ? 0
+                                                    : filters.voiceRegisters|split('')|filter(c => c == letter)|length %}
+                                        {% set hv = '' %}
+                                        {% if rc > 0 %}{% for i in 1..rc %}{% set hv = hv ~ letter %}{% endfor %}{% endif %}
+                                        <div class="register-chip{{ rc > 0 ? ' on' : '' }}"
+                                             role="spinbutton" tabindex="0"
+                                             data-letter="{{ letter }}" data-count="{{ rc }}"
+                                             aria-valuemin="0" aria-valuemax="9" aria-valuenow="{{ rc }}"
+                                             aria-label="{{ ('imslp.register_' ~ key)|trans }}"
+                                             title="{{ ('imslp.register_' ~ key)|trans }} — {{ 'imslp.register_stepper_hint'|trans }}">
+                                            <span class="rc-letter">{{ letter }}</span>
+                                            <span class="rc-count" aria-hidden="true">{{ rc > 0 ? rc : '' }}</span>
+                                            <input type="hidden" name="voice_registers[]" value="{{ hv }}">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="register-group-hint">
+                                    {{ 'imslp.register_group_hint'|trans }}
+                                    {# The exactness toggle lives in ③; remind the reader it acts here. #}
+                                    <span class="register-exact-note">{{ 'imslp.register_exact_pointer'|trans }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    {# ③ Precision #}
+                    <fieldset class="adv-group adv-group-precision">
+                        <legend>{{ 'imslp.filters_group_precision'|trans }}</legend>
+                        <div class="search-row">
+                            <div class="search-field checkbox-field">
+                                <label for="f-exact-registers" class="checkbox-label"
+                                       title="{{ 'imslp.register_exact_match_hint'|trans }}">
+                                    <input type="checkbox" id="f-exact-registers" name="exact_registers" value="1"
+                                           {% if filters.exactRegisters %}checked{% endif %}>
+                                    {{ 'imslp.register_exact_match'|trans }}
+                                </label>
+                                <p class="field-note">{{ 'imslp.register_exact_match_hint'|trans }}</p>
+                            </div>
+                            <div class="search-field checkbox-field">
+                                {# Hidden field ensures unchecked checkbox sends 0 instead of missing parameter #}
+                                <input type="hidden" name="include_manuscripts" value="0">
+                                <label for="f-include-manuscripts" class="checkbox-label">
+                                    <input type="checkbox" id="f-include-manuscripts" name="include_manuscripts" value="1"
+                                           {% if filters.includeManuscripts %}checked{% endif %}>
+                                    {{ 'imslp.search_include_manuscripts'|trans }}
+                                </label>
+                            </div>
+                        </div>
+                        <p class="adv-note">
+                            <span class="fld-star">*</span> {{ 'imslp.search_data_accuracy_note'|trans }}
+                        </p>
+                    </fieldset>
+
+                    <div class="adv-actions">
+                        <button type="button" class="btn-reset" id="btn-reset-filters">
+                            {{ 'imslp.filters_reset'|trans }}
+                        </button>
+                        <button type="submit" class="btn-search">
+                            <span class="btn-label">{{ 'imslp.search_btn'|trans }}</span>
+                        </button>
+                    </div>
+                </div>
+            </details>
         </form>
 
         <div class="db-status" id="db-status">
             {{ 'imslp.db_loading'|trans }} · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">{{ 'imslp.db_import_status_link'|trans }}</a>
         </div>
     </div>
+
+    {# Active filters stay visible even when the advanced panel is folded, so a
+       narrowed result set is never silently unexplained. Each chip links to the
+       same search minus that one filter. #}
+    {% if not filters.isEmpty() %}
+    {% set activeChips = [
+        {name: 'style',           label: 'imslp.search_period_label'|trans,          value: filters.style},
+        {name: 'genre',           label: 'imslp.search_genre_label'|trans,           value: filters.genre},
+        {name: 'key',             label: 'imslp.search_key_label'|trans,             value: filters.key},
+        {name: 'instrumentation', label: 'imslp.search_instrumentation_label'|trans, value: filters.instrumentation},
+        {name: 'part_count',      label: 'imslp.search_parts_label'|trans,           value: filters.partCount},
+        {name: 'voice_registers', label: 'imslp.search_registers_label'|trans,       value: filters.voiceRegisters},
+        {name: 'year_from',       label: 'imslp.search_year_from_label'|trans,       value: filters.yearFrom},
+        {name: 'year_to',         label: 'imslp.search_year_to_label'|trans,         value: filters.yearTo},
+        {name: 'exact_registers', label: 'imslp.register_exact_match'|trans,         value: filters.exactRegisters ? '✓' : ''},
+        {name: 'include_manuscripts', label: 'imslp.search_include_manuscripts'|trans, value: filters.includeManuscripts ? '' : '✗'},
+    ]|filter(c => c.value is not empty) %}
+    {% if activeChips|length %}
+    <div class="active-filters" id="active-filters">
+        <span class="active-filters-label">{{ 'imslp.filters_active'|trans }}</span>
+        {% for c in activeChips %}
+        <span class="active-chip" data-filter="{{ c.name }}">
+            {{ c.label }}&nbsp;<b>{{ c.value }}</b>
+            <a href="#" class="chip-clear" data-filter="{{ c.name }}"
+               title="{{ 'imslp.filters_remove'|trans }}" aria-label="{{ 'imslp.filters_remove'|trans }}">✕</a>
+        </span>
+        {% endfor %}
+        <a href="{{ path('app_imslp', {q: q ?: null}) }}" class="active-chip">{{ 'imslp.filters_reset'|trans }}</a>
+    </div>
+    {% endif %}
+    {% endif %}
 
     {# Clean filter params — null values are omitted from path() query strings #}
     {% set fp = {
@@ -873,6 +1135,7 @@ textarea.ai-input { line-height: 1.5; }
         <div class="icon">𝄞</div>
         <h2>{{ 'imslp.empty_default_title'|trans }}</h2>
         <p>{{ 'imslp.empty_default_hint'|trans }}<br>{{ 'imslp.empty_abbrev_hint'|trans }}</p>
+        <div class="abbrev-scroll">
         <table class="abbrev-table">
             <thead><tr><th colspan="6" class="abbrev-section">{{ 'imslp.abbrev_instruments'|trans }}</th></tr></thead>
             <tbody>
@@ -890,6 +1153,7 @@ textarea.ai-input { line-height: 1.5; }
                 <tr><td>ch</td><td>{{ 'imslp.abbrev_ch'|trans }}</td>   <td>mch</td><td>{{ 'imslp.abbrev_mch'|trans }}</td> <td>vv</td><td>{{ 'imslp.abbrev_vv'|trans }}</td></tr>
             </tbody>
         </table>
+        </div>
         <p style="margin-top:.8rem;font-size:.8rem;">{{ 'imslp.empty_example_hint'|trans }} <code>fl vn viol bc</code> &nbsp;·&nbsp; <code>fl vn va bc</code> &nbsp;·&nbsp; <code>sop alt ten bass bc</code></p>
     </div>
     {% endif %}
@@ -1071,6 +1335,8 @@ document.getElementById('search-form').addEventListener('submit', function () {
             });
         }
 
+        if (typeof window.openAdvancedFilters === 'function') window.openAdvancedFilters();
+
         // composer / title go into the q field
         if (filters.composer && !filters.title) {
             const q = document.getElementById('q');
@@ -1131,6 +1397,88 @@ document.getElementById('search-form').addEventListener('submit', function () {
     });
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+})();
+
+// ── Advanced filters panel ────────────────────────────────────────────────
+// Folding filters away must never hide an active one silently: the summary
+// carries a live count, and the chips above the results stay visible.
+(function () {
+    const panel  = document.getElementById('adv-filters');
+    const badge  = document.getElementById('adv-count');
+    const form   = document.getElementById('search-form');
+    if (!panel || !form) return;
+
+    // Every advanced control, paired with the value that counts as "unset".
+    const TEXT_FIELDS = ['f-style', 'f-genre', 'f-key', 'f-instrumentation',
+                         'f-part-count', 'f-year-from', 'f-year-to'];
+
+    function activeCount() {
+        let n = TEXT_FIELDS.reduce((acc, id) => {
+            const el = document.getElementById(id);
+            return acc + (el && el.value.trim() !== '' ? 1 : 0);
+        }, 0);
+        document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+            if (parseInt(chip.dataset.count, 10) > 0) n++;
+        });
+        if (document.getElementById('f-exact-registers')?.checked) n++;
+        // Manuscripts are included by default, so it is *excluding* them that
+        // narrows the search and counts as an active filter.
+        if (document.getElementById('f-include-manuscripts')?.checked === false) n++;
+        return n;
+    }
+
+    function refresh() {
+        const n = activeCount();
+        badge.textContent = n;
+        badge.hidden = n === 0;
+    }
+
+    form.addEventListener('input',  refresh);
+    form.addEventListener('change', refresh);
+    refresh();
+
+    // Reset clears every advanced control but leaves the composer/title box —
+    // the user is narrowing a search, not abandoning it.
+    document.getElementById('btn-reset-filters')?.addEventListener('click', () => {
+        TEXT_FIELDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('ai-filled'); }
+        });
+        document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+            chip.classList.remove('ai-filled');
+            rcSet(chip, 0);
+        });
+        const ex = document.getElementById('f-exact-registers');
+        if (ex) ex.checked = false;
+        const im = document.getElementById('f-include-manuscripts');
+        if (im) im.checked = true;   // back to the default: manuscripts included
+        refresh();
+    });
+
+    // A chip's ✕ clears just that filter and re-runs the search.
+    document.querySelectorAll('.chip-clear').forEach(a => {
+        a.addEventListener('click', ev => {
+            ev.preventDefault();
+            const name = a.dataset.filter;
+            if (name === 'voice_registers') {
+                document.querySelectorAll('#f-registers .register-chip').forEach(c => rcSet(c, 0));
+            } else if (name === 'exact_registers') {
+                const el = document.getElementById('f-exact-registers');
+                if (el) el.checked = false;
+            } else if (name === 'include_manuscripts') {
+                const el = document.getElementById('f-include-manuscripts');
+                if (el) el.checked = true;   // chip only shows when excluded
+            } else {
+                const el = document.getElementById('f-' + name.replace(/_/g, '-'));
+                if (el) el.value = '';
+            }
+            form.requestSubmit();
+        });
+    });
+
+    // The AI search writes into the advanced fields — open the panel so the
+    // user can see and correct what it decided.
+    window.openAdvancedFilters = () => { panel.open = true; refresh(); };
 })();
 
 // Register service worker for offline support + asset caching

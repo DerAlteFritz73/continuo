@@ -17,6 +17,13 @@ const VOICE_COLORS = {
     tenor:   '#7c3aed', // violet
 };
 
+// Voice count for the realization. Single source of truth: the shared config
+// bar in the input card, read by the upload form, the bass editor and the
+// chord inspector alike.
+function selectedVoices() {
+    return document.getElementById('cfg-voices')?.value || '4';
+}
+
 // Return the voice name for a realization note element id, or null.
 // Soprano notes are "chord-{N}"; alto/tenor are "chord-{N}-alto|tenor".
 function voiceOfNoteId(id) {

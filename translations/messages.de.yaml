@@ -13,6 +13,8 @@ params:
     voices_label: "Stimmenzahl"
     voices_4: "4 Stimmen — vollständige Realisation (Sopran + Alt + Tenor + Bass)"
     voices_3: "3 Stimmen — wenn möglich (Alt + Sopran + Bass)"
+    voices_4_short: "4 Stimmen"
+    voices_3_short: "3 Stimmen"
 
 # ── Upload card ──────────────────────────────────────────────────────────────
 upload:
@@ -23,6 +25,8 @@ upload:
     clear_btn: "Leeren"
     sample_hint: "Beispieldatei laden"
     progress: "Basslinie wird analysiert und Harmonie realisiert…"
+    tab_compose: "Noten eingeben"
+    tab_import: "Importieren"
 
 # ── Tonart-Erkennung aus Audio ───────────────────────────────────────────────
 audio:
@@ -74,6 +78,11 @@ viewer:
     click_hint: "▶ Klicken Sie auf eine Note oder einen Akkord, um Harmonie & Entscheidungsbaum zu inspizieren"
     rendering: "Partitur wird gerendert…"
     show_computed: "Berechnete Ziffern anzeigen"
+    passages_heading: "Erkannte Phrasen"
+    display_options: "Anzeigeoptionen"
+    colour_voices: "Stimmen einfärben"
+    edit_rh: "Rechte Hand bearbeiten"
+    score_pan_hint: "Wischen zum Verschieben · Zwei Finger zum Zoomen"
 
 # ── Chord inspector ──────────────────────────────────────────────────────────
 inspector:
@@ -407,7 +416,7 @@ imslp:
     # Section labels
     section_composers: "Komponisten"
     section_works_with_title: 'Werke mit „%q" im Titel'
-    section_works_matching_search: 'Ergebnisse für „%q"'
+    section_works_matching_search: 'Ergebnisse für „%q%"'
     section_filtered: "gefiltert"
     no_title_matches: "Keine Titelübereinstimmungen gefunden."
 
@@ -529,6 +538,16 @@ imslp:
     sync_log_unavailable: "(Log nicht verfügbar)"
     sync_last_sync: "Letzte Sync:"
 
+    # Advanced filter panel
+    filters_advanced: "Erweiterte Filter"
+    filters_group_context: "Musikalischer Kontext"
+    filters_group_forces: "Besetzung"
+    filters_group_precision: "Genauigkeit"
+    filters_reset: "Filter zurücksetzen"
+    filters_active: "Aktive Filter:"
+    filters_remove: "Diesen Filter entfernen"
+    register_exact_pointer: "Die exakte Übereinstimmung wird unter „Genauigkeit“ geschaltet."
+
 # ── Kommentare ──────────────────────────────────────────────────────────────
 comment:
     title: "Kommentar hinterlassen"
@@ -548,3 +567,30 @@ comment:
         body_too_long: "Ihr Kommentar ist zu lang (höchstens 5000 Zeichen)."
         rate_limited: "Zu viele Kommentare von hier gesendet. Bitte später erneut versuchen."
         network: "Ihr Kommentar konnte nicht gesendet werden. Bitte erneut versuchen."
+
+# ── Hauptnavigation (Tabs) ──────────────────────────────────────────────────
+nav:
+    aria_label: "Hauptbereiche"
+    tab_realize: "Aussetzen"
+    tab_settings: "Erweiterte Einstellungen"
+    tab_docs: "Dokumentation"
+    imslp: "IMSLP-Noten durchsuchen"
+    tab_realize_short: "Aussetzen"
+    tab_settings_short: "Einstellungen"
+    tab_docs_short: "Doku"
+
+# ── Bereich Erweiterte Einstellungen ────────────────────────────────────────
+settings:
+    rules_title: "Stimmführungsregeln"
+    rules_intro: >
+        Die Regeln, nach denen die Oberstimmen gesetzt werden — aus der Datenbank
+        geladen und nach Priorität geordnet. Öffnen Sie eine Regel, um ihren
+        Originalwortlaut, die Übersetzung und den ausführenden Code zu lesen.
+    rules_filter_placeholder: "Nach Name, Quelle oder Wortlaut filtern…"
+    rules_only_enabled: "Nur aktive"
+    rules_no_match: "Keine Regel entspricht diesem Filter."
+    rules_count: "%shown% von %total%"
+
+# ── Bereich Dokumentation ───────────────────────────────────────────────────
+docs:
+    toc_label: "Inhalt der Dokumentation"
