@@ -631,3 +631,7 @@ settings:
 # ── Documentation pane ──────────────────────────────────────────────────────
 docs:
     toc_label: "Documentation contents"
+
+# ── Footer ─────────────────────────────────────────────────────────────────
+footer:
+    deployed: "Last deploy:"

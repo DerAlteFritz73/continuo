@@ -594,3 +594,7 @@ settings:
 # ── Bereich Dokumentation ───────────────────────────────────────────────────
 docs:
     toc_label: "Inhalt der Dokumentation"
+
+# ── Fußzeile ───────────────────────────────────────────────────────────────
+footer:
+    deployed: "Letztes Deployment:"

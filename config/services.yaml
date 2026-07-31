@@ -28,5 +28,10 @@ services:
             $notifyTo: '%env(string:COMMENT_NOTIFY_TO)%'
             $mailFrom: '%env(string:COMMENT_MAIL_FROM)%'
 
+    App\Service\DeployInfo:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $deployedAtEnv: '%env(string:default::APP_DEPLOYED_AT)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

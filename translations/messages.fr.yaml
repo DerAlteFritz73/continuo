@@ -642,3 +642,7 @@ settings:
 # ── Onglet Documentation ────────────────────────────────────────────────────
 docs:
     toc_label: "Sommaire de la documentation"
+
+# ── Pied de page ───────────────────────────────────────────────────────────
+footer:
+    deployed: "Dernier déploiement :"

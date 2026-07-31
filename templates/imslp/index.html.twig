@@ -244,6 +244,13 @@ textarea.ai-input { line-height: 1.5; }
 }
 .ai-error { font-size: .78rem; color: #c87a6e; margin-top: .4rem; }
 
+.deploy-stamp {
+    font-size: .72rem;
+    color: #5a524a;
+    text-align: right;
+    margin-top: 1rem;
+}
+.deploy-stamp time { font-variant-numeric: tabular-nums; }
 .db-status {
     font-size: .8rem;
     color: #6a6058;
@@ -934,6 +941,8 @@ textarea.ai-input { line-height: 1.5; }
                 </div>
             </details>
         </form>
+
+        {{ include('_deploy_stamp.html.twig') }}
 
         <div class="db-status" id="db-status">
             {{ 'imslp.db_loading'|trans }} · <a href="{{ path('app_imslp_sync_status') }}" style="color:#c8a96e;text-decoration:none">{{ 'imslp.db_import_status_link'|trans }}</a>

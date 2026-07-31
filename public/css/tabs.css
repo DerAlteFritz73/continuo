@@ -420,3 +420,12 @@
     }
     .ci-close { min-width: 44px; min-height: 44px; }
 }
+
+/* ── Deploy stamp ───────────────────────────────────────── */
+.deploy-stamp {
+    font-size: 0.72rem;
+    color: var(--muted);
+    opacity: 0.65;
+    margin-top: 0.5rem;
+}
+.deploy-stamp time { font-variant-numeric: tabular-nums; }

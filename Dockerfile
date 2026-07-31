@@ -73,6 +73,13 @@ RUN chmod +x /entrypoint.sh
 
 ENV APP_ENV=prod
 
+# Stamped at build time so the running app can show when it was deployed.
+# Last line of the stage on purpose: it changes on every build and would
+# otherwise invalidate the layers above it.
+#   docker compose build --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" app
+ARG BUILD_DATE=""
+ENV APP_DEPLOYED_AT=$BUILD_DATE
+
 EXPOSE 80
 
 ENTRYPOINT ["/entrypoint.sh"]
