@@ -2,7 +2,16 @@
     <h2 class="card-title">{{ 'comment.title'|trans }}</h2>
     <p class="comment-intro">{{ 'comment.intro'|trans }}</p>
 
-    <form id="comment-form" action="{{ path('app_comment_post') }}" method="post" novalidate>
+    {# The JS strings ride on the form rather than a page-level TRANS object, so
+       this partial drops into any template — /imslp has no TRANS at all. #}
+    <form id="comment-form" action="{{ path('app_comment_post') }}" method="post" novalidate
+          data-msg-submit="{{ 'comment.submit'|trans }}"
+          data-msg-sending="{{ 'comment.sending'|trans }}"
+          data-msg-success="{{ 'comment.success'|trans }}"
+          data-msg-email-required="{{ 'comment.error.email_required'|trans }}"
+          data-msg-email-invalid="{{ 'comment.error.email_invalid'|trans }}"
+          data-msg-body-required="{{ 'comment.error.body_required'|trans }}"
+          data-msg-network="{{ 'comment.error.network'|trans }}">
         <div class="comment-field">
             <label class="comment-label" for="comment-email">
                 {{ 'comment.email_label'|trans }}

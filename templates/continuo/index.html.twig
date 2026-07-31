@@ -69,8 +69,8 @@
     <div class="card" id="input-card">
 
         <div class="input-tabs" id="input-tabs">
-            <div class="input-tab active" data-pane="pane-compose">♩ {{ 'upload.tab_compose'|trans }}</div>
-            <div class="input-tab"        data-pane="pane-import">⬆ {{ 'upload.tab_import'|trans }}</div>
+            <div class="input-tab"        data-pane="pane-compose">♩ {{ 'upload.tab_compose'|trans }}</div>
+            <div class="input-tab active" data-pane="pane-import">⬆ {{ 'upload.tab_import'|trans }}</div>
         </div>
 
         <!-- Realization config shared by both input modes. Single source of
@@ -86,7 +86,7 @@
         </div>
 
         <!-- ── Compose pane (speedy entry) ── -->
-        <div class="input-pane active" id="pane-compose">
+        <div class="input-pane" id="pane-compose">
             <div class="ed-toolbar">
                 <div class="ed-ctrl-group">
                     <label>Key</label>
@@ -161,7 +161,7 @@
         </div>
 
         <!-- ── Import pane (file upload) ── -->
-        <div class="input-pane" id="pane-import">
+        <div class="input-pane active" id="pane-import">
             <div class="import-body">
                 {% if error is defined and error %}
                 <div class="alert alert-error">
@@ -369,7 +369,7 @@
         </details>
     </div>
 
-    {{ include('continuo/_comment_form.html.twig') }}
+    {{ include('_comment_form.html.twig') }}
 
 </section>
 
@@ -603,14 +603,6 @@ const TRANS = {
 
     rules_no_match:  {{ 'settings.rules_no_match'|trans|json_encode|raw }},
     rules_count:     {{ 'settings.rules_count'|trans|json_encode|raw }},
-
-    comment_submit:         {{ 'comment.submit'|trans|json_encode|raw }},
-    comment_sending:        {{ 'comment.sending'|trans|json_encode|raw }},
-    comment_success:        {{ 'comment.success'|trans|json_encode|raw }},
-    comment_email_required: {{ 'comment.error.email_required'|trans|json_encode|raw }},
-    comment_email_invalid:  {{ 'comment.error.email_invalid'|trans|json_encode|raw }},
-    comment_body_required:  {{ 'comment.error.body_required'|trans|json_encode|raw }},
-    comment_network:        {{ 'comment.error.network'|trans|json_encode|raw }},
 };
 
 </script>

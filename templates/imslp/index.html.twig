@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/comment.css">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -46,13 +47,20 @@ body {
     margin-bottom: .5rem;
 }
 .back-link {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
     color: #c8a96e;
     text-decoration: none;
     font-size: .85rem;
     margin-bottom: 1.5rem;
+    padding: .5rem 1.05rem;
+    background: rgba(200, 169, 110, .08);
+    border: 1px solid rgba(200, 169, 110, .32);
+    border-radius: 999px;
+    transition: background .15s, border-color .15s;
 }
-.back-link:hover { text-decoration: underline; }
+.back-link:hover { background: rgba(200, 169, 110, .16); border-color: #c8a96e; }
 
 /* ── Search card ── */
 .search-card {
@@ -251,6 +259,7 @@ textarea.ai-input { line-height: 1.5; }
     margin-top: 1rem;
 }
 .deploy-stamp time { font-variant-numeric: tabular-nums; }
+.deploy-rev { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; }
 .db-status {
     font-size: .8rem;
     color: #6a6058;
@@ -571,6 +580,58 @@ textarea.ai-input { line-height: 1.5; }
     .empty-state { padding: 2rem 1rem; }
     .abbrev-table { font-size: .72rem; }
 }
+/* ── Comment form ──
+   comment.css is shared with the realizer and written against its design
+   tokens. Rather than fork it, point those tokens at this page's palette. */
+.comment-card {
+    --surface2: #1a1a1a;
+    --border:   #3a3a3a;
+    --accent:   #c8a96e;
+    --accent2:  #9ec8a9;
+    --danger:   #c87a6e;
+    --text:     #e8e0d4;
+    --muted:    #8a8070;
+
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2.5rem;
+}
+.comment-card .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem;
+    color: #c8a96e;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.comment-card .card-title::after { content: ''; flex: 1; height: 1px; background: #333; }
+.comment-card .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .75rem 2rem;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #c8a96e;
+    color: #1a1a1a;
+    transition: background .2s, opacity .2s;
+}
+.comment-card .btn:hover { background: #d9be88; }
+.comment-card .btn[disabled] { opacity: .55; cursor: default; }
+@media (max-width: 640px) {
+    .comment-card { padding: 1.1rem; }
+    .comment-card .comment-input { font-size: 16px; min-height: 44px; }
+    .comment-card .btn { min-height: 46px; width: 100%; }
+}
+
 /* ── Simple search: composer/title + Search, always visible ── */
 .search-simple {
     display: flex;
@@ -1167,8 +1228,11 @@ textarea.ai-input { line-height: 1.5; }
     </div>
     {% endif %}
 
+    {{ include('_comment_form.html.twig') }}
+
 </div>
 
+<script src="/js/comment.js"></script>
 <script>
 fetch('{{ path('app_imslp_sync_status') }}?json')
     .then(r => r.json())

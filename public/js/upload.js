@@ -448,9 +448,3 @@ document.querySelectorAll('#input-tabs .input-tab').forEach(tab => {
     });
 });
 
-// On a phone, open on Import rather than note entry: the editor is driven by
-// arrow keys, Tab and single-key shortcuts, none of which a touch keyboard
-// offers. The Compose tab stays one tap away.
-if (window.matchMedia('(max-width: 640px)').matches) {
-    document.querySelector('#input-tabs .input-tab[data-pane="pane-import"]')?.click();
-}
