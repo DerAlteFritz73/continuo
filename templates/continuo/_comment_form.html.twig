@@ -1,0 +1,44 @@
+<section class="card comment-card" id="comment-card">
+    <h2 class="card-title">{{ 'comment.title'|trans }}</h2>
+    <p class="comment-intro">{{ 'comment.intro'|trans }}</p>
+
+    <form id="comment-form" action="{{ path('app_comment_post') }}" method="post" novalidate>
+        <div class="comment-field">
+            <label class="comment-label" for="comment-email">
+                {{ 'comment.email_label'|trans }}
+                <span class="comment-req" aria-hidden="true">*</span>
+                <span class="visually-hidden">({{ 'comment.required'|trans }})</span>
+            </label>
+            <input class="comment-input" type="email" id="comment-email" name="email"
+                   placeholder="{{ 'comment.email_placeholder'|trans }}"
+                   maxlength="180" required autocomplete="email" spellcheck="false"
+                   aria-describedby="comment-email-error">
+            <p class="comment-error" id="comment-email-error" role="alert"></p>
+        </div>
+
+        <div class="comment-field">
+            <label class="comment-label" for="comment-body">
+                {{ 'comment.body_label'|trans }}
+                <span class="comment-req" aria-hidden="true">*</span>
+                <span class="visually-hidden">({{ 'comment.required'|trans }})</span>
+            </label>
+            <textarea class="comment-input comment-textarea" id="comment-body" name="body" rows="5"
+                      placeholder="{{ 'comment.body_placeholder'|trans }}"
+                      maxlength="5000" required aria-describedby="comment-body-error"></textarea>
+            <p class="comment-error" id="comment-body-error" role="alert"></p>
+        </div>
+
+        {# Honeypot: hidden from humans, irresistible to bots. #}
+        <div class="comment-hp" aria-hidden="true">
+            <label for="comment-website">Website</label>
+            <input type="text" id="comment-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="comment-actions">
+            <p class="comment-status" id="comment-status" role="status"></p>
+            <button class="btn btn-primary comment-submit" type="submit" id="comment-submit">
+                {{ 'comment.submit'|trans }}
+            </button>
+        </div>
+    </form>
+</section>

@@ -56,5 +56,21 @@ services:
       db:
         condition: service_healthy
 
+###> symfony/mailer ###
+  # Dev-only SMTP sink: catches the comment notifications instead of sending
+  # them. Web UI on http://localhost:8025. Point MAILER_DSN at a real relay
+  # in .env.local (or drop this service) to deliver for real.
+  mailer:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    expose:
+      - "1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+###< symfony/mailer ###
+
 volumes:
   db_data:

@@ -1,0 +1,102 @@
+/* ── Comment form ───────────────────────────────────────── */
+.comment-card { margin-top: 1.5rem; }
+
+/* Standing notice: the site is a work in progress, comments welcome. */
+.comment-intro {
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    margin: -0.5rem 0 1.5rem;
+    padding: 0.7rem 1rem;
+    border-left: 2px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    background: rgba(200, 169, 110, 0.06);
+}
+
+.comment-field { margin-bottom: 1.1rem; }
+
+.comment-label {
+    display: block;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+}
+.comment-req { color: var(--accent); margin-left: 0.15rem; }
+
+.comment-input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.comment-input::placeholder { color: #5a6880; }
+.comment-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.13);
+}
+.comment-textarea { resize: vertical; min-height: 7rem; }
+
+.comment-input.has-error { border-color: var(--danger); }
+.comment-input.has-error:focus { box-shadow: 0 0 0 3px rgba(224, 112, 112, 0.15); }
+
+.comment-error {
+    display: none;
+    color: var(--danger);
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+}
+.comment-error.visible { display: block; }
+
+.comment-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.comment-status {
+    flex: 1;
+    min-width: 12rem;
+    font-size: 0.85rem;
+    margin: 0;
+    color: var(--muted);
+}
+.comment-status.is-success { color: var(--accent2); }
+.comment-status.is-error { color: var(--danger); }
+
+.comment-submit { flex: 0 0 auto; }
+.comment-submit[disabled] { opacity: 0.55; cursor: default; }
+
+/* Honeypot — off-screen rather than display:none, which some bots skip. */
+.comment-hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 540px) {
+    .comment-actions { justify-content: stretch; }
+    .comment-submit { width: 100%; }
+}

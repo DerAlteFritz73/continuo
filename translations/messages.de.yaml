@@ -528,3 +528,23 @@ imslp:
     sync_log_no_output: "(noch keine Ausgabe)"
     sync_log_unavailable: "(Log nicht verfügbar)"
     sync_last_sync: "Letzte Sync:"
+
+# ── Kommentare ──────────────────────────────────────────────────────────────
+comment:
+    title: "Kommentar hinterlassen"
+    intro: "Diese Seite ist noch im Aufbau und entwickelt sich ständig weiter. Wenn Sie Ideen für Ergänzungen, Verbesserungen oder Korrekturen haben, hinterlassen Sie mir gerne eine kurze Nachricht."
+    email_label: "Ihre E-Mail-Adresse"
+    email_placeholder: "sie@beispiel.de"
+    body_label: "Ihr Kommentar"
+    body_placeholder: "Schreiben Sie hier Ihren Kommentar…"
+    submit: "Kommentar senden"
+    sending: "Wird gesendet…"
+    required: "erforderlich"
+    success: "Vielen Dank — Ihr Kommentar wurde gespeichert."
+    error:
+        email_required: "Eine E-Mail-Adresse ist erforderlich."
+        email_invalid: "Bitte geben Sie eine gültige E-Mail-Adresse ein."
+        body_required: "Bitte schreiben Sie einen Kommentar, bevor Sie senden."
+        body_too_long: "Ihr Kommentar ist zu lang (höchstens 5000 Zeichen)."
+        rate_limited: "Zu viele Kommentare von hier gesendet. Bitte später erneut versuchen."
+        network: "Ihr Kommentar konnte nicht gesendet werden. Bitte erneut versuchen."

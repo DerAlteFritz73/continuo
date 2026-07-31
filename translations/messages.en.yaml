@@ -565,3 +565,23 @@ imslp:
     sync_login_submit: "Access"
     sync_login_back: "Back to browser"
     sync_login_invalid_password: "Invalid password. Please try again."
+
+# ── Comments ────────────────────────────────────────────────────────────────
+comment:
+    title: "Leave a comment"
+    intro: "This site is still under construction and constantly evolving. If you have ideas for additions, improvements or corrections, do not hesitate to leave me a short message."
+    email_label: "Your e-mail address"
+    email_placeholder: "you@example.com"
+    body_label: "Your comment"
+    body_placeholder: "Write your comment here…"
+    submit: "Send comment"
+    sending: "Sending…"
+    required: "required"
+    success: "Thank you — your comment has been saved."
+    error:
+        email_required: "An e-mail address is required."
+        email_invalid: "Please enter a valid e-mail address."
+        body_required: "Please write a comment before sending."
+        body_too_long: "Your comment is too long (5000 characters maximum)."
+        rate_limited: "Too many comments sent from here. Please try again later."
+        network: "Your comment could not be sent. Please try again."

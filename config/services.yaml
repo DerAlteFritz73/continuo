@@ -23,5 +23,10 @@ services:
         arguments:
             $apiKey: '%env(string:default::GROQ_API_KEY)%'
 
+    App\Service\CommentNotifier:
+        arguments:
+            $notifyTo: '%env(string:COMMENT_NOTIFY_TO)%'
+            $mailFrom: '%env(string:COMMENT_MAIL_FROM)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -525,3 +525,23 @@ imslp:
     sync_log_no_output: "(zatím žádný výstup)"
     sync_log_unavailable: "(log není dostupný)"
     sync_last_sync: "Poslední sync:"
+
+# ── Komentáře ───────────────────────────────────────────────────────────────
+comment:
+    title: "Zanechte komentář"
+    intro: "Tento web je stále ve výstavbě a neustále se vyvíjí. Máte-li nápady na doplnění, vylepšení nebo opravy, neváhejte mi zanechat krátkou zprávu."
+    email_label: "Vaše e-mailová adresa"
+    email_placeholder: "vy@priklad.cz"
+    body_label: "Váš komentář"
+    body_placeholder: "Napište zde svůj komentář…"
+    submit: "Odeslat komentář"
+    sending: "Odesílání…"
+    required: "povinné"
+    success: "Děkujeme — váš komentář byl uložen."
+    error:
+        email_required: "E-mailová adresa je povinná."
+        email_invalid: "Zadejte prosím platnou e-mailovou adresu."
+        body_required: "Před odesláním prosím napište komentář."
+        body_too_long: "Váš komentář je příliš dlouhý (maximálně 5000 znaků)."
+        rate_limited: "Z tohoto místa bylo odesláno příliš mnoho komentářů. Zkuste to prosím později."
+        network: "Váš komentář se nepodařilo odeslat. Zkuste to prosím znovu."

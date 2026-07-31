@@ -576,3 +576,23 @@ imslp:
     sync_login_submit: "Accéder"
     sync_login_back: "Retour au navigateur"
     sync_login_invalid_password: "Mot de passe invalide. Veuillez réessayer."
+
+# ── Commentaires ────────────────────────────────────────────────────────────
+comment:
+    title: "Laisser un commentaire"
+    intro: "Ce site est encore en construction et en constante évolution. Si vous avez des idées d'ajouts, d'améliorations ou de corrections, n'hésitez pas à me laisser un petit message."
+    email_label: "Votre adresse e-mail"
+    email_placeholder: "vous@exemple.com"
+    body_label: "Votre commentaire"
+    body_placeholder: "Écrivez votre commentaire ici…"
+    submit: "Envoyer le commentaire"
+    sending: "Envoi en cours…"
+    required: "obligatoire"
+    success: "Merci — votre commentaire a bien été enregistré."
+    error:
+        email_required: "Une adresse e-mail est obligatoire."
+        email_invalid: "Veuillez saisir une adresse e-mail valide."
+        body_required: "Veuillez écrire un commentaire avant d'envoyer."
+        body_too_long: "Votre commentaire est trop long (5000 caractères maximum)."
+        rate_limited: "Trop de commentaires envoyés depuis cet endroit. Veuillez réessayer plus tard."
+        network: "Votre commentaire n'a pas pu être envoyé. Veuillez réessayer."
