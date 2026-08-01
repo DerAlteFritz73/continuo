@@ -110,6 +110,11 @@ function openChordInspector(cd, idx) {
                     citHtml = '<div class="ci-citations">'
                         + cits.map(c => {
                             const sameAsTranslation = c.text === c.translation;
+                            // A translation made for this app is labelled as such, so it is
+                            // never mistaken for the wording of a published edition.
+                            const by = c.translation_by
+                                ? '<span class="ci-citation-transby">' + escapeHtml(c.translation_by) + '</span>'
+                                : '';
                             return '<div class="ci-citation">'
                                 + '<div class="ci-citation-header">'
                                 + '<span class="ci-citation-lang">' + escapeHtml(c.lang || '') + '</span>'
@@ -117,7 +122,7 @@ function openChordInspector(cd, idx) {
                                 + '</div>'
                                 + '<div class="ci-citation-text">\u201c' + escapeHtml(c.text || '') + '\u201d</div>'
                                 + (!sameAsTranslation && c.translation
-                                    ? '<div class="ci-citation-translation">' + escapeHtml(c.translation) + '</div>'
+                                    ? '<div class="ci-citation-translation">' + by + escapeHtml(c.translation) + '</div>'
                                     : '')
                                 + '</div>';
                         }).join('')

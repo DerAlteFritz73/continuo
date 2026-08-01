@@ -363,3 +363,17 @@
     min-height: 70px;
 }
 .ci-note-staff svg { max-width: 100%; height: auto; display: block; }
+/* Marks a translation produced for this app, not taken from a published edition. */
+.ci-citation-transby {
+    display: inline-block;
+    margin-right: 0.4rem;
+    padding: 0.02rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    vertical-align: 1px;
+}

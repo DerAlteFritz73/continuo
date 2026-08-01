@@ -41,7 +41,8 @@ class SeedVoiceLeadingRulesCommand extends Command
                     ->setDefinition($data['definition'])
                     ->setTranslation($data['translation'])
                     ->setImplementation($data['implementation'])
-                    ->setCitations($data['citations']);
+                    ->setCitations($data['citations'])
+                    ->setEnabled($data['enabled'] ?? true);
                 $updated++;
                 $io->note(sprintf('Updated existing rule: %s', $data['name']));
                 continue;
@@ -55,7 +56,7 @@ class SeedVoiceLeadingRulesCommand extends Command
                 ->setTranslation($data['translation'])
                 ->setImplementation($data['implementation'])
                 ->setCitations($data['citations'])
-                ->setEnabled(true);
+                ->setEnabled($data['enabled'] ?? true);
 
             $this->em->persist($rule);
             $seeded++;
@@ -74,21 +75,21 @@ class SeedVoiceLeadingRulesCommand extends Command
             [
                 'priority' => 10,
                 'name'     => 'voice_range',
-                'source'   => 'Lambert [1707]; Christensen 2002, 40',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 40',
                 'definition' => 'The upper voice must never go beyond e\'\' or f\'\'; the lower limit is normally d\'.',
                 'translation' => 'Each upper voice must stay within its assigned MIDI range (soprano: D4–E5; alto: A3–C5; tenor: G3–A4). Notes outside these bounds incur a penalty proportional to the distance.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 40.',
                         'lang'   => 'en',
-                        'text'   => 'The upper voice of the chordal accompaniment must never go beyond e\'\' or f\'\' except when the bass moves into the alto register, in which case all the notes become very high.',
+                        'text'   => 'the upper voice of the chordal accompaniment must never go beyond e" or f" except when the bass moves into the alto register, in which case all the notes become very high.',
                     ],
                     [
                         'author' => 'Christensen, Jesper Bøje',
                         'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 40.',
                         'lang'   => 'en',
-                        'text'   => 'The normal upper limit is e\'\'; the lower limit normally d\', with c\' and b representing exceptional cases.',
+                        'text'   => 'The ambitus seldom goes above c" or d". The lower limit normally lies around d\', with c\' and b representing exceptional cases.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -116,7 +117,13 @@ PHP,
                         'author' => 'Christensen, Jesper Bøje',
                         'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 40.',
                         'lang'   => 'en',
-                        'text'   => 'The lower limit [of the right hand] is normally d\', with c\' and b representing exceptional cases. Below g the texture becomes confused with the bass.',
+                        'text'   => 'The ambitus seldom goes above c" or d". The lower limit normally lies around d\', with c\' and b representing exceptional cases.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 100.',
+                        'lang'   => 'en',
+                        'text'   => 'The lowest register Telemann uses is normally g\' (for the top voice of the chord). Very rarely we also find f#\'.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -134,10 +141,12 @@ PHP,
                 'translation' => 'The third above the bass must be represented in at least one of the three upper voices. Without the third the chord is incomplete and the harmony ambiguous.',
                 'citations' => [
                     [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
-                        'lang'   => 'en',
-                        'text'   => 'The basic chord [in French basso continuo] consists of the octave, the fifth, and the third. Of these, the third is the defining interval: without it the chord type cannot be determined.',
+                        'author'         => 'Gasparini, Francesco',
+                        'ref'            => 'L\'Armonico Pratico al Cimbalo. Quarta impressione. Bologna: Giuseppe Antonio Silvani, 1722, 11.',
+                        'lang'           => 'it',
+                        'text'           => 'Per accompagnar ogni nota, e formarla di perfetta Armonia, è necessario darle la Terza, Quinta, e Ottava; e questo serva di regola generale, e infallibile, se non si averà la certezza, che la nota richieda o Sesta, o altri accompagnamenti accidentali di Dissonanze, come si vedrà a suo luogo.',
+                        'translation'    => 'Pour accompagner chaque note et la former en harmonie parfaite, il est nécessaire de lui donner la tierce, la quinte et l\'octave ; et que cela serve de règle générale et infaillible, à moins d\'avoir la certitude que la note demande une sixte, ou d\'autres accompagnements accidentels de dissonances, comme on le verra en son lieu.',
+                        'translation_by' => 'traduction non éditoriale',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -159,15 +168,21 @@ PHP,
             [
                 'priority' => 13,
                 'name'     => 'soprano_upper_limit_e5',
-                'source'   => 'Lambert [1707]; Christensen 2002, 40',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 40',
                 'definition' => 'The soprano must never go beyond E5 (e\'\').',
                 'translation' => 'The soprano (top voice of the right hand) must not exceed E5 (MIDI 76). Notes above this limit incur a penalty proportional to the excess.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 40.',
                         'lang'   => 'en',
-                        'text'   => 'The upper voice of the chordal accompaniment must never go beyond e\'\' or f\'\' except when the bass moves into the alto register.',
+                        'text'   => 'Indeed, e" is the normal upper limit.',
+                    ],
+                    [
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 40.',
+                        'lang'   => 'en',
+                        'text'   => 'the upper voice of the chordal accompaniment must never go beyond e" or f" except when the bass moves into the alto register, in which case all the notes become very high.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -185,10 +200,28 @@ PHP,
                 'translation' => 'The interval between the highest and lowest notes of the right hand must not exceed a ninth (14 semitones). Wider spacings are physically awkward and produce a thin, unsupported texture between the outer voices.',
                 'citations' => [
                     [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 40.',
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 82.',
                         'lang'   => 'en',
-                        'text'   => 'Four-voice realization is the bedrock of all thoroughbass playing. The right hand spans must remain comfortable and musical at all times.',
+                        'text'   => 'Because such consecutive dissonances are resolved downward, it frequently happens that the register of the right hand becomes too low, leaving no room to resolve [the dissonances] and impeding the movement of the left hand.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 8.',
+                        'lang'   => 'en',
+                        'text'   => 'practice the four-voice realizations—the bedrock of all thoroughbass playing—so carefully that it becomes almost second nature',
+                    ],
+                    [
+                        'author' => 'Delair, Denis',
+                        'ref'    => 'Traité d\'accompagnement pour le théorbe et le clavessin. Paris, 1690, 59 (fac-similé Minkoff, Genève, 1972). Transcription diplomatique ; u/v et i/j normalisés.',
+                        'lang'   => 'fr',
+                        'text'   => 'On remarquera qu\'à proportion que la basse monte dans la suitte, on doit prendre les accords de la main droite dans un éloignement convenable, prenant les accords au dessus de l\'étendue des notes de la basse qui suivent immediatement, afin de n\'estre pas obligé de monter les accords du dessus conjointement avec la basse, ce qui ne se pourroit faire sans embarasser les mains par la proximité où elles se trouveroient et sans faire deux quintes, ou deux octaves.',
+                    ],
+                    [
+                        'author' => 'Delair, Denis',
+                        'ref'    => 'Traité d\'accompagnement pour le théorbe et le clavessin. Paris, 1690, 59 (fac-similé Minkoff, Genève, 1972). Transcription diplomatique ; u/v et i/j normalisés.',
+                        'lang'   => 'fr',
+                        'text'   => 'mais lors que la basse décend de plusieurs notes, on doit prendre les accords de la main droite le plus pres de la basse que l\'on pourra, afin d\'avoir la liberté de monter ensuitte si l\'on s\'y trouve obligé sans qu\'il se rencontre un trop grand Intervale entre les deux mains, ce qui se doit éviter.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -202,21 +235,41 @@ PHP,
             [
                 'priority' => 30,
                 'name'     => 'no_parallel_fifths',
-                'source'   => 'Lambert [1707]; Christensen 2002, 18, 28',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 18, 28',
                 'definition' => 'Parallel fifths between any two voices moving in the same direction are forbidden.',
                 'translation' => 'When any two voices both move and the interval between them is a fifth (7 semitones mod 12) both before and after the motion, a parallel fifth results. Each such pair incurs a heavy penalty.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 10.',
                         'lang'   => 'en',
-                        'text'   => 'When the bass line ascends in stepwise motion, it sometimes becomes necessary to double the third so as to avoid parallel fifths.',
+                        'text'   => 'When playing a figured bass, it is important to observe a few rules for the movement of the two hands. The hands must always move in contrary motion. In other words, when the bass rises, the accompaniment [in the right hand] must descend, and vice versa. This will prevent any voice from forming consecutive octaves or fifths with the bass, which is strictly prohibited.',
                     ],
                     [
                         'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
                         'lang'   => 'en',
-                        'text'   => 'Two consecutive sixth chords with doubled voices produce parallel fifths and parallel octaves at once; avoid by alternating simple and doubled sixth chords.',
+                        'text'   => 'Strict contrary motion must always be applied when a bass harmonized in root-position chords (as in the preceding example) proceeds in stepwise motion within the diatonic scale (mm. 3–4). Otherwise, the result will be parallel fifths and octaves at once.',
+                    ],
+                    [
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 18.',
+                        'lang'   => 'en',
+                        'text'   => 'Never play two consecutive sixth chords with doubled voices unless the doubled notes remain the same.',
+                    ],
+                    [
+                        'author'         => 'Gasparini, Francesco',
+                        'ref'            => 'L\'Armonico Pratico al Cimbalo. Quarta impressione. Bologna: Giuseppe Antonio Silvani, 1722, 13.',
+                        'lang'           => 'it',
+                        'text'           => 'Ne si considerino per adesso le Ottave, o Quinte, che si proibiscono una appresso l\'altra per l\'istesso moto, cioè due Quinte, e due Ottave, che a suo luogo si dirà il modo di fugir, o salvar simili errori.',
+                        'translation'    => 'Que l\'on ne considère pas pour l\'instant les octaves ou les quintes, qui sont interdites l\'une après l\'autre par le même mouvement, c\'est-à-dire deux quintes et deux octaves ; on dira en son lieu la manière de fuir ou de sauver de semblables fautes.',
+                        'translation_by' => 'traduction non éditoriale',
+                    ],
+                    [
+                        'author' => 'Delair, Denis',
+                        'ref'    => 'Traité d\'accompagnement pour le théorbe et le clavessin. Paris, 1690, 44 (fac-similé Minkoff, Genève, 1972). Transcription diplomatique ; u/v et i/j normalisés.',
+                        'lang'   => 'fr',
+                        'text'   => 'il n\'y a pas d\'autre raison que le defaut de varieté, ou de modulation, qui fait que deux quintes, et deux octaves de suite, sont défendües, quand on observera que deux quintes renversées, ou de mouvement contraire, sont permises aussi bien que deux quintes de diferentes especes, c\'est à dire une juste, et une fausse, par ce que, en ces deux manieres, il y à modulation et varieté.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -241,21 +294,21 @@ PHP,
             [
                 'priority' => 32,
                 'name'     => 'no_leading_tone_doubling',
-                'source'   => 'Lambert [1707]; Heinichen [1728]; Christensen 2002, 18, 65',
+                'source'   => 'St. Lambert [1707]; Heinichen [1728]; Christensen 2002, 18, 65',
                 'definition' => 'The leading tone must never be doubled in any pair of voices.',
                 'translation' => 'The leading tone (major seventh of the scale, one semitone below the tonic) must appear in at most one voice. Doubling it creates an obligatory parallel motion to the tonic, which causes parallel octaves.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 18.',
                         'lang'   => 'en',
                         'text'   => 'When the bass ascends from the leading tone to the tonic, the third or the sixth must be doubled.',
                     ],
                     [
-                        'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 15.',
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
                         'lang'   => 'en',
-                        'text'   => 'Never double a chromatically altered note that functions as a leading tone. This rule is extremely important.',
+                        'text'   => 'This rule implies that you must never double a leading tone in the bass.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -278,10 +331,16 @@ PHP,
                 'translation' => 'Never double a chromatically altered note that functions as a leading tone (i.e. any note outside the diatonic scale of the current key). One occurrence is permissible; two or more are forbidden.',
                 'citations' => [
                     [
-                        'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 15.',
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 65.',
                         'lang'   => 'en',
-                        'text'   => 'Never double a chromatically altered note that functions as a leading tone. This rule is extremely important.',
+                        'text'   => 'Finally, never double a chromatically altered note that functions as a leading tone. This rule is extremely important.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 65.',
+                        'lang'   => 'en',
+                        'text'   => 'The following realization is correct, the note in the bass not being a leading tone (observe Heinichen\'s elegant voice leading).',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -308,21 +367,15 @@ PHP,
             [
                 'priority' => 34,
                 'name'     => 'no_seventh_doubling',
-                'source'   => 'Lambert [1707]; Heinichen [1728]; Christensen 2002, 28, 76',
+                'source'   => 'St. Lambert [1707]; Heinichen [1728]; Christensen 2002, 28, 76',
                 'definition' => 'The dissonant seventh must not be doubled in any pair of voices.',
                 'translation' => 'The dissonant seventh of a chord (the pitch a minor or major seventh above the bass) must never be doubled in any pair of voices.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
-                        'lang'   => 'en',
-                        'text'   => 'It is better to play the third and the fifth with the seventh rather than the third and the octave. The 3 and 8 should only be played when otherwise unavoidable.',
-                    ],
-                    [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 16.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 76.',
                         'lang'   => 'en',
-                        'text'   => 'Often this seventh is followed immediately by its resolution (7–6). The other voices normally combined with it are the third and the octave. Instead of playing the octave, it is also possible to double the third.',
+                        'text'   => 'Often this seventh is followed immediately by its resolution (7-6). The other voices that are normally combined with it are the third and the octave. Instead of playing the octave, it is also possible to double the third, unless one is content with a three-voice chord.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -346,9 +399,15 @@ PHP,
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 81–82.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 81.',
                         'lang'   => 'en',
-                        'text'   => 'The ninth is prepared in the preceding chord and resolved to the next octave. The other notes in the chord are usually the third and the fifth.',
+                        'text'   => 'The other notes in the chord are usually the third and the fifth.',
+                    ],
+                    [
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 81.',
+                        'lang'   => 'en',
+                        'text'   => 'The ninth is generally played along with the fourth, seventh, or both. Each of these additional dissonances is handled in accordance with the usual rules of voice leading.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -367,21 +426,35 @@ PHP,
             [
                 'priority' => 40,
                 'name'     => 'no_parallel_octaves',
-                'source'   => 'Lambert [1707]; Christensen 2002, 18, 42',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 18, 42',
                 'definition' => 'Parallel octaves between any two voices moving in the same direction are forbidden.',
                 'translation' => 'When any two voices both move and the interval between them is an octave (0 semitones mod 12) both before and after the motion, a parallel octave results. Each such pair incurs a heavy penalty.',
                 'citations' => [
                     [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 42.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 10.',
                         'lang'   => 'en',
-                        'text'   => 'In St. Lambert\'s example of stepwise bass motion in fast triple meter, the two hands proceed in strictly contrary motion. This helps to prevent parallel octaves or fifths from occurring.',
+                        'text'   => 'When playing a figured bass, it is important to observe a few rules for the movement of the two hands. The hands must always move in contrary motion. In other words, when the bass rises, the accompaniment [in the right hand] must descend, and vice versa. This will prevent any voice from forming consecutive octaves or fifths with the bass, which is strictly prohibited.',
                     ],
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
                         'lang'   => 'en',
-                        'text'   => 'Never play two consecutive sixth chords with doubled voices unless the doubled notes remain the same.',
+                        'text'   => 'two consecutive doubled sixth chords would produce parallel fifths and parallel octaves at once',
+                    ],
+                    [
+                        'author'         => 'Gasparini, Francesco',
+                        'ref'            => 'L\'Armonico Pratico al Cimbalo. Quarta impressione. Bologna: Giuseppe Antonio Silvani, 1722, 13.',
+                        'lang'           => 'it',
+                        'text'           => 'Ne si considerino per adesso le Ottave, o Quinte, che si proibiscono una appresso l\'altra per l\'istesso moto, cioè due Quinte, e due Ottave, che a suo luogo si dirà il modo di fugir, o salvar simili errori.',
+                        'translation'    => 'Que l\'on ne considère pas pour l\'instant les octaves ou les quintes, qui sont interdites l\'une après l\'autre par le même mouvement, c\'est-à-dire deux quintes et deux octaves ; on dira en son lieu la manière de fuir ou de sauver de semblables fautes.',
+                        'translation_by' => 'traduction non éditoriale',
+                    ],
+                    [
+                        'author' => 'Delair, Denis',
+                        'ref'    => 'Traité d\'accompagnement pour le théorbe et le clavessin. Paris, 1690, 59 (fac-similé Minkoff, Genève, 1972). Transcription diplomatique ; u/v et i/j normalisés.',
+                        'lang'   => 'fr',
+                        'text'   => 'Si la basse monte en sorte que l\'on soit obligé de monter aussi les accords, il faut faire en sorte de dégager la main droite sur une note où l\'on doit faire la sexte, d\'autant que pour lors se passant d\'octave, et ne faisant que la tierce, et la sexte, doublées tant que l\'on voudra, on evitera les deux quintes et les deux octaves.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -406,21 +479,15 @@ PHP,
             [
                 'priority' => 45,
                 'name'     => 'leading_tone_resolves_up',
-                'source'   => 'Lambert [1707]; Christensen 2002, 18, 36',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 18, 36',
                 'definition' => 'The leading tone must resolve upward to the tonic.',
                 'translation' => 'Whatever voice holds a leading tone (major 7th of the scale) must move upward — to the tonic — in the following chord. A voice that stayed on or descended from the leading tone incurs a penalty.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
-                        'lang'   => 'en',
-                        'text'   => 'When the bass ascends from the leading tone to the tonic, the third or the sixth must be doubled — implying that the leading tone itself must resolve upward to the tonic.',
-                    ],
-                    [
                         'author' => 'Christensen, Jesper Bøje',
                         'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 36.',
                         'lang'   => 'en',
-                        'text'   => 'The augmented fifth assumes the function of a leading tone when in the top voice; it should resolve upward to the sixth.',
+                        'text'   => 'Since the #5 assumes the function of a leading tone, it should resolve upwards when played in the top voice, as shown in Dandrieu\'s example at the bottom of page 35.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -442,21 +509,21 @@ PHP,
             [
                 'priority' => 46,
                 'name'     => 'seventh_resolves_down',
-                'source'   => 'Lambert [1707]; Heinichen [1728]; Christensen 2002, 28, 78',
+                'source'   => 'St. Lambert [1707]; Heinichen [1728]; Christensen 2002, 28, 78',
                 'definition' => 'The dissonant seventh invariably resolves one step downward.',
                 'translation' => 'Whatever the case, the dissonant seventh invariably resolves one step downward. A voice that held a seventh above the previous bass must move down in the current chord.',
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 77.',
                         'lang'   => 'en',
-                        'text'   => 'Whatever way the seventh is introduced, it invariably resolves one step downwards.',
+                        'text'   => 'When the 7 appears in isolation above a [bass] note, that is, without the 6, it is not resolved until the next bass note, where it descends a half-step or a whole step. In such cases, the seventh is combined with the third and the fifth.',
                     ],
                     [
                         'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 28.',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 78.',
                         'lang'   => 'en',
-                        'text'   => 'The dissonant 7 must always be resolved. The 6 is regularly omitted following the 7.',
+                        'text'   => 'Instead of being tied over from the preceding chord, the seventh can also be introduced stepwise from above or below, and occasionally even by a small leap. Whatever the case, it invariably resolves one step downwards.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -478,27 +545,21 @@ PHP,
             [
                 'priority' => 47,
                 'name'     => 'fourth_resolves_down',
-                'source'   => 'Lambert [1707]; Dandrieu [1719]; Heinichen [1728]; Christensen 2002, 22–23, 71',
+                'source'   => 'St. Lambert [1707]; Dandrieu [1719]; Heinichen [1728]; Christensen 2002, 22–23, 71',
                 'definition' => 'The suspended fourth is always resolved downward by step to the third (4–3).',
                 'translation' => 'A suspended fourth occurring in any upper voice is always sustained and resolved downward by step to the third. A voice that held a fourth (5 semitones) above the previous bass must move down.',
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 11.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 71.',
                         'lang'   => 'en',
-                        'text'   => 'Pay special attention to the rule that the fourth occurring in the upper or middle voice of the preceding chord is always sustained in the same voice and resolved downward to the neighboring third (4–3). In this case, voice exchange is prohibited.',
+                        'text'   => 'Pay special attention to the rule that the fourth occurring in the upper or middle voice of the preceding chord is always sustained in the same voice and resolved downward to the neighboring third (4-3). In this case, voice exchange is prohibited. The fourth is usually combined with the fifth and the octave.',
                     ],
                     [
-                        'author' => 'Dandrieu, Jean-François',
-                        'ref'    => 'Principes de l\'Accompagnement du Clavecin. Paris, 1719. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 13.',
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 71.',
                         'lang'   => 'en',
-                        'text'   => 'The chord with the fourth also includes the fifth and the octave. It is a dissonant chord that very frequently occurs on the dominant, but only when it can resolve to a major third on the same bass note.',
-                    ],
-                    [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 12.',
-                        'lang'   => 'en',
-                        'text'   => 'The 4 must be prepared by the preceding chord and resolved stepwise downward. Outside cadential progressions, the resolution may be a half step or a whole step downward.',
+                        'text'   => 'If only the 4 is written on a note [i.e., if the bass continues without waiting for the resolution], it is resolved on the next bass note in accordance with the rule and without voice exchange – that is, one step downward.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -526,9 +587,9 @@ PHP,
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 11.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 81.',
                         'lang'   => 'en',
-                        'text'   => 'The ninth is prepared in the preceding chord and resolved to the next octave (8). If the 8 is omitted from the figure, the ninth resolves stepwise downward on the next bass note.',
+                        'text'   => 'The ninth (9) is prepared in the preceding chord and resolved to the next octave (8). If the 8 is omitted from the figure, the ninth resolves stepwise downward on the next [bass] note. The other notes in the chord are usually the third and the fifth.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -555,9 +616,9 @@ PHP,
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 14.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 84.',
                         'lang'   => 'en',
-                        'text'   => 'The augmented fifth is used in cases where it has been prepared in the preceding chord and resolves upward to the sixth. In this case, it is usually combined with the third and the octave.',
+                        'text'   => 'in cases where it has been prepared in the preceding chord and resolves upward to the sixth. In this case, the augmented fifth is usually combined with the third and the octave. However, it is frequently joined by the fourth, seventh, and ninth, the entire preceding chord being tied over into the next.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -578,14 +639,7 @@ PHP,
                 'source'   => 'Christensen 2002, 18',
                 'definition' => 'Hidden (direct) fifths between soprano and bass are avoided when the soprano leaps.',
                 'translation' => 'Hidden fifths occur when soprano and bass move in the same direction by leap into a perfect fifth. Penalise when the soprano leaps more than a step, both voices move in the same direction, and the resulting outer-voice interval is a fifth or octave.',
-                'citations' => [
-                    [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
-                        'lang'   => 'en',
-                        'text'   => 'Contrary motion between the hands helps to prevent parallel octaves or fifths — including those approached by similar motion (hidden fifths) — from occurring.',
-                    ],
-                ],
+                'citations' => [],
                 'implementation' => <<<'PHP'
 if ($ctx['isStart'] || count($ctx['prev']) < 3) { return 0.0; }
 $soprano     = $ctx['curr'][2];
@@ -607,10 +661,16 @@ PHP,
                 'translation' => 'The tenor, alto, and soprano voices must always remain in ascending order of pitch. A voice that crosses below a lower voice incurs a heavy penalty.',
                 'citations' => [
                     [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 71.',
                         'lang'   => 'en',
-                        'text'   => 'In four-voice realization the voices must remain clearly distinct: tenor below alto below soprano. Voice crossing destroys this distinction and produces faulty voice leading.',
+                        'text'   => 'Pay special attention to the rule that the fourth occurring in the upper or middle voice of the preceding chord is always sustained in the same voice and resolved downward to the neighboring third (4-3). In this case, voice exchange is prohibited.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 77.',
+                        'lang'   => 'en',
+                        'text'   => 'This makes it perfectly clear that Heinichen, unlike Dandrieu and, with a certain caveat, St. Lambert (Chapter I, sec. 10), does not condone free voice-exchange in the middle voices.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -630,16 +690,18 @@ PHP,
                 'translation' => 'If a pitch-class is shared between two consecutive chords, it should be kept in the same voice rather than being transferred. Unnecessary motion away from a common tone incurs a penalty.',
                 'citations' => [
                     [
-                        'author' => 'Delair, Denis',
-                        'ref'    => 'Traité d\'accompagnement pour le théorbe et la clavessin. Paris, [1690]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 13.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 12.',
                         'lang'   => 'en',
-                        'text'   => 'In pieces in a quick tempo, it is sufficient, for those bass notes falling on the latter half of a downbeat, to strike only those pitches not found in the harmony occurring on the downbeat, thus retaining every note in the previous chord that fits the new harmony.',
+                        'text'   => 'to play all adjacent chords as close to each other as possible. Always check to see whether some of the notes in the previous chord may be retained in the next one. If so, leave them unchanged.',
                     ],
                     [
-                        'author' => 'Dandrieu, Jean-François',
-                        'ref'    => 'Principes de l\'Accompagnement du Clavecin. Paris, 1719. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
-                        'lang'   => 'en',
-                        'text'   => 'To connect the harmonies in the best possible manner — this being the sine qua non of perfect thoroughbass playing.',
+                        'author'         => 'Gasparini, Francesco',
+                        'ref'            => 'L\'Armonico Pratico al Cimbalo. Quarta impressione. Bologna: Giuseppe Antonio Silvani, 1722, 12.',
+                        'lang'           => 'it',
+                        'text'           => 'Movendosi da una nota all\'altra si deve osservare di scomodar la mano destra meno, che sia possibile; mentre non si dà movimento di Basso, dove trà gli accompagnamenti alcun tasto non possa restar fermo, ed altri partir solamente di grado, o salendo, o descendendo.',
+                        'translation'    => 'En passant d\'une note à l\'autre, on doit veiller à déranger la main droite le moins possible ; car il n\'est pas de mouvement de basse où, parmi les accompagnements, quelque touche ne puisse rester en place, les autres ne se déplaçant que par degré, en montant ou en descendant.',
+                        'translation_by' => 'traduction non éditoriale',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -681,9 +743,15 @@ PHP,
                 'citations' => [
                     [
                         'author' => 'Heinichen, Johann David',
-                        'ref'    => 'Der General-Bass in der Composition. 2nd ed. Dresden, 1728 [1711]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 11.',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 71.',
                         'lang'   => 'en',
-                        'text'   => 'The fourth occurring in the upper or middle voice of the preceding chord is always sustained in the same voice and resolved downward to the neighboring third (4–3). In this case, voice exchange is prohibited.',
+                        'text'   => 'The fourth is usually combined with the fifth and the octave.',
+                    ],
+                    [
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 71.',
+                        'lang'   => 'en',
+                        'text'   => 'The fourth may also be combined with the sixth instead of the fifth. In this case, it is not necessarily tied over from the previous chord, but it is resolved downward as usual.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -706,16 +774,12 @@ PHP,
                 'translation' => 'Smooth voice leading is the primary criterion for chord position. Common tones cost nothing; semitone or whole-tone steps cost little; leaps grow increasingly expensive.',
                 'citations' => [
                     [
-                        'author' => 'Dandrieu, Jean-François',
-                        'ref'    => 'Principes de l\'Accompagnement du Clavecin. Paris, 1719. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
-                        'lang'   => 'en',
-                        'text'   => 'To connect the harmonies in the best possible manner — this being the sine qua non of perfect thoroughbass playing.',
-                    ],
-                    [
-                        'author' => 'Wead, Andrew, and Ian Knopke',
-                        'ref'    => '"Basso Continuo Realization." In Proceedings of the International Computer Music Conference (ICMC). Copenhagen, 2007. §3.2.',
-                        'lang'   => 'en',
-                        'text'   => 'Prefer common tones, then stepwise motion; penalize leaps according to size.',
+                        'author'         => 'Gasparini, Francesco',
+                        'ref'            => 'L\'Armonico Pratico al Cimbalo. Quarta impressione. Bologna: Giuseppe Antonio Silvani, 1722, 12.',
+                        'lang'           => 'it',
+                        'text'           => 'Movendosi da una nota all\'altra si deve osservare di scomodar la mano destra meno, che sia possibile; mentre non si dà movimento di Basso, dove trà gli accompagnamenti alcun tasto non possa restar fermo, ed altri partir solamente di grado, o salendo, o descendendo.',
+                        'translation'    => 'En passant d\'une note à l\'autre, on doit veiller à déranger la main droite le moins possible ; car il n\'est pas de mouvement de basse où, parmi les accompagnements, quelque touche ne puisse rester en place, les autres ne se déplaçant que par degré, en montant ou en descendant.',
+                        'translation_by' => 'traduction non éditoriale',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -744,15 +808,21 @@ PHP,
             [
                 'priority' => 72,
                 'name'     => 'seventh_prefer_fifth_over_octave',
-                'source'   => 'Lambert [1707]; Christensen 2002, 28',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 28',
                 'definition' => 'With a seventh chord, it is better to play the third and fifth than the third and octave.',
                 'translation' => 'When realizing a seventh chord, it is better to include the fifth rather than the octave of the bass. If the chord contains a seventh but has an octave doubling of the bass instead of a fifth, apply a soft penalty.',
                 'citations' => [
                     [
-                        'author' => 'Lambert, Michel de',
-                        'ref'    => 'Nouveau traité de l\'accompagnement du Clavecin. Paris, 1707. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 77.',
                         'lang'   => 'en',
-                        'text'   => 'It is better to play the third and the fifth with the seventh rather than the third and the octave. The 3 and 8 should only be played when otherwise unavoidable.',
+                        'text'   => 'In some cases the fifth cannot be played without creating a poor progression or an inadmissible exchange of voices. For these situations the octave is played instead of the fifth.',
+                    ],
+                    [
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 77.',
+                        'lang'   => 'en',
+                        'text'   => 'As it is fairly difficult to judge these conditions, we recommend that beginners avoid using the fifth in the 7-6 progression.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -779,15 +849,21 @@ PHP,
             [
                 'priority' => 75,
                 'name'     => 'contrary_motion_soprano_bass',
-                'source'   => 'Lambert [1707]; Christensen 2002, 42',
+                'source'   => 'St. Lambert [1707]; Christensen 2002, 42',
                 'definition' => 'The soprano and bass should move in contrary motion whenever possible.',
                 'translation' => 'The Soprano and Bass should move in contrary motion whenever possible. Similar motion between outer voices is penalised.',
                 'citations' => [
                     [
-                        'author' => 'Christensen, Jesper Bøje',
-                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 42.',
+                        'author' => 'Saint-Lambert, Michel de',
+                        'ref'    => 'Nouveau Traité de l\'Accompagnement du Clavecin. Paris, 1707. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 10.',
                         'lang'   => 'en',
-                        'text'   => 'In St. Lambert\'s example of stepwise bass motion in fast triple meter, the two hands proceed in strictly contrary motion. This helps to prevent parallel octaves or fifths from occurring.',
+                        'text'   => 'The hands must always move in contrary motion. In other words, when the bass rises, the accompaniment [in the right hand] must descend, and vice versa.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 10.',
+                        'lang'   => 'en',
+                        'text'   => 'As St. Lambert\'s own example shows (see above), the principle of contrary motion cannot always be strictly applied. Nevertheless, it remains the single most important basic rule of figured bass playing.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -808,16 +884,16 @@ PHP,
                 'translation' => 'In a sequence of seventh chords where the bass moves up a fourth or down a fifth, alternate between playing the fifth (and omitting the octave) in one chord and the octave (omitting the fifth) in the next. Two consecutive seventh chords that both include the fifth cause parallel fifths; two that both omit it sound thin.',
                 'citations' => [
                     [
-                        'author' => 'Telemann, Georg Philipp',
-                        'ref'    => 'Singe-, Spiel- und General-Bass-Übungen. Hamburg, [1733]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
-                        'lang'   => 'en',
-                        'text'   => 'To play a series of consecutive seventh chords in four voices, one should alternately play a fifth in one chord and omit it in the next.',
-                    ],
-                    [
                         'author' => 'Bach, Johann Sebastian',
-                        'ref'    => 'Vorschriften und Grundsätze zum vierstimmigen Spielen des General-Bass. [c. 1738]. Translated in Christensen, 18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 18.',
+                        'ref'    => 'Vorschriften und Grundsätze zum vierstimmigen Spielen des General-Bass. [c. 1738]. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 77.',
                         'lang'   => 'en',
                         'text'   => 'Play the first seventh chord with the fifth or the octave. Then, if the first chord uses the fifth, play the second with the octave, and vice versa.',
+                    ],
+                    [
+                        'author' => 'Telemann, Georg Philipp',
+                        'ref'    => 'Singe-, Spiel- und General-Bass-Übungen. Hamburg, 1733–4. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 78.',
+                        'lang'   => 'en',
+                        'text'   => 'To play a series of consecutive seventh chords in four voices, one should alternately play a fifth in one chord and omit it in the next.',
                     ],
                 ],
                 'implementation' => <<<'PHP'
@@ -846,6 +922,228 @@ $prevHasFifth = false; $currHasFifth = false;
 foreach ($ctx['prev'] as $m) { if (($m % 12 - $prevBassPc + 12) % 12 === 7) { $prevHasFifth = true; break; } }
 foreach ($ctx['curr'] as $m) { if (($m % 12 - $currBassPc + 12) % 12 === 7) { $currHasFifth = true; break; } }
 if ($prevHasFifth && $currHasFifth) { return 20.0; } // both have fifth → likely parallel fifths
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 200,
+                'name'     => 'passing_notes_unharmonized',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 42 (résumant St. Lambert et Delair)',
+                'definition' => 'Sur une basse conjointe, seules les notes des temps forts sont harmonisées ; les notes intermédiaires sont traitées comme notes de passage — sauf si elles portent un chiffrage.',
+                'translation' => 'Documentaire : le moteur harmonise aujourd\'hui chaque note de basse. Appliquer cette règle demanderait de connaître la métrique et la position de la note dans la mesure.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 42.',
+                        'lang'   => 'en',
+                        'text'   => 'Whenever the bass proceeds in stepwise motion, it suffices to harmonize the notes that fall on the main beats of the bar and to treat the notes between them as passing notes. If the unaccentuated notes have bass figures, they should be harmonized in the usual way, even if the bass should suddenly proceed in larger intervals instead of stepwise (St. Lambert).',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 201,
+                'name'     => 'one_chord_per_bar_fast_triple',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 42 (St. Lambert ; Delair)',
+                'definition' => 'Dans une mesure ternaire rapide, un seul accord par mesure suffit, dès lors que la basse est conjointe ou se meut à l\'intérieur de l\'harmonie.',
+                'translation' => 'Documentaire : suppose la connaissance du tempo et du chiffre de mesure, absents du contexte transmis aux règles.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 42.',
+                        'lang'   => 'en',
+                        'text'   => 'In a quick triple meter, it even suffices to play one chord per bar, again assuming that the bass line is stepwise.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 42.',
+                        'lang'   => 'en',
+                        'text'   => 'It also suffices to play one chord per bar in fast triple meter when the bass intervals move inside the harmony (Delair).',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 202,
+                'name'     => 'triple_meter_beats_one_and_three',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 43',
+                'definition' => 'Dans une mesure ternaire, on ne réalise normalement que les premier et troisième temps.',
+                'translation' => 'Documentaire : suppose la position métrique de la note.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 43.',
+                        'lang'   => 'en',
+                        'text'   => 'Normally, only the first and third beats of a triple-meter bar are realized.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 203,
+                'name'     => 'no_tie_across_barline',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 43',
+                'definition' => 'Les accompagnateurs du XVIIIe siècle ne liaient jamais une note par-dessus la barre de mesure, d\'un temps faible vers un temps fort.',
+                'translation' => 'Documentaire : le moteur ne produit pas de liaisons entre accords.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 43.',
+                        'lang'   => 'en',
+                        'text'   => 'It should be expressly emphasized that eighteenth-century thoroughbass players never tied notes over the bar line from an upbeat to a downbeat.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 204,
+                'name'     => 'hold_chord_on_dash',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 43 (d\'après Dandrieu)',
+                'definition' => 'Le tiret d\'un chiffrage prolonge l\'harmonie : la main droite tient l\'accord sans le rejouer. Règle empirique, que la conduite des voix peut contredire.',
+                'translation' => 'Documentaire : le moteur ne lit pas les tirets de prolongation.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 43.',
+                        'lang'   => 'en',
+                        'text'   => 'According to Dandrieu, the dash also meant that the right hand must hold the chord without repeating it. His remark should, however, only be regarded as a rule of thumb. Sometimes the voice leading makes it unavoidable to change the position of a chord, e.g., to avoid parallel octaves or fifths or a poor harmonic progression.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 205,
+                'name'     => 'retain_common_pitches_on_weak_half_beat',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 43 (Delair)',
+                'definition' => 'Dans un tempo vif, sur les notes de basse tombant dans la seconde moitié d\'un temps fort, on ne frappe que les sons absents de l\'accord précédent, gardant tout ce qui convient encore.',
+                'translation' => 'Documentaire : Christensen précise que seul Delair décrit cette pratique et qu\'on ne peut se prononcer sur sa validité générale.',
+                'citations' => [
+                    [
+                        'author' => 'Delair, Denis',
+                        'ref'    => 'Traité d\'accompagnement pour le théorbe et le clavessin. Paris, 1690. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 43.',
+                        'lang'   => 'en',
+                        'text'   => 'In pieces in a quick tempo, it is sufficient, for those [bass] notes falling on the latter half of a downbeat, to strike only those pitches not found in the harmony occurring on the downbeat, thus retaining every note in the previous chord that fits the new harmony.',
+                    ],
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 43.',
+                        'lang'   => 'en',
+                        'text'   => 'As only Delair describes this practice, we can make no pronouncements as to its universal validity.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 206,
+                'name'     => 'bass_octave_doubling',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 132 (Heinichen)',
+                'definition' => 'La main gauche peut doubler la basse à l\'octave d\'un bout à l\'autre, sauf si le tempo est trop rapide.',
+                'translation' => 'Documentaire : le moteur ne connaît ni le tempo ni la main gauche, qu\'il écrit à une seule voix.',
+                'citations' => [
+                    [
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 132.',
+                        'lang'   => 'en',
+                        'text'   => 'The latter voice was, however, granted the liberty of playing the bass in octaves throughout, unless prevented from doing so by an excessively fast tempo.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 207,
+                'name'     => 'texture_richer_on_harpsichord',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 132 (Heinichen)',
+                'definition' => 'Au clavecin, plus la texture est fournie, plus le son est harmonieux ; à l\'orgue, on évite le plein jeu dans la musique douce et hors des tutti.',
+                'translation' => 'Documentaire : le moteur ne sait pas sur quel instrument la réalisation sera jouée.',
+                'citations' => [
+                    [
+                        'author' => 'Heinichen, Johann David',
+                        'ref'    => 'Der General-Bass in der Composition. Dresden, 1728. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 132.',
+                        'lang'   => 'en',
+                        'text'   => 'The richer the texture with which one accompanies with both hands on the harpsichord, the more harmonious the sound. On the other hand, one should not become too enamored of full-voiced realizations on the organ, least of all in soft music and outside of tutti passages.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 208,
+                'name'     => 'full_doubling_licence_harpsichord',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 134 (Muffat)',
+                'definition' => 'Au clavecin, on double parfois toutes les notes de l\'accord pour remplir la texture, bien que cela soit contraire aux règles.',
+                'translation' => 'Documentaire : licence d\'exécution, non un critère de choix de voix.',
+                'citations' => [
+                    [
+                        'author' => 'Muffat, Georg',
+                        'ref'    => 'Regulae Concentuum Partiturae. 1699. Quoted in translation in Christensen, 18th-Century Continuo Playing. Kassel: Bärenreiter, 2002, 134.',
+                        'lang'   => 'en',
+                        'text'   => 'At times one doubles everything on the instrument [i.e. the harpsichord] in order to fill in [the parts], although it is against the rules.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
+return 0.0;
+PHP,
+            ],
+            [
+                'priority' => 209,
+                'name'     => 'limit_consecutive_three_voice_chords',
+                'enabled'  => false,
+                'source'   => 'Christensen 2002, 40',
+                'definition' => 'On peut réduire l\'accord à trois voix quand une basse aiguë rencontre un passage grave de la mélodie, mais jamais plus de trois ou quatre accords de suite.',
+                'translation' => 'Documentaire : demanderait au moteur de compter les accords à trois voix consécutifs, ce qu\'il ne fait pas.',
+                'citations' => [
+                    [
+                        'author' => 'Christensen, Jesper Bøje',
+                        'ref'    => '18th-Century Continuo Playing: A Historical Guide to the Basics. Kassel: Bärenreiter, 2002, 40.',
+                        'lang'   => 'en',
+                        'text'   => 'If some high notes in the bass happen to coincide with a low passage of the melody, reduce the number of voices in the chords to three. However, as we have already seen in Dandrieu\'s examples (sections 6 and 8), you should never play more than three or four such chords in a row.',
+                    ],
+                ],
+                // Documentary rule: recorded for reference, never executed
+                // (enabled = false). The stub keeps it harmless if switched on.
+                'implementation' => <<<'PHP'
 return 0.0;
 PHP,
             ],

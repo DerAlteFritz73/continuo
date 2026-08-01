@@ -1032,9 +1032,12 @@ class VoiceLeadingEngine
                 continue;
             }
             foreach ($map[$name]['citations'] as $c) {
-                // Attach the rule-level English translation to each citation entry
-                // so the template can show it alongside the original-language text.
-                $c['translation'] = $map[$name]['translation'];
+                // Only a translation carried by the citation itself is a
+                // translation OF THE QUOTATION. The rule-level field is the
+                // rule's own plain-language explanation, so showing it under a
+                // quotation labelled "translation" misrepresents both.
+                $c['translation']    ??= null;
+                $c['translation_by'] ??= null;
                 $result[] = $c;
             }
         }
