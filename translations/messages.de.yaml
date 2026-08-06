@@ -570,6 +570,7 @@ comment:
 
 # ── Hauptnavigation (Tabs) ──────────────────────────────────────────────────
 nav:
+    reline: "Faksimile neu linieren"
     aria_label: "Hauptbereiche"
     tab_realize: "Aussetzen"
     tab_settings: "Erweiterte Einstellungen"
@@ -599,3 +600,49 @@ docs:
 footer:
     deployed: "Letztes Deployment:"
     version: "Version (Commit)"
+
+# ── Faksimile neu linieren (französische Barockschlüssel) ────────────────────
+reline:
+    title: "Faksimile neu linieren"
+    back: "Zurück zum Realisierer"
+    lede: >
+        Französische Barockdrucke setzen den G-Schlüssel auf die erste und den F-Schlüssel auf
+        die dritte Linie. Verschiebt man die Linierung um eine Linie nach unten — oberste Linie
+        entfernen, unterhalb der untersten eine neue ziehen —, liest sich der Schlüssel modern.
+        Sonst bewegt sich nichts auf der Seite: jede Note behält genau die Tonhöhe, die der
+        Stecher ihr gegeben hat.
+    upload_title: "Faksimile"
+    drop_label: "Gescannte Seite oder PDF hier ablegen"
+    drop_hint: "oder klicken zum Auswählen — .pdf / .png / .jpg / .tif, max. 30 MB"
+    clef_label: "Schlüssel der Vorlage"
+    shift_label: "Linien, um die verschoben wird"
+    first_page: "Erste Seite"
+    page_count: "Seiten"
+    dpi_label: "Auflösung (dpi)"
+    ledgers_label: "Hilfslinien ergänzen"
+    ledgers_why: >
+        Standardmäßig aus: Notenkopf und Verzierungszeichen auf einer alten Platte zuverlässig
+        zu unterscheiden gelingt nicht, und eine falsch gesetzte Hilfslinie behauptet eine
+        Tonhöhe, die es nicht gibt.
+    submit: "Neu linieren"
+    working: "Seiten werden gerendert und Systeme neu liniert…"
+    view_original: "Original"
+    view_relined: "Neu liniert"
+    download: "PDF herunterladen"
+    summary: "%staves% Systeme neu liniert, %ledgers% Hilfslinien ergänzt"
+    page_label: "Seite %n%"
+    no_staves: "keine Systeme gefunden"
+    clef:
+        french_violin: "Französischer Violinschlüssel — g auf der 1. Linie"
+        baritone_f: "Bariton — f auf der 3. Linie"
+        soprano_c: "Sopran — c auf der 1. Linie"
+        mezzo_c: "Mezzosopran — c auf der 2. Linie"
+        tenor_c: "Tenor — c auf der 4. Linie"
+        custom: "Anderer — Verschiebung selbst angeben"
+    error:
+        no_file: "Bitte zuerst eine gescannte Seite oder ein PDF auswählen."
+        invalid_type: "Dieser Dateityp kann nicht gelesen werden — PDF, PNG, JPG oder TIFF verwenden."
+        too_large: "Die Datei ist größer als 30 MB."
+        no_shift: "Wählen Sie einen Schlüssel der Vorlage oder eine Verschiebung zwischen -4 und 4 Linien."
+        storage: "Arbeitsverzeichnis für diesen Lauf konnte nicht angelegt werden."
+        failed: "Die Seite konnte nicht neu liniert werden."

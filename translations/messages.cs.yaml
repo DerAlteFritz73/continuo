@@ -567,6 +567,7 @@ comment:
 
 # ── Hlavní navigace (záložky) ───────────────────────────────────────────────
 nav:
+    reline: "Přeznačit osnovu"
     aria_label: "Hlavní sekce"
     tab_realize: "Realizovat"
     tab_settings: "Pokročilá nastavení"
@@ -596,3 +597,47 @@ docs:
 footer:
     deployed: "Poslední nasazení:"
     version: "Verze (commit)"
+
+# ── Přeznačení osnovy ve faksimile (francouzské barokní klíče) ───────────────
+reline:
+    title: "Přeznačit osnovu ve faksimile"
+    back: "Zpět k realizátoru"
+    lede: >
+        Francouzské barokní tisky kladou houslový klíč na první linku a basový na třetí.
+        Posuňte linkování o jednu linku dolů — horní linku odeberte, pod spodní přidejte novou —
+        a klíč se čte jako moderní. Nic jiného se na stránce nepohne: každá nota si podrží
+        přesně tu výšku, kterou jí rytec dal.
+    upload_title: "Faksimile"
+    drop_label: "Sem přetáhněte naskenovanou stránku nebo PDF"
+    drop_hint: "nebo klikněte pro výběr — .pdf / .png / .jpg / .tif, max. 30 MB"
+    clef_label: "Klíč v předloze"
+    shift_label: "O kolik linek posunout"
+    first_page: "První stránka"
+    page_count: "Stránek"
+    dpi_label: "Rozlišení (dpi)"
+    ledgers_label: "Doplnit pomocné linky"
+    ledgers_why: >
+        Ve výchozím stavu vypnuto: rozlišit notovou hlavičku od ozdoby na staré desce není
+        spolehlivé a špatně umístěná pomocná linka tvrdí výšku, která tam není.
+    submit: "Přeznačit"
+    working: "Vykresluji stránky a přeznačuji osnovy…"
+    view_original: "Originál"
+    view_relined: "Upraveno"
+    download: "Stáhnout PDF"
+    summary: "Přeznačeno osnov: %staves%, doplněno pomocných linek: %ledgers%"
+    page_label: "Stránka %n%"
+    no_staves: "žádná osnova nenalezena"
+    clef:
+        french_violin: "Francouzský houslový — g na 1. lince"
+        baritone_f: "Barytonový — f na 3. lince"
+        soprano_c: "Sopránový — c na 1. lince"
+        mezzo_c: "Mezzosopránový — c na 2. lince"
+        tenor_c: "Tenorový — c na 4. lince"
+        custom: "Jiný — posun zadat ručně"
+    error:
+        no_file: "Nejprve vyberte naskenovanou stránku nebo PDF."
+        invalid_type: "Tento typ souboru nelze načíst — použijte PDF, PNG, JPG nebo TIFF."
+        too_large: "Soubor je větší než 30 MB."
+        no_shift: "Zvolte klíč předlohy nebo posun mezi -4 a 4 linkami."
+        storage: "Nepodařilo se vytvořit pracovní adresář."
+        failed: "Stránku se nepodařilo přeznačit."

@@ -48,6 +48,16 @@ RUN python3 -m venv /opt/audio-venv \
 # AudioChromagramExtractor reads this to locate the librosa interpreter.
 ENV AUDIO_PYTHON_BIN=/opt/audio-venv/bin/python
 
+# Second venv for the facsimile staff re-liner (bin/staff_reline.py).  Kept
+# apart from the audio one so a numpy bump for librosa cannot break OpenCV, and
+# so neither venv has to be rebuilt when the other's pins move.
+COPY bin/reline-requirements.txt /tmp/reline-requirements.txt
+RUN python3 -m venv /opt/reline-venv \
+    && /opt/reline-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/reline-venv/bin/pip install --no-cache-dir -r /tmp/reline-requirements.txt
+# StaffRelineService reads this to locate the OpenCV interpreter.
+ENV RELINE_PYTHON_BIN=/opt/reline-venv/bin/python
+
 WORKDIR /var/www/continuo
 
 # Copy vendor from composer stage
@@ -60,7 +70,7 @@ COPY --from=node /app/public/build ./public/build
 COPY . .
 
 # Ensure runtime dirs exist and are writable
-RUN mkdir -p var/cache var/log var/share \
+RUN mkdir -p var/cache var/log var/share var/reline \
     && chown -R www-data:www-data var/ public/build/
 
 # nginx vhost (Debian loads /etc/nginx/conf.d/*.conf; drop the stock default site)

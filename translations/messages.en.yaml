@@ -607,6 +607,7 @@ comment:
 
 # ── Main navigation (tabs) ──────────────────────────────────────────────────
 nav:
+    reline: "Re-line a facsimile"
     aria_label: "Main sections"
     tab_realize: "Realize"
     tab_settings: "Advanced settings"
@@ -636,3 +637,47 @@ docs:
 footer:
     deployed: "Last deploy:"
     version: "Version (commit)"
+
+# ── Facsimile re-lining (French baroque clefs) ───────────────────────────────
+reline:
+    title: "Re-line a facsimile"
+    back: "Back to the realizer"
+    lede: >
+        French baroque prints put the G clef on the first line and the F clef on the third.
+        Move the ruling down one line — drop the top line, add one below the bottom — and the
+        clef reads as a modern one. Nothing else on the page moves, so every note keeps
+        exactly the pitch the engraver gave it.
+    upload_title: "Facsimile"
+    drop_label: "Drop a scanned page or PDF here"
+    drop_hint: "or click to browse — .pdf / .png / .jpg / .tif, max 30 MB"
+    clef_label: "Clef in the source"
+    shift_label: "Lines to move the ruling"
+    first_page: "First page"
+    page_count: "Pages"
+    dpi_label: "Resolution (dpi)"
+    ledgers_label: "Add ledger lines"
+    ledgers_why: >
+        Off by default: telling a notehead from an ornament on an old plate is unreliable, and a
+        ledger line in the wrong place states a pitch that is not there.
+    submit: "Re-line"
+    working: "Rendering the pages and re-ruling the staves…"
+    view_original: "Original"
+    view_relined: "Re-lined"
+    download: "Download PDF"
+    summary: "%staves% staves re-ruled, %ledgers% ledger lines added"
+    page_label: "Page %n%"
+    no_staves: "no staves found"
+    clef:
+        french_violin: "French violin — G on the 1st line"
+        baritone_f: "Baritone — F on the 3rd line"
+        soprano_c: "Soprano — C on the 1st line"
+        mezzo_c: "Mezzo-soprano — C on the 2nd line"
+        tenor_c: "Tenor — C on the 4th line"
+        custom: "Other — set the shift by hand"
+    error:
+        no_file: "Choose a scanned page or PDF first."
+        invalid_type: "That file type cannot be read — use PDF, PNG, JPG or TIFF."
+        too_large: "That file is larger than 30 MB."
+        no_shift: "Choose a source clef, or a shift between -4 and 4 lines."
+        storage: "Could not create a working directory for this run."
+        failed: "The page could not be re-lined."

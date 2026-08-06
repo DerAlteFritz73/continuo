@@ -1,0 +1,296 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'reline.title'|trans }}{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: #1a1a1a;
+    color: #e8e0d4;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+.wrapper { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+.site-header { text-align: center; margin-bottom: 2.2rem; }
+.site-header h1 { font-family: 'Playfair Display', serif; font-size: 2.4rem; color: #f0e6c8; letter-spacing: .03em; }
+.site-header .subtitle { font-size: .85rem; color: #8a8070; text-transform: uppercase; letter-spacing: .12em; margin-bottom: .5rem; }
+.site-header .lede { max-width: 680px; margin: .8rem auto 0; color: #a89f8f; font-size: .92rem; }
+
+.back-link {
+    display: inline-flex; align-items: center; gap: .5rem; color: #c8a96e; text-decoration: none;
+    font-size: .85rem; margin-bottom: 1.5rem; padding: .5rem 1.05rem;
+    background: rgba(200,169,110,.08); border: 1px solid rgba(200,169,110,.32); border-radius: 999px;
+}
+.back-link:hover { background: rgba(200,169,110,.16); }
+
+.card { background: #22201d; border: 1px solid #322e29; border-radius: 12px; padding: 1.6rem; margin-bottom: 1.5rem; }
+.card h2 { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: #f0e6c8; margin-bottom: 1rem; }
+
+.drop {
+    border: 2px dashed #3d382f; border-radius: 10px; padding: 2rem 1rem; text-align: center;
+    cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: #c8a96e; background: rgba(200,169,110,.06); }
+.drop .big { font-size: 1.05rem; color: #e8e0d4; }
+.drop .hint { font-size: .82rem; color: #8a8070; margin-top: .35rem; }
+.drop .chosen { color: #c8a96e; font-size: .9rem; margin-top: .6rem; word-break: break-all; }
+input[type=file] { display: none; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-top: 1.3rem; }
+label.field { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: #8a8070; margin-bottom: .35rem; }
+select, input[type=number] {
+    width: 100%; background: #1a1a1a; color: #e8e0d4; border: 1px solid #3d382f;
+    border-radius: 7px; padding: .55rem .7rem; font-family: inherit; font-size: .92rem;
+}
+select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
+.check { display: flex; align-items: flex-start; gap: .55rem; margin-top: 1.2rem; font-size: .88rem; color: #a89f8f; }
+.check input { margin-top: .3rem; accent-color: #c8a96e; }
+.check .why { display: block; font-size: .78rem; color: #7d7466; }
+
+.btn {
+    display: inline-block; background: #c8a96e; color: #1a1a1a; border: none; border-radius: 999px;
+    padding: .7rem 1.8rem; font-family: inherit; font-size: .95rem; font-weight: 600; cursor: pointer;
+    margin-top: 1.4rem;
+}
+.btn:hover { background: #d8bb80; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: transparent; color: #c8a96e; border: 1px solid rgba(200,169,110,.4); }
+
+.status { margin-top: 1rem; font-size: .88rem; color: #8a8070; }
+.status.error { color: #d98b7a; }
+
+/* ── Results ── */
+#results { display: none; }
+.result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-bottom: 1.2rem; }
+.toggle { display: inline-flex; border: 1px solid #3d382f; border-radius: 999px; overflow: hidden; }
+.toggle button {
+    background: transparent; color: #a89f8f; border: none; padding: .5rem 1.15rem;
+    font-family: inherit; font-size: .85rem; cursor: pointer;
+}
+.toggle button.on { background: #c8a96e; color: #1a1a1a; font-weight: 600; }
+.meta { font-size: .82rem; color: #7d7466; }
+
+.page { margin-bottom: 1.8rem; }
+.page-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: #7d7466; margin-bottom: .45rem; }
+/* Both states are stacked in the same box so flipping between them does not
+   move the page under the reader's eye. */
+.stack { position: relative; background: #fff; border: 1px solid #322e29; border-radius: 8px; overflow: hidden; }
+.stack img { display: block; width: 100%; height: auto; }
+.stack img.under { position: absolute; inset: 0; }
+.stack img.hidden { visibility: hidden; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="wrapper">
+    <a class="back-link" href="{{ path('app_home') }}">← {{ 'reline.back'|trans }}</a>
+
+    <header class="site-header">
+        <div class="subtitle">{{ 'app.subtitle'|trans }}</div>
+        <h1>{{ 'reline.title'|trans }}</h1>
+        <p class="lede">{{ 'reline.lede'|trans }}</p>
+    </header>
+
+    <form id="reline-form" class="card">
+        <h2>{{ 'reline.upload_title'|trans }}</h2>
+
+        <div class="drop" id="drop">
+            <div class="big">{{ 'reline.drop_label'|trans }}</div>
+            <div class="hint">{{ 'reline.drop_hint'|trans }}</div>
+            <div class="chosen" id="chosen"></div>
+        </div>
+        <input type="file" id="file" name="facsimile" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff">
+
+        <div class="grid">
+            <div>
+                <label class="field" for="clef">{{ 'reline.clef_label'|trans }}</label>
+                <select id="clef" name="clef">
+                    {% for clef in clefs %}
+                        <option value="{{ clef }}">{{ ('reline.clef.' ~ clef)|trans }}</option>
+                    {% endfor %}
+                    <option value="custom">{{ 'reline.clef.custom'|trans }}</option>
+                </select>
+            </div>
+            <div id="shift-field" style="display:none">
+                <label class="field" for="shift">{{ 'reline.shift_label'|trans }}</label>
+                <input type="number" id="shift" name="shift" value="1" min="-4" max="4" step="1">
+            </div>
+            <div>
+                <label class="field" for="firstPage">{{ 'reline.first_page'|trans }}</label>
+                <input type="number" id="firstPage" name="firstPage" value="1" min="1" step="1">
+            </div>
+            <div>
+                <label class="field" for="pageCount">{{ 'reline.page_count'|trans }}</label>
+                <input type="number" id="pageCount" name="pageCount" value="4" min="1" max="{{ maxPages }}" step="1">
+            </div>
+            <div>
+                <label class="field" for="dpi">{{ 'reline.dpi_label'|trans }}</label>
+                <select id="dpi" name="dpi">
+                    <option value="200">200</option>
+                    <option value="300" selected>300</option>
+                    <option value="400">400</option>
+                </select>
+            </div>
+        </div>
+
+        <label class="check">
+            <input type="checkbox" id="ledgers" name="ledgers" value="1">
+            <span>
+                {{ 'reline.ledgers_label'|trans }}
+                <span class="why">{{ 'reline.ledgers_why'|trans }}</span>
+            </span>
+        </label>
+
+        <button type="submit" class="btn" id="submit">{{ 'reline.submit'|trans }}</button>
+        <div class="status" id="status"></div>
+    </form>
+
+    <section id="results" class="card">
+        <div class="result-bar">
+            <div class="toggle">
+                <button type="button" id="show-before">{{ 'reline.view_original'|trans }}</button>
+                <button type="button" id="show-after" class="on">{{ 'reline.view_relined'|trans }}</button>
+            </div>
+            <a class="btn ghost" id="download" style="margin-top:0" download>{{ 'reline.download'|trans }}</a>
+            <span class="meta" id="summary"></span>
+        </div>
+        <div id="pages"></div>
+    </section>
+</div>
+
+<script>
+const TRANS = {
+    working:  {{ 'reline.working'|trans|json_encode|raw }},
+    noFile:   {{ 'reline.error.no_file'|trans|json_encode|raw }},
+    summary:  {{ 'reline.summary'|trans|json_encode|raw }},
+    pageLabel:{{ 'reline.page_label'|trans|json_encode|raw }},
+    noStaves: {{ 'reline.no_staves'|trans|json_encode|raw }}
+};
+
+const form   = document.getElementById('reline-form');
+const drop   = document.getElementById('drop');
+const input  = document.getElementById('file');
+const chosen = document.getElementById('chosen');
+const status = document.getElementById('status');
+const clef   = document.getElementById('clef');
+
+clef.addEventListener('change', () => {
+    document.getElementById('shift-field').style.display = clef.value === 'custom' ? '' : 'none';
+});
+
+drop.addEventListener('click', () => input.click());
+['dragenter', 'dragover'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.add('over');
+}));
+['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', ev => {
+    if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; showChosen(); }
+});
+input.addEventListener('change', showChosen);
+
+function showChosen() {
+    chosen.textContent = input.files.length ? input.files[0].name : '';
+}
+
+form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (!input.files.length) { fail(TRANS.noFile); return; }
+
+    const btn = document.getElementById('submit');
+    btn.disabled = true;
+    status.className = 'status';
+    status.textContent = TRANS.working;
+
+    const data = new FormData();
+    data.append('facsimile', input.files[0]);
+    data.append('clef', clef.value);
+    data.append('shift', document.getElementById('shift').value);
+    data.append('firstPage', document.getElementById('firstPage').value);
+    data.append('pageCount', document.getElementById('pageCount').value);
+    data.append('dpi', document.getElementById('dpi').value);
+    if (document.getElementById('ledgers').checked) data.append('ledgers', '1');
+
+    try {
+        const res  = await fetch({{ path('app_reline_run')|json_encode|raw }}, { method: 'POST', body: data });
+        const json = await res.json();
+        if (!res.ok || !json.success) { fail(json.detail || json.error || 'Error'); return; }
+        render(json);
+        status.textContent = '';
+    } catch (e) {
+        fail(e.message);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+function fail(message) {
+    status.className = 'status error';
+    status.textContent = message;
+}
+
+function render(data) {
+    const host = document.getElementById('pages');
+    host.innerHTML = '';
+
+    let staves = 0, ledgers = 0;
+    data.pages.forEach(page => {
+        staves  += page.staves;
+        ledgers += page.ledgers;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'page';
+
+        const label = document.createElement('div');
+        label.className = 'page-label';
+        label.textContent = TRANS.pageLabel.replace('%n%', page.index + 1)
+            + ' — ' + (page.staves ? page.staves + ' × 5' : TRANS.noStaves);
+        wrap.appendChild(label);
+
+        const stack = document.createElement('div');
+        stack.className = 'stack';
+        const before = new Image();
+        before.src = page.before;
+        before.className = 'under hidden';
+        before.alt = '';
+        const after = new Image();
+        after.src = page.after;
+        after.alt = '';
+        stack.append(after, before);
+        wrap.appendChild(stack);
+        host.appendChild(wrap);
+    });
+
+    document.getElementById('summary').textContent = TRANS.summary
+        .replace('%staves%', staves).replace('%ledgers%', ledgers);
+
+    const dl = document.getElementById('download');
+    if (data.pdf) { dl.href = data.pdf; dl.style.display = ''; } else { dl.style.display = 'none'; }
+
+    document.getElementById('results').style.display = 'block';
+    setView('after');
+}
+
+function setView(which) {
+    document.querySelectorAll('.stack').forEach(stack => {
+        const [after, before] = stack.children;
+        before.classList.toggle('hidden', which !== 'before');
+        after.classList.toggle('hidden', which === 'before');
+    });
+    document.getElementById('show-before').classList.toggle('on', which === 'before');
+    document.getElementById('show-after').classList.toggle('on', which !== 'before');
+}
+
+document.getElementById('show-before').addEventListener('click', () => setView('before'));
+document.getElementById('show-after').addEventListener('click', () => setView('after'));
+</script>
+{% endblock %}

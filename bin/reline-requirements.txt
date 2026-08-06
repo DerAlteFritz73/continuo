@@ -1,0 +1,14 @@
+# Python dependencies for the facsimile staff re-liner (bin/staff_reline.py).
+# Installed into a project-local venv that StaffRelineService invokes.
+#
+#   python3 -m venv var/reline-venv
+#   var/reline-venv/bin/pip install -r bin/reline-requirements.txt
+#
+# opencv-python-headless rather than opencv-python: the sidecar never opens a
+# window, and the headless wheel drops the GUI stack (libGL and friends) that
+# would otherwise have to be installed into the image.
+# Versions pinned to what the feature was verified against.
+numpy==2.4.6
+opencv-python-headless==5.0.0.93
+pillow==12.3.0
+pypdfium2==5.12.1

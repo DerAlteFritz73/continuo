@@ -31,3 +31,6 @@ public/*.pdf
 /phpunit.xml
 /.phpunit.cache/
 ###< phpunit/phpunit ###
+
+# Python sidecar bytecode
+/bin/__pycache__/

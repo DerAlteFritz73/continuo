@@ -8,8 +8,8 @@ cd /var/www/continuo
 # console command through `docker exec` (which is root by default) leaves
 # root-owned directories behind; php-fpm then runs as www-data and cannot write
 # its cache, which surfaces as a 500 "Unable to create the cache directory".
-mkdir -p var/cache var/log var/share
-chown -R www-data:www-data var/cache var/log var/share
+mkdir -p var/cache var/log var/share var/reline
+chown -R www-data:www-data var/cache var/log var/share var/reline
 
 # Warm the cache AS www-data, so every file it creates is writable by the
 # workers that will later refresh it.

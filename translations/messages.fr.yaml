@@ -618,6 +618,7 @@ comment:
 
 # ── Navigation principale (onglets) ─────────────────────────────────────────
 nav:
+    reline: "Redessiner une portée"
     aria_label: "Sections principales"
     tab_realize: "Réaliser"
     tab_settings: "Réglages avancés"
@@ -647,3 +648,48 @@ docs:
 footer:
     deployed: "Dernier déploiement :"
     version: "Version (commit)"
+
+# ── Réglure des fac-similés (clés baroques françaises) ───────────────────────
+reline:
+    title: "Redessiner la portée d'un fac-similé"
+    back: "Retour au réalisateur"
+    lede: >
+        Les éditions baroques françaises placent la clé de sol sur la première ligne et la clé
+        de fa sur la troisième. Déplacez la réglure d'une ligne vers le bas — supprimez la ligne
+        supérieure, ajoutez-en une sous la dernière — et la clé se lit comme une clé moderne.
+        Rien d'autre ne bouge sur la page : chaque note conserve exactement la hauteur que le
+        graveur lui a donnée.
+    upload_title: "Fac-similé"
+    drop_label: "Déposez ici une page numérisée ou un PDF"
+    drop_hint: "ou cliquez pour parcourir — .pdf / .png / .jpg / .tif, 30 Mo maximum"
+    clef_label: "Clé de la source"
+    shift_label: "Lignes de décalage de la réglure"
+    first_page: "Première page"
+    page_count: "Pages"
+    dpi_label: "Résolution (ppp)"
+    ledgers_label: "Ajouter les lignes supplémentaires"
+    ledgers_why: >
+        Désactivé par défaut : distinguer une tête de note d'un agrément sur une planche ancienne
+        n'est pas fiable, et une ligne supplémentaire mal placée indique une hauteur qui n'existe pas.
+    submit: "Redessiner"
+    working: "Rendu des pages et déplacement des portées…"
+    view_original: "Original"
+    view_relined: "Modifié"
+    download: "Télécharger le PDF"
+    summary: "%staves% portées redessinées, %ledgers% lignes supplémentaires ajoutées"
+    page_label: "Page %n%"
+    no_staves: "aucune portée détectée"
+    clef:
+        french_violin: "Clé de sol française — sol sur la 1re ligne"
+        baritone_f: "Baryton — fa sur la 3e ligne"
+        soprano_c: "Soprano (dessus) — ut sur la 1re ligne"
+        mezzo_c: "Mezzo-soprano — ut sur la 2e ligne"
+        tenor_c: "Ténor — ut sur la 4e ligne"
+        custom: "Autre — définir le décalage à la main"
+    error:
+        no_file: "Choisissez d'abord une page numérisée ou un PDF."
+        invalid_type: "Ce type de fichier ne peut pas être lu — utilisez PDF, PNG, JPG ou TIFF."
+        too_large: "Ce fichier dépasse 30 Mo."
+        no_shift: "Choisissez une clé source, ou un décalage compris entre -4 et 4 lignes."
+        storage: "Impossible de créer le dossier de travail pour ce traitement."
+        failed: "La page n'a pas pu être redessinée."
