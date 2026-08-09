@@ -654,8 +654,9 @@ reline:
     title: "Redessiner la portée d'un fac-similé"
     back: "Retour au réalisateur"
     lede: >
-        Les éditions baroques françaises placent la clé de sol sur la première ligne et la clé
-        de fa sur la troisième. Déplacez la réglure d'une ligne vers le bas — supprimez la ligne
+        Certaines éditions baroques utilisent des clefs peu utilisés aujourd'hui, par exemple
+        la clé de sol sur la première ligne ou la clé de fa sur la troisième. Déplacez la
+        réglure d'une ligne vers le bas — supprimez la ligne
         supérieure, ajoutez-en une sous la dernière — et la clé se lit comme une clé moderne.
         Rien d'autre ne bouge sur la page : chaque note conserve exactement la hauteur que le
         graveur lui a donnée.
@@ -666,6 +667,7 @@ reline:
     shift_label: "Lignes de décalage de la réglure"
     first_page: "Première page"
     page_count: "Pages"
+    last_page: "Dernière page"
     dpi_label: "Résolution (ppp)"
     ledgers_label: "Ajouter les lignes supplémentaires"
     ledgers_why: >
@@ -679,6 +681,9 @@ reline:
     summary: "%staves% portées redessinées, %ledgers% lignes supplémentaires ajoutées"
     page_label: "Page %n%"
     no_staves: "aucune portée détectée"
+    prev_page: "Page précédente"
+    next_page: "Page suivante"
+    page_of: "Page %n% sur %total%"
     clef:
         french_violin: "Clé de sol française — sol sur la 1re ligne"
         baritone_f: "Baryton — fa sur la 3e ligne"

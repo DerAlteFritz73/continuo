@@ -104,6 +104,41 @@ class StaffRelineService
     }
 
     /**
+     * How many pages the facsimile has, for pre-filling the form. A PDF's page
+     * count, or 1 for a single-image scan. Does not render anything, so it stays
+     * cheap enough to run the moment a file is chosen.
+     */
+    public function countPages(string $path): int
+    {
+        if (!is_file($path)) {
+            throw new \RuntimeException(sprintf('Facsimile not found: %s', $path));
+        }
+
+        $process = new Process([
+            $this->resolvePythonBin(),
+            $this->projectDir . '/bin/staff_reline.py',
+            $path,
+            '--mode', 'count',
+        ]);
+        $process->setTimeout(60.0);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException(sprintf(
+                'Page count failed: %s',
+                trim($process->getErrorOutput()) ?: 'no error output',
+            ));
+        }
+
+        $decoded = json_decode(trim($process->getOutput()), true);
+        if (!is_array($decoded) || !isset($decoded['count']) || !is_int($decoded['count'])) {
+            throw new \RuntimeException('Page count returned unexpected output.');
+        }
+
+        return $decoded['count'];
+    }
+
+    /**
      * @param list<string> $args
      *
      * @return array{input:string, dpi:int, shift:int, pages:list<array<string,mixed>>}

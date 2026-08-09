@@ -614,6 +614,7 @@ reline:
     shift_label: "O kolik linek posunout"
     first_page: "První stránka"
     page_count: "Stránek"
+    last_page: "Poslední stránka"
     dpi_label: "Rozlišení (dpi)"
     ledgers_label: "Doplnit pomocné linky"
     ledgers_why: >
@@ -627,6 +628,9 @@ reline:
     summary: "Přeznačeno osnov: %staves%, doplněno pomocných linek: %ledgers%"
     page_label: "Stránka %n%"
     no_staves: "žádná osnova nenalezena"
+    prev_page: "Předchozí stránka"
+    next_page: "Další stránka"
+    page_of: "Stránka %n% z %total%"
     clef:
         french_violin: "Francouzský houslový — g na 1. lince"
         baritone_f: "Barytonový — f na 3. lince"

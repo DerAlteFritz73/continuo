@@ -654,6 +654,7 @@ reline:
     shift_label: "Lines to move the ruling"
     first_page: "First page"
     page_count: "Pages"
+    last_page: "Last page"
     dpi_label: "Resolution (dpi)"
     ledgers_label: "Add ledger lines"
     ledgers_why: >
@@ -667,6 +668,9 @@ reline:
     summary: "%staves% staves re-ruled, %ledgers% ledger lines added"
     page_label: "Page %n%"
     no_staves: "no staves found"
+    prev_page: "Previous page"
+    next_page: "Next page"
+    page_of: "Page %n% of %total%"
     clef:
         french_violin: "French violin — G on the 1st line"
         baritone_f: "Baritone — F on the 3rd line"

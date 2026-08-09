@@ -2,43 +2,49 @@ services:
   app:
     build:
       context: .
+      target: production
       args:
         BUILD_DATE: ${BUILD_DATE:-}
         BUILD_REV: ${BUILD_REV:-}
     restart: unless-stopped
+    # 127.0.0.1 and not 0.0.0.0: only this host's own nginx (which holds the
+    # certificate) should reach the app directly, matching dhamien/jason/teutonia.
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
+    env_file:
+      - .env.local
     environment:
       APP_ENV: prod
-      APP_SECRET: "versuch über die wahre Art"
       APP_SHARE_DIR: var/share
     volumes:
       - var_share:/var/www/continuo/var/share
       - var_cache:/var/www/continuo/var/cache
+    depends_on:
+      db:
+        condition: service_healthy
 
-###> doctrine/doctrine-bundle ###
-  database:
-    image: postgres:${POSTGRES_VERSION:-16}-alpine
+  # Real prod database is MariaDB (matches what was actually live), not the Postgres
+  # service this file previously defined — that Postgres container was crashed and
+  # unused; the app has been reading from MariaDB via docker-compose.override.yml's
+  # "db" service the whole time. See migration notes in the project's plan doc.
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    env_file:
+      - .env.local
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
-      POSTGRES_USER: ${POSTGRES_USER:-app}
+      MARIADB_DATABASE: continuo
+      MARIADB_USER: continuo
+    volumes:
+      - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 60s
-    volumes:
-      - database_data:/var/lib/postgresql/data:rw
-      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
-      # - ./docker/db/data:/var/lib/postgresql/data:rw
-###< doctrine/doctrine-bundle ###
 
 volumes:
   var_share:
   var_cache:
-
-###> doctrine/doctrine-bundle ###
-  database_data:
-###< doctrine/doctrine-bundle ###
+  db_data:

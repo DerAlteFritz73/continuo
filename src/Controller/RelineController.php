@@ -65,12 +65,15 @@ class RelineController extends AbstractController
             return $this->json(['error' => $this->translator->trans('reline.error.no_shift')], 400);
         }
 
+        // A first/last page range, clamped so one request never renders more than
+        // MAX_PAGES at a time (a full treatise is hundreds of pages).
         $first = max(1, $request->request->getInt('firstPage', 1));
-        $count = min(self::MAX_PAGES, max(1, $request->request->getInt('pageCount', 4)));
+        $last  = max($first, $request->request->getInt('lastPage', $first));
+        $count = min(self::MAX_PAGES, $last - $first + 1);
         $pages = sprintf('%d-%d', $first, $first + $count - 1);
 
         $dpi = $request->request->getInt('dpi', 300);
-        if (!in_array($dpi, [150, 200, 300, 400], true)) {
+        if (!in_array($dpi, [150, 200, 300, 400, 500, 600], true)) {
             $dpi = 300;
         }
 
@@ -114,6 +117,46 @@ class RelineController extends AbstractController
                 ? $this->generateUrl('app_reline_asset', ['token' => $token, 'name' => 'relined.pdf'])
                 : null,
         ]);
+    }
+
+    /**
+     * Page count for the uploaded facsimile, so the form can pre-fill how many
+     * pages to process the moment a file is chosen. A single image is always one
+     * page and answered without touching the sidecar; a PDF is counted by it.
+     */
+    #[Route('/pages', name: 'app_reline_pages', methods: ['POST'])]
+    public function pages(Request $request): JsonResponse
+    {
+        $file = $request->files->get('facsimile');
+        if (!$file) {
+            return $this->json(['error' => $this->translator->trans('reline.error.no_file')], 400);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, self::EXTENSIONS, true)) {
+            return $this->json(['error' => $this->translator->trans('reline.error.invalid_type')], 400);
+        }
+        if ($file->getSize() > self::MAX_UPLOAD) {
+            return $this->json(['error' => $this->translator->trans('reline.error.too_large')], 400);
+        }
+
+        if ($extension !== 'pdf') {
+            return $this->json(['pages' => 1]);
+        }
+
+        $tmp = $file->move(sys_get_temp_dir(), 'reline-count-' . bin2hex(random_bytes(6)) . '.pdf');
+        try {
+            $count = $this->reliner->countPages($tmp->getPathname());
+        } catch (\Throwable $e) {
+            return $this->json([
+                'error'  => $this->translator->trans('reline.error.failed'),
+                'detail' => $e->getMessage(),
+            ], 500);
+        } finally {
+            @unlink($tmp->getPathname());
+        }
+
+        return $this->json(['pages' => $count]);
     }
 
     /**

@@ -618,6 +618,7 @@ reline:
     shift_label: "Linien, um die verschoben wird"
     first_page: "Erste Seite"
     page_count: "Seiten"
+    last_page: "Letzte Seite"
     dpi_label: "Auflösung (dpi)"
     ledgers_label: "Hilfslinien ergänzen"
     ledgers_why: >
@@ -632,6 +633,9 @@ reline:
     summary: "%staves% Systeme neu liniert, %ledgers% Hilfslinien ergänzt"
     page_label: "Seite %n%"
     no_staves: "keine Systeme gefunden"
+    prev_page: "Vorherige Seite"
+    next_page: "Nächste Seite"
+    page_of: "Seite %n% von %total%"
     clef:
         french_violin: "Französischer Violinschlüssel — g auf der 1. Linie"
         baritone_f: "Bariton — f auf der 3. Linie"

@@ -76,7 +76,10 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
     font-family: inherit; font-size: .85rem; cursor: pointer;
 }
 .toggle button.on { background: #c8a96e; color: #1a1a1a; font-weight: 600; }
+.toggle button:disabled { opacity: .35; cursor: default; }
 .meta { font-size: .82rem; color: #7d7466; }
+#page-nav { display: none; }
+#page-nav .page-indicator { padding: .5rem .9rem; font-size: .85rem; color: #a89f8f; white-space: nowrap; }
 
 .page { margin-bottom: 1.8rem; }
 .page-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: #7d7466; margin-bottom: .45rem; }
@@ -128,8 +131,8 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
                 <input type="number" id="firstPage" name="firstPage" value="1" min="1" step="1">
             </div>
             <div>
-                <label class="field" for="pageCount">{{ 'reline.page_count'|trans }}</label>
-                <input type="number" id="pageCount" name="pageCount" value="4" min="1" max="{{ maxPages }}" step="1">
+                <label class="field" for="lastPage">{{ 'reline.last_page'|trans }}</label>
+                <input type="number" id="lastPage" name="lastPage" value="1" min="1" step="1">
             </div>
             <div>
                 <label class="field" for="dpi">{{ 'reline.dpi_label'|trans }}</label>
@@ -137,6 +140,8 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
                     <option value="200">200</option>
                     <option value="300" selected>300</option>
                     <option value="400">400</option>
+                    <option value="500">500</option>
+                    <option value="600">600</option>
                 </select>
             </div>
         </div>
@@ -159,6 +164,11 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
                 <button type="button" id="show-before">{{ 'reline.view_original'|trans }}</button>
                 <button type="button" id="show-after" class="on">{{ 'reline.view_relined'|trans }}</button>
             </div>
+            <div class="toggle" id="page-nav">
+                <button type="button" id="page-prev" aria-label="{{ 'reline.prev_page'|trans }}">‹</button>
+                <span class="page-indicator" id="page-indicator"></span>
+                <button type="button" id="page-next" aria-label="{{ 'reline.next_page'|trans }}">›</button>
+            </div>
             <a class="btn ghost" id="download" style="margin-top:0" download>{{ 'reline.download'|trans }}</a>
             <span class="meta" id="summary"></span>
         </div>
@@ -172,7 +182,8 @@ const TRANS = {
     noFile:   {{ 'reline.error.no_file'|trans|json_encode|raw }},
     summary:  {{ 'reline.summary'|trans|json_encode|raw }},
     pageLabel:{{ 'reline.page_label'|trans|json_encode|raw }},
-    noStaves: {{ 'reline.no_staves'|trans|json_encode|raw }}
+    noStaves: {{ 'reline.no_staves'|trans|json_encode|raw }},
+    pageOf:   {{ 'reline.page_of'|trans|json_encode|raw }}
 };
 
 const form   = document.getElementById('reline-form');
@@ -199,7 +210,30 @@ drop.addEventListener('drop', ev => {
 input.addEventListener('change', showChosen);
 
 function showChosen() {
-    chosen.textContent = input.files.length ? input.files[0].name : '';
+    if (!input.files.length) { chosen.textContent = ''; return; }
+    chosen.textContent = input.files[0].name;
+    fillPageCount(input.files[0]);
+}
+
+// On file selection, pre-fill the whole range to the document's own extent --
+// first page 1 through its actual last page: a single image is one page; a
+// PDF is counted server-side (pypdfium2), since counting pages of a
+// compressed PDF client-side is unreliable. Both fields stay editable — the
+// user can still narrow the range by hand.
+async function fillPageCount(file) {
+    const first = document.getElementById('firstPage');
+    const last  = document.getElementById('lastPage');
+    first.value = 1;
+    if (!/\.pdf$/i.test(file.name)) { last.value = 1; return; }
+    try {
+        const data = new FormData();
+        data.append('facsimile', file);
+        const res  = await fetch({{ path('app_reline_pages')|json_encode|raw }}, { method: 'POST', body: data });
+        const json = await res.json();
+        if (res.ok && json.pages) last.value = json.pages;
+    } catch (e) {
+        // Leave whatever is in the field; the user can still set it by hand.
+    }
 }
 
 form.addEventListener('submit', async ev => {
@@ -216,7 +250,7 @@ form.addEventListener('submit', async ev => {
     data.append('clef', clef.value);
     data.append('shift', document.getElementById('shift').value);
     data.append('firstPage', document.getElementById('firstPage').value);
-    data.append('pageCount', document.getElementById('pageCount').value);
+    data.append('lastPage', document.getElementById('lastPage').value);
     data.append('dpi', document.getElementById('dpi').value);
     if (document.getElementById('ledgers').checked) data.append('ledgers', '1');
 
@@ -238,49 +272,73 @@ function fail(message) {
     status.textContent = message;
 }
 
+// One page shown at a time — a run can cover the whole document, and
+// stacking every page's full-resolution image in the DOM at once made
+// "inspect the whole document" mean an endless scroll instead of a document
+// reader. currentPages/currentIndex hold the state the nav buttons and
+// keyboard shortcuts below act on.
+let currentPages = [];
+let currentIndex = 0;
+let currentView  = 'after';
+
 function render(data) {
-    const host = document.getElementById('pages');
-    host.innerHTML = '';
+    currentPages = data.pages;
+    currentIndex = 0;
+    currentView  = 'after';
 
     let staves = 0, ledgers = 0;
     data.pages.forEach(page => {
         staves  += page.staves;
         ledgers += page.ledgers;
-
-        const wrap = document.createElement('div');
-        wrap.className = 'page';
-
-        const label = document.createElement('div');
-        label.className = 'page-label';
-        label.textContent = TRANS.pageLabel.replace('%n%', page.index + 1)
-            + ' — ' + (page.staves ? page.staves + ' × 5' : TRANS.noStaves);
-        wrap.appendChild(label);
-
-        const stack = document.createElement('div');
-        stack.className = 'stack';
-        const before = new Image();
-        before.src = page.before;
-        before.className = 'under hidden';
-        before.alt = '';
-        const after = new Image();
-        after.src = page.after;
-        after.alt = '';
-        stack.append(after, before);
-        wrap.appendChild(stack);
-        host.appendChild(wrap);
     });
-
     document.getElementById('summary').textContent = TRANS.summary
         .replace('%staves%', staves).replace('%ledgers%', ledgers);
 
     const dl = document.getElementById('download');
     if (data.pdf) { dl.href = data.pdf; dl.style.display = ''; } else { dl.style.display = 'none'; }
 
+    document.getElementById('page-nav').style.display = currentPages.length > 1 ? 'inline-flex' : 'none';
     document.getElementById('results').style.display = 'block';
-    setView('after');
+    renderPage();
+}
+
+function renderPage() {
+    const host = document.getElementById('pages');
+    host.innerHTML = '';
+    const page = currentPages[currentIndex];
+    if (!page) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'page';
+
+    const label = document.createElement('div');
+    label.className = 'page-label';
+    label.textContent = TRANS.pageLabel.replace('%n%', page.index + 1)
+        + ' — ' + (page.staves ? page.staves + ' × 5' : TRANS.noStaves);
+    wrap.appendChild(label);
+
+    const stack = document.createElement('div');
+    stack.className = 'stack';
+    const before = new Image();
+    before.src = page.before;
+    before.className = 'under' + (currentView === 'before' ? '' : ' hidden');
+    before.alt = '';
+    const after = new Image();
+    after.src = page.after;
+    after.className = currentView === 'before' ? 'hidden' : '';
+    after.alt = '';
+    stack.append(after, before);
+    wrap.appendChild(stack);
+    host.appendChild(wrap);
+
+    document.getElementById('page-indicator').textContent = TRANS.pageOf
+        .replace('%n%', currentIndex + 1).replace('%total%', currentPages.length);
+    document.getElementById('page-prev').disabled = currentIndex === 0;
+    document.getElementById('page-next').disabled = currentIndex === currentPages.length - 1;
 }
 
 function setView(which) {
+    currentView = which;
     document.querySelectorAll('.stack').forEach(stack => {
         const [after, before] = stack.children;
         before.classList.toggle('hidden', which !== 'before');
@@ -292,5 +350,20 @@ function setView(which) {
 
 document.getElementById('show-before').addEventListener('click', () => setView('before'));
 document.getElementById('show-after').addEventListener('click', () => setView('after'));
+
+document.getElementById('page-prev').addEventListener('click', () => {
+    if (currentIndex > 0) { currentIndex--; renderPage(); }
+});
+document.getElementById('page-next').addEventListener('click', () => {
+    if (currentIndex < currentPages.length - 1) { currentIndex++; renderPage(); }
+});
+// Left/right arrows navigate pages whenever the user isn't typing in a
+// field — the reader is the whole point of a run once results are in.
+document.addEventListener('keydown', ev => {
+    if (document.getElementById('results').style.display === 'none') return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (ev.key === 'ArrowLeft')  document.getElementById('page-prev').click();
+    if (ev.key === 'ArrowRight') document.getElementById('page-next').click();
+});
 </script>
 {% endblock %}
