@@ -830,8 +830,43 @@ def find_accolade(ink: np.ndarray, x_lo: int, x_hi: int, y0: int, y1: int,
     return best
 
 
-def restretch_accolade(gray: np.ndarray, ink: np.ndarray, xa: int, xb: int,
-                       top0: int, bottom0: int, patch_gray: np.ndarray,
+def _accolade_component(ink: np.ndarray, xa: int, xb: int, old_top: int, old_bottom: int,
+                        step: float) -> tuple[np.ndarray, int, int] | None:
+    """The full connected shape of the brace at this column span, including
+    any cap or flourish at its tips, however far that flares out sideways.
+
+    find_accolade locates the shaft by its width alone, which is exactly the
+    stroke's own width and no wider -- a flared cap or serif at the top or
+    bottom tip is routinely wider than that.  A capture the width of the
+    shaft only moves the shaft: the cap, sitting outside that column, is left
+    behind at the old position, severed from the shaft now sitting somewhere
+    else.  Connectivity finds the whole printed shape the shaft belongs to,
+    whatever its width at each point, without pulling in anything that is not
+    actually touching it -- a nearby clef curl, say, close enough to share a
+    column with the shaft but not connected to it.
+    """
+    pad_y = int(round(2 * step))
+    pad_x = int(round(3 * step))
+    y_lo = max(0, old_top - pad_y)
+    y_hi = min(ink.shape[0] - 1, old_bottom + pad_y)
+    x_lo = max(0, xa - pad_x)
+    x_hi = min(ink.shape[1] - 1, xb + pad_x)
+    sub = (ink[y_lo:y_hi + 1, x_lo:x_hi + 1] > 0).astype(np.uint8)
+    _, labels = cv2.connectedComponents(sub, connectivity=8)
+    seed_y = min(max((old_top + old_bottom) // 2 - y_lo, 0), sub.shape[0] - 1)
+    seed_x = min(max((xa + xb) // 2 - x_lo, 0), sub.shape[1] - 1)
+    label = labels[seed_y, seed_x]
+    if label == 0:
+        return None
+    mask = labels == label
+    ys, xs = np.nonzero(mask)
+    top0, left0 = y_lo + int(ys.min()), x_lo + int(xs.min())
+    local_mask = mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    return local_mask, top0, left0
+
+
+def restretch_accolade(gray: np.ndarray, ink: np.ndarray, left0: int, top0: int,
+                       mask: np.ndarray, patch_gray: np.ndarray,
                        patch_ink: np.ndarray, shift_px: int, step: float) -> None:
     """Erase a brace or bracket's old footprint and paste it back shifted.
 
@@ -845,27 +880,32 @@ def restretch_accolade(gray: np.ndarray, ink: np.ndarray, xa: int, xb: int,
     though, so the brace does not need reshaping, only moving: its own
     pixels, captured before any staff editing touched this column, are
     pasted back translated by that shift, keeping the shape exactly as
-    printed.  The paste overwrites the old footprint outright rather than
-    combining with what is there now, since what is there now is the very
-    ink -- old staff lines this brace used to cross -- the translated patch
-    is supposed to replace; leaving it behind under the new lines would
-    double them up as a faint ghost the redraw never touches.
+    printed.  Both the erase and the paste act only where ``mask`` says the
+    brace's own connected shape actually is, not across the whole rectangle
+    it happens to fit in, so neither step touches ink -- a clef curl brushing
+    the same columns, say -- that just happens to share the bounding box
+    without being part of the brace.
     """
-    h = gray.shape[0]
-    paper = local_paper(gray, top0, xa, xb, step)
+    h, w = gray.shape
+    mh, mw = mask.shape
+    paper = local_paper(gray, top0, left0, min(left0 + mw - 1, w - 1), step)
     fill = int(paper.max()) if paper.size else 255
-    gray[top0:bottom0 + 1, xa:xb + 1] = fill
-    ink[top0:bottom0 + 1, xa:xb + 1] = 0
+    region_gray = gray[top0:top0 + mh, left0:left0 + mw]
+    region_ink = ink[top0:top0 + mh, left0:left0 + mw]
+    region_gray[mask] = fill
+    region_ink[mask] = 0
 
     new_top0 = top0 + shift_px
-    new_bottom0 = new_top0 + (bottom0 - top0)
-    dst_top, dst_bottom = max(0, new_top0), min(h - 1, new_bottom0)
+    dst_top, dst_bottom = max(0, new_top0), min(h - 1, new_top0 + mh - 1)
     if dst_bottom < dst_top:
         return
     src_top = dst_top - new_top0
     src_bottom = src_top + (dst_bottom - dst_top)
-    gray[dst_top:dst_bottom + 1, xa:xb + 1] = patch_gray[src_top:src_bottom + 1, :]
-    ink[dst_top:dst_bottom + 1, xa:xb + 1] = patch_ink[src_top:src_bottom + 1, :]
+    dst_gray = gray[dst_top:dst_bottom + 1, left0:left0 + mw]
+    dst_ink = ink[dst_top:dst_bottom + 1, left0:left0 + mw]
+    sub_mask = mask[src_top:src_bottom + 1, :]
+    dst_gray[sub_mask] = patch_gray[src_top:src_bottom + 1, :][sub_mask]
+    dst_ink[sub_mask] = patch_ink[src_top:src_bottom + 1, :][sub_mask]
 
 
 def find_noteheads(ink: np.ndarray, staff: Staff, y_lo: int, y_hi: int,
@@ -1074,32 +1114,26 @@ def process_page(gray: np.ndarray, index: int, dpi: int, shift: int,
             if span is None:
                 continue
             xa, xb = span
-            # Bounded to near the staves themselves, not the full column
-            # height: unrelated ink anywhere else on the page that happens to
-            # fall within this narrow x-span -- a rubric two systems up,
-            # say -- must not get swept into the capture just because it
-            # shares a column with the actual brace.
-            pad = int(round(2 * first.step))
-            search_lo = max(0, int(round(old_top)) - pad)
-            search_hi = min(ink.shape[0] - 1, int(round(old_bottom)) + pad)
-            rows_rel = np.flatnonzero((ink[search_lo:search_hi + 1, xa:xb + 1] > 0).any(axis=1))
-            if rows_rel.size == 0:
+            component = _accolade_component(ink, xa, xb, int(round(old_top)),
+                                            int(round(old_bottom)), first.step)
+            if component is None:
                 continue
-            top0, bottom0 = search_lo + int(rows_rel.min()), search_lo + int(rows_rel.max())
-            patches.append((first, last, xa, xb, top0, bottom0,
-                            gray[top0:bottom0 + 1, xa:xb + 1].copy(),
-                            ink[top0:bottom0 + 1, xa:xb + 1].copy()))
+            mask, top0, left0 = component
+            mh, mw = mask.shape
+            patches.append((first, last, left0, top0, mask,
+                            gray[top0:top0 + mh, left0:left0 + mw].copy(),
+                            ink[top0:top0 + mh, left0:left0 + mw].copy()))
 
         for staff, bound in zip(staves, bounds):
             ledgers, bars = reline_staff(gray, ink, staff, shift, do_ledgers, bound)
             report.ledgers_added += ledgers
             report.barlines_adjusted += bars
 
-        for first, last, xa, xb, top0, bottom0, patch_gray, patch_ink in patches:
+        for first, last, left0, top0, mask, patch_gray, patch_ink in patches:
             old_top = old_tops[staves.index(first)]
             old_bottom = old_bottoms[staves.index(last)]
             shift_px = int(round(((first.lines[0] - old_top) + (last.lines[-1] - old_bottom)) / 2.0))
-            restretch_accolade(gray, ink, xa, xb, top0, bottom0, patch_gray, patch_ink,
+            restretch_accolade(gray, ink, left0, top0, mask, patch_gray, patch_ink,
                                shift_px, first.step)
     return gray, original, report
 
