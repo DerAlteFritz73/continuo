@@ -704,6 +704,22 @@ def find_barlines(ink: np.ndarray, staff: Staff,
             row_widths = wide[keep_rows][:, lo:hi].sum(axis=1)
             if row_widths.size and row_widths.max() > (x - start) + width_limit:
                 continue  # a notehead bulges into the margin: a stem, not a barline
+        # And rejected if it falls in the gap between the system's own
+        # opening barline and where real notation begins.  A clef's tail, or
+        # an accidental in the key signature, routinely narrows to barline
+        # width for a few columns without ever bulging outside the staff --
+        # its curve stays well inside the staff throughout -- which is
+        # exactly what the checks above cannot see, since both only look for
+        # width at this column and bulges past the staff edge.  Redrawing a
+        # candidate like that as a straight stroke punches a straight segment
+        # into the curve instead of leaving it alone.  Nothing but the
+        # system's real opening barline, right at x0, legitimately starts
+        # this early; add_ledgers uses the same "nothing before here is a
+        # note" reasoning for the same reach past the clef and key signature.
+        clef_zone_lo = staff.x0 + int(round(0.75 * staff.step))
+        clef_zone_hi = staff.x0 + int(round(4.0 * staff.step))
+        if clef_zone_lo <= staff.x0 + start < clef_zone_hi:
+            continue
         spans.append((staff.x0 + start, staff.x0 + x - 1))
     return spans
 
@@ -831,7 +847,8 @@ def find_accolade(ink: np.ndarray, x_lo: int, x_hi: int, y0: int, y1: int,
 
 
 def _accolade_component(ink: np.ndarray, xa: int, xb: int, old_top: int, old_bottom: int,
-                        step: float) -> tuple[np.ndarray, int, int] | None:
+                        step: float, thickness: float,
+                        line_ys: list[float]) -> tuple[np.ndarray, int, int] | None:
     """The full connected shape of the brace at this column span, including
     any cap or flourish at its tips, however far that flares out sideways.
 
@@ -841,23 +858,55 @@ def _accolade_component(ink: np.ndarray, xa: int, xb: int, old_top: int, old_bot
     shaft only moves the shaft: the cap, sitting outside that column, is left
     behind at the old position, severed from the shaft now sitting somewhere
     else.  Connectivity finds the whole printed shape the shaft belongs to,
-    whatever its width at each point, without pulling in anything that is not
-    actually touching it -- a nearby clef curl, say, close enough to share a
-    column with the shaft but not connected to it.
+    whatever its width at each point -- but every one of the group's ruled
+    lines runs the system's full width, so anything else that happens to
+    touch the same line far away in x -- a clef's loop three staff-spaces
+    over, say -- would be swept in too, connected only via the line acting as
+    a bridge, not because it has anything to do with the brace.  Each line is
+    blanked out here everywhere except a narrow window right around the
+    shaft, where the brace genuinely does cross it, which cuts exactly that
+    bridge without touching the brace's own connectivity through the gaps
+    between lines (never blanked) or through the lines within that window.
     """
+    # Reaches one staff-space either side of the shaft, not the several
+    # staff-spaces a clef and its key signature can occupy: wide enough for
+    # a cap or flourish, which prints hard against the shaft it belongs to,
+    # but short of where a neighbouring glyph would sit even when it grazes
+    # the shaft's own line-crossing (cut separately below).  Shape alone
+    # cannot always tell a brace's own cap from a glyph it happens to touch,
+    # since both are printed at the same time and can share a pixel or two;
+    # bounding how far the search can reach bounds that risk directly
+    # instead.
     pad_y = int(round(2 * step))
-    pad_x = int(round(3 * step))
+    pad_x = int(round(1.0 * step))
     y_lo = max(0, old_top - pad_y)
     y_hi = min(ink.shape[0] - 1, old_bottom + pad_y)
     x_lo = max(0, xa - pad_x)
     x_hi = min(ink.shape[1] - 1, xb + pad_x)
-    sub = (ink[y_lo:y_hi + 1, x_lo:x_hi + 1] > 0).astype(np.uint8)
+    sub = (ink[y_lo:y_hi + 1, x_lo:x_hi + 1] > 0).astype(np.uint8).copy()
+
+    half = max(1, int(round(thickness / 2.0)) + 1)
+    keep_lo = max(0, (xa - x_lo) - half - 2)
+    keep_hi = min(sub.shape[1], (xb - x_lo) + half + 3)
+    for ly in line_ys:
+        rel_y = int(round(ly)) - y_lo
+        band_lo, band_hi = max(0, rel_y - half), min(sub.shape[0], rel_y + half + 1)
+        if band_hi <= band_lo:
+            continue
+        sub[band_lo:band_hi, :keep_lo] = 0
+        sub[band_lo:band_hi, keep_hi:] = 0
+
     _, labels = cv2.connectedComponents(sub, connectivity=8)
     seed_y = min(max((old_top + old_bottom) // 2 - y_lo, 0), sub.shape[0] - 1)
     seed_x = min(max((xa + xb) // 2 - x_lo, 0), sub.shape[1] - 1)
     label = labels[seed_y, seed_x]
     if label == 0:
-        return None
+        column = labels[:, seed_x]
+        nonzero = np.flatnonzero(column)
+        if nonzero.size == 0:
+            return None
+        label = column[nonzero[np.argmin(np.abs(nonzero - seed_y))]]
+
     mask = labels == label
     ys, xs = np.nonzero(mask)
     top0, left0 = y_lo + int(ys.min()), x_lo + int(xs.min())
@@ -1114,8 +1163,10 @@ def process_page(gray: np.ndarray, index: int, dpi: int, shift: int,
             if span is None:
                 continue
             xa, xb = span
+            line_ys = [y for st in group for y in st.lines]
             component = _accolade_component(ink, xa, xb, int(round(old_top)),
-                                            int(round(old_bottom)), first.step)
+                                            int(round(old_bottom)), first.step,
+                                            thickness, line_ys)
             if component is None:
                 continue
             mask, top0, left0 = component
