@@ -67,6 +67,12 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
 .status { margin-top: 1rem; font-size: .88rem; color: #8a8070; }
 .status.error { color: #d98b7a; }
 
+.progress { display: none; margin-top: 1rem; }
+.progress.show { display: block; }
+.progress-track { background: #1a1a1a; border: 1px solid #3d382f; border-radius: 999px; height: 8px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: #c8a96e; border-radius: 999px; transition: width .25s linear; }
+.progress-eta { font-size: .82rem; color: #8a8070; margin-top: .4rem; }
+
 /* ── Results ── */
 #results { display: none; }
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-bottom: 1.2rem; }
@@ -155,6 +161,10 @@ select:focus, input[type=number]:focus { outline: none; border-color: #c8a96e; }
         </label>
 
         <button type="submit" class="btn" id="submit">{{ 'reline.submit'|trans }}</button>
+        <div class="progress" id="progress">
+            <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+            <div class="progress-eta" id="progress-eta"></div>
+        </div>
         <div class="status" id="status"></div>
     </form>
 
@@ -183,7 +193,9 @@ const TRANS = {
     summary:  {{ 'reline.summary'|trans|json_encode|raw }},
     pageLabel:{{ 'reline.page_label'|trans|json_encode|raw }},
     noStaves: {{ 'reline.no_staves'|trans|json_encode|raw }},
-    pageOf:   {{ 'reline.page_of'|trans|json_encode|raw }}
+    pageOf:   {{ 'reline.page_of'|trans|json_encode|raw }},
+    etaRemaining: {{ 'reline.eta_remaining'|trans|json_encode|raw }},
+    etaFinishing: {{ 'reline.eta_finishing'|trans|json_encode|raw }}
 };
 
 const form   = document.getElementById('reline-form');
@@ -236,6 +248,61 @@ async function fillPageCount(file) {
     }
 }
 
+// A single request covers the whole run and only resolves once every page is
+// done -- there is no per-page signal from the server to poll. So this bar
+// estimates instead of tracking: a rough seconds-per-page cost at 300 dpi,
+// scaled by pixel count (~dpi²) for other resolutions, eased toward 92% over
+// that estimate so it never claims completion before the response actually
+// lands, then creeps slowly past 92% if the real run overshoots the estimate
+// rather than sitting frozen (which reads as broken, not just slow). The
+// fetch resolving always drives the final jump to 100%.
+const SEC_PER_PAGE_AT_300DPI = 3.5;
+let progressTimer = null;
+
+function estimateSeconds(pageCount, dpi) {
+    const scale = Math.pow(dpi / 300, 2);
+    return Math.max(2, SEC_PER_PAGE_AT_300DPI * scale * pageCount);
+}
+
+function formatDuration(seconds) {
+    const s = Math.ceil(seconds);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return rem ? m + 'm ' + rem + 's' : m + 'm';
+}
+
+function startProgress(pageCount, dpi) {
+    const estimate = estimateSeconds(pageCount, dpi);
+    const start = performance.now();
+    const fill = document.getElementById('progress-fill');
+    const eta  = document.getElementById('progress-eta');
+    fill.style.width = '0%';
+    document.getElementById('progress').classList.add('show');
+
+    progressTimer = setInterval(() => {
+        const elapsed = (performance.now() - start) / 1000;
+        const ratio = Math.min(elapsed / estimate, 1);
+        const pct = ratio < 1 ? ratio * 92 : 92 + Math.min(6, (elapsed - estimate) / 4);
+        fill.style.width = Math.min(pct, 98) + '%';
+
+        const remaining = estimate - elapsed;
+        eta.textContent = remaining > 0.5
+            ? TRANS.etaRemaining.replace('%s%', formatDuration(remaining))
+            : TRANS.etaFinishing;
+    }, 200);
+}
+
+function stopProgress() {
+    if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+    const progress = document.getElementById('progress');
+    document.getElementById('progress-fill').style.width = '100%';
+    setTimeout(() => {
+        progress.classList.remove('show');
+        document.getElementById('progress-fill').style.width = '0%';
+    }, 300);
+}
+
 form.addEventListener('submit', async ev => {
     ev.preventDefault();
     if (!input.files.length) { fail(TRANS.noFile); return; }
@@ -244,6 +311,11 @@ form.addEventListener('submit', async ev => {
     btn.disabled = true;
     status.className = 'status';
     status.textContent = TRANS.working;
+
+    const firstPage = parseInt(document.getElementById('firstPage').value, 10) || 1;
+    const lastPage  = parseInt(document.getElementById('lastPage').value, 10) || firstPage;
+    const dpi       = parseInt(document.getElementById('dpi').value, 10) || 300;
+    startProgress(Math.max(1, lastPage - firstPage + 1), dpi);
 
     const data = new FormData();
     data.append('facsimile', input.files[0]);
@@ -264,6 +336,7 @@ form.addEventListener('submit', async ev => {
         fail(e.message);
     } finally {
         btn.disabled = false;
+        stopProgress();
     }
 });
 

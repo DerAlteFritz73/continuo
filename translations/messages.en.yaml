@@ -671,6 +671,8 @@ reline:
     prev_page: "Previous page"
     next_page: "Next page"
     page_of: "Page %n% of %total%"
+    eta_remaining: "About %s% left"
+    eta_finishing: "Finishing up…"
     clef:
         french_violin: "French violin — G on the 1st line"
         baritone_f: "Baritone — F on the 3rd line"

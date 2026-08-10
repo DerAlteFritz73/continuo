@@ -631,6 +631,8 @@ reline:
     prev_page: "Předchozí stránka"
     next_page: "Další stránka"
     page_of: "Stránka %n% z %total%"
+    eta_remaining: "Zbývá přibližně %s%"
+    eta_finishing: "Dokončuji…"
     clef:
         french_violin: "Francouzský houslový — g na 1. lince"
         baritone_f: "Barytonový — f na 3. lince"
