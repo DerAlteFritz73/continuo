@@ -622,6 +622,114 @@ def group_staves(lines: list[tuple[float, int, int]], space: float,
     return staves
 
 
+def _recover_missing_staves(ink: np.ndarray, staves: list[Staff], space: float,
+                            thickness: float, max_gap: int) -> list[Staff]:
+    """Insert a whole staff that left no fragment of its own to build from --
+    not even the sparse hint ``_recover_faint_lines`` needs as a seed, just
+    a page too worn or badly inked at that one spot for any row of it to
+    register at all.
+
+    A page's within-system and between-system gaps are each consistent
+    across every confirmed pair, so a gap between two confirmed staves that
+    fits neither on its own, but does fit one of them plus a staff's height
+    plus the other, is exactly the shape a completely undetected staff
+    leaves behind in its neighbours' spacing -- and that arithmetic pins
+    down where to look for it, at either the top or bottom of the page as
+    much as between two confirmed staves. A local peak search anchored
+    there, same technique as elsewhere, just seeded by geometry instead of
+    a surviving fragment, either turns up a real staff or it does not; nothing
+    is inserted unless the ink at every one of its five predicted lines is
+    real enough to trust.
+    """
+    if len(staves) < 3:
+        return staves
+    ordered = sorted(staves, key=lambda s: s.lines[0])
+    heights = sorted(s.lines[-1] - s.lines[0] for s in ordered)
+    typical_height = heights[len(heights) // 2]
+    gaps = [ordered[i + 1].lines[0] - ordered[i].lines[-1] for i in range(len(ordered) - 1)]
+    sorted_gaps = sorted(gaps)
+    half = len(sorted_gaps) // 2
+    typical_small = sorted_gaps[max(0, half - 1)]
+    typical_large = sorted_gaps[min(half, len(sorted_gaps) - 1)]
+    if typical_large < typical_small:
+        typical_small, typical_large = typical_large, typical_small
+    expect_one_missing = typical_small + typical_height + typical_large
+    tol = 0.25 * expect_one_missing
+
+    step = space + thickness
+    h = ink.shape[0]
+    profile = ink.sum(axis=1, dtype=np.float64) / 255.0
+    quality_ref = min(profile[int(round(y))] for st in ordered for y in st.lines) * 0.5
+
+    def search_from(y_top: float) -> list[tuple[float, int, int]] | None:
+        found = []
+        y = y_top
+        for _ in range(5):
+            lo = max(0, int(round(y - step * 0.5)))
+            hi = min(h, int(round(y + step * 0.5)) + 1)
+            if lo >= hi:
+                return None
+            peak_y = lo + int(np.argmax(profile[lo:hi]))
+            if profile[peak_y] < quality_ref:
+                return None
+            band = ink[max(0, peak_y - 1):peak_y + 2, :]
+            cols = np.flatnonzero(band.max(axis=0) > 0)
+            if cols.size == 0:
+                return None
+            x0, x1 = _longest_run(cols, max_gap)
+            found.append((float(peak_y), x0, x1))
+            y = peak_y + step
+        return found
+
+    def as_staff(found: list[tuple[float, int, int]]) -> Staff:
+        return Staff(index=0, lines=[f[0] for f in found],
+                    x0=min(f[1] for f in found), x1=max(f[2] for f in found),
+                    step=step, thickness=thickness)
+
+    inserted: list[Staff] = []
+
+    for i in range(len(ordered) - 1):
+        if abs(gaps[i] - expect_one_missing) > tol:
+            continue
+        # The missing staff pairs, by a small gap, with whichever neighbour
+        # that fits -- try both placements and trust whichever one's search
+        # actually lands on real ink at every predicted line.
+        for y_top in (ordered[i].lines[-1] + typical_small,
+                      ordered[i + 1].lines[0] - typical_small - typical_height):
+            found = search_from(y_top)
+            if found:
+                inserted.append(as_staff(found))
+                break
+
+    # At either edge of the page, a plain between-system gap next to the
+    # first or last confirmed staff (not the small-plus-height-plus-large
+    # shape above, which would mean the missing staff sits between two
+    # confirmed ones instead) says that staff is not paired with its one
+    # confirmed neighbour -- so its partner must be off the confirmed end
+    # of the page entirely, one more small gap further out.
+    large_tol = 0.25 * typical_large
+    if gaps and abs(gaps[0] - typical_large) <= large_tol:
+        y_top = ordered[0].lines[0] - typical_small - typical_height
+        if y_top > 0:
+            found = search_from(y_top)
+            if found:
+                inserted.append(as_staff(found))
+    if gaps and abs(gaps[-1] - typical_large) <= large_tol:
+        y_top = ordered[-1].lines[-1] + typical_small
+        if y_top + typical_height < h:
+            found = search_from(y_top)
+            if found:
+                inserted.append(as_staff(found))
+
+    if not inserted:
+        return staves
+    combined = ordered + inserted
+    combined.sort(key=lambda s: s.lines[0])
+    for idx, st in enumerate(combined):
+        st.index = idx
+    return combined
+
+
 # --------------------------------------------------------------------------
 # The edit
 # --------------------------------------------------------------------------
@@ -1348,6 +1456,8 @@ def process_page(gray: np.ndarray, index: int, dpi: int, shift: int,
 
     thickness, space = run_length_stats(ink)
     staves = group_staves(find_staff_lines(ink, thickness, space), space, thickness)
+    max_gap = max(12, int(round(space))) * 2
+    staves = _recover_missing_staves(ink, staves, space, thickness, max_gap)
 
     report = PageReport(
         index=index,
