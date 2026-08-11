@@ -259,6 +259,58 @@ def _longest_run(cols: np.ndarray, max_gap: int) -> tuple[int, int]:
     return int(cols[starts[best]]), int(cols[ends[best]])
 
 
+def _split_dense_band(ink: np.ndarray, profile: np.ndarray, start: int, end: int,
+                      space: float, thickness: float,
+                      max_gap: int) -> list[tuple[float, int, int]]:
+    """Recover individual ruling lines from a hot band too tall to be one.
+
+    A heavily-notated passage -- a run of chords, say -- can keep the row
+    profile above the hot threshold continuously across what is really
+    several lines plus the note-filled gaps between them, so the band never
+    dips back down to mark where one line ends and the next begins. Within
+    it, a genuine ruling line is still the locally darkest row for roughly
+    half a staff space around itself: its own full-width contribution to the
+    profile holds up through the passage in a way a single chord or stem does
+    not. Suppressing everything but that local maximum turns the band back
+    into individual line candidates, which the normal grouping and recovery
+    passes can then treat exactly as if the threshold had separated them to
+    begin with.
+    """
+    win = max(1, int(round((space + thickness) / 2.0)))
+    peaks = []
+    y = start
+    while y < end:
+        lo = max(start, y - win)
+        hi = min(end, y + win + 1)
+        if profile[y] >= profile[lo:hi].max():
+            peaks.append(y)
+        y += 1
+    # Collapse a run of adjacent rows that all won their own local comparison
+    # (a plateau at the same peak, or two peaks within one line's own width
+    # of each other) down to its single tallest row.
+    collapsed = []
+    i = 0
+    while i < len(peaks):
+        j = i
+        while j + 1 < len(peaks) and peaks[j + 1] - peaks[j] <= win:
+            j += 1
+        group = peaks[i:j + 1]
+        collapsed.append(max(group, key=lambda yy: profile[yy]))
+        i = j + 1
+
+    out = []
+    for py in collapsed:
+        lo = max(start, int(round(py - thickness)))
+        hi = min(end, int(round(py + thickness)) + 1)
+        band = ink[lo:hi, :]
+        cols = np.flatnonzero(band.max(axis=0) > 0)
+        if cols.size == 0:
+            continue
+        x0, x1 = _longest_run(cols, max_gap)
+        out.append((float(py), x0, x1))
+    return out
+
+
 def find_staff_lines(ink: np.ndarray, thickness: float,
                      space: float) -> list[tuple[float, int, int]]:
     """Candidate ruling lines as (y centre, x0, x1).
@@ -305,7 +357,13 @@ def find_staff_lines(ink: np.ndarray, thickness: float,
         while y < h and hot[y]:
             y += 1
         if (y - start) > max_thick:
-            # Too tall for a ruling line: a text block or a smear, not a stave.
+            # Too tall for a single ruling line -- could be a text block or a
+            # smear, but a dense, heavily-notated passage can just as well
+            # keep several real lines' rows (and the note-filled gaps between
+            # them) continuously above the hot threshold. Try to pick the
+            # individual lines back out; if that finds nothing line-like,
+            # this bracket really was just a smear, unchanged from before.
+            lines.extend(_split_dense_band(ink, profile, start, y, space, thickness, max_gap))
             continue
         band = ink[start:y, :]
         cols = np.flatnonzero(band.max(axis=0) > 0)
@@ -313,7 +371,173 @@ def find_staff_lines(ink: np.ndarray, thickness: float,
             continue
         x0, x1 = _longest_run(cols, max_gap)
         lines.append(((start + y - 1) / 2.0, x0, x1))
-    return lines
+    lines = _merge_line_fragments(lines, thickness)
+    recovered = _recover_faint_lines(ink, lines, space, thickness, max_gap)
+    # A recovered line can land close enough to one already found -- from a
+    # different partial run's own extrapolation, say -- to need the same
+    # fold-together pass run once more, now that both are in the same list.
+    return _merge_line_fragments(recovered, thickness)
+
+
+def _merge_line_fragments(lines: list[tuple[float, int, int]],
+                          thickness: float) -> list[tuple[float, int, int]]:
+    """Fold y-adjacent fragments of one physical line back into a single entry.
+
+    A ruling that is only lightly inked over part of its length -- a worn
+    plate, an uneven scan -- can dip below the hot-row threshold for a row
+    or two in the middle of its own thickness, splitting what is one line
+    into two or three bands a few pixels apart, each covering only part of
+    its true horizontal extent. group_staves's sliding window of five then
+    never lines up on that staff: fragments of the same line sit far closer
+    together than a real line-to-line gap, so no run of five ever looks
+    evenly spaced, and the whole staff is silently dropped. Real neighbouring
+    lines are always separated by close to a staff space, which comfortably
+    exceeds this tolerance.
+    """
+    if not lines:
+        return lines
+    ordered = sorted(lines, key=lambda l: l[0])
+    tol = max(2.0, thickness * 2.0)
+    groups: list[list[tuple[float, int, int]]] = [[ordered[0]]]
+    for item in ordered[1:]:
+        if item[0] - groups[-1][-1][0] <= tol:
+            groups[-1].append(item)
+        else:
+            groups.append([item])
+    merged = []
+    for group in groups:
+        y = sum(g[0] for g in group) / len(group)
+        x0 = min(g[1] for g in group)
+        x1 = max(g[2] for g in group)
+        merged.append((y, x0, x1))
+    return merged
+
+
+def _recover_faint_lines(ink: np.ndarray, lines: list[tuple[float, int, int]],
+                         space: float, thickness: float,
+                         max_gap: int) -> list[tuple[float, int, int]]:
+    """Complete a staff group_staves could not, from candidates that are
+    individually genuine but do not sit as five plain consecutive entries.
+
+    Two distinct troubles produce that shape. A ruling too faint to have
+    cleared the hot-row threshold along its whole length -- not just
+    fragmented in a few places (``_merge_line_fragments`` handles that), but
+    genuinely below it for entire lines, which a badly-inked pull of a worn
+    plate can do to more than one line of the same staff at once -- leaves a
+    partial run with real lines missing outright; those are filled in by
+    searching narrowly around each position the run's own spacing predicts,
+    accepting a candidate there only if it is a real local peak. And a stray
+    fragment of ink that cleared the threshold but belongs to neither
+    neighbouring line -- a dense passage's leftover, sitting closer to one
+    accepted line than a real gap allows -- can wedge itself between two
+    genuine lines and break group_staves's run of five even though every
+    line it needed was already present; the chain below simply steps over
+    such a candidate rather than letting it end the run early, and then
+    drops it from the pool so it cannot go on to spoil a different run.
+    """
+    if len(lines) < 2:
+        return lines
+    expected = space + thickness
+    ordered = sorted(lines, key=lambda l: l[0])
+    n = len(ordered)
+
+    # Lines already part of a confident run of five are untouched: only the
+    # leftovers -- the ones group_staves could never complete on its own --
+    # are candidates for recovery.
+    claimed = [False] * n
+    i = 0
+    while i + 4 < n:
+        window = ordered[i:i + 5]
+        gaps = [window[k + 1][0] - window[k][0] for k in range(4)]
+        mean_gap = sum(gaps) / 4.0
+        even = mean_gap > 0 and all(abs(g - mean_gap) <= 0.30 * mean_gap for g in gaps)
+        if even and 0.55 * expected <= mean_gap <= 1.8 * expected:
+            for k in range(i, i + 5):
+                claimed[k] = True
+            i += 5
+        else:
+            i += 1
+
+    profile = ink.sum(axis=1, dtype=np.float64) / 255.0
+    h = ink.shape[0]
+    confirmed: list[tuple[float, int, int]] = [ordered[k] for k in range(n) if claimed[k]]
+    dropped: set[int] = set()
+
+    i = 0
+    while i < n:
+        if claimed[i] or i in dropped:
+            i += 1
+            continue
+        run = [ordered[i]]
+        run_idx = [i]
+        stray_idx: list[int] = []
+        j = i + 1
+        while j < n and len(run) < 5:
+            if claimed[j]:
+                break
+            gap = ordered[j][0] - run[-1][0]
+            if gap > 1.8 * expected:
+                break
+            if gap < 0.55 * expected:
+                # A stray fragment sitting closer to the last accepted line
+                # than a real line-to-line gap allows -- ink that survived
+                # detection but belongs to neither line either side of it --
+                # does not extend the run. Leave it and keep looking from
+                # the line already accepted for whatever does fit next.
+                stray_idx.append(j)
+                j += 1
+                continue
+            run.append(ordered[j])
+            run_idx.append(j)
+            j += 1
+
+        if 2 <= len(run) <= 4:
+            step = (run[-1][0] - run[0][0]) / (len(run) - 1)
+            local_thresh = min(profile[int(round(y))] for y, _, _ in run) * 0.55
+            top, bottom = run[0][0], run[-1][0]
+            added: list[tuple[float, int, int]] = []
+            while len(run) + len(added) < 5:
+                grew = False
+                for y_try, above in ((top - step, True), (bottom + step, False)):
+                    if len(run) + len(added) >= 5 or not (0 <= y_try < h):
+                        continue
+                    lo = max(0, int(round(y_try - thickness)))
+                    hi = min(h, int(round(y_try + thickness)) + 1)
+                    if lo >= hi:
+                        continue
+                    peak_y = lo + int(np.argmax(profile[lo:hi]))
+                    if profile[peak_y] < local_thresh:
+                        continue
+                    band = ink[max(0, peak_y - 1):peak_y + 2, :]
+                    cols = np.flatnonzero(band.max(axis=0) > 0)
+                    if cols.size == 0:
+                        continue
+                    x0, x1 = _longest_run(cols, max_gap)
+                    added.append((float(peak_y), x0, x1))
+                    if above:
+                        top = peak_y
+                    else:
+                        bottom = peak_y
+                    grew = True
+                if not grew:
+                    break
+            run = run + added
+
+        if len(run) == 5:
+            # A completed run -- whether five candidates chained straight
+            # through or four plus one recovered by local search -- claims
+            # every original candidate it passed over, including the strays
+            # skipped along the way, so they cannot later fool a different
+            # run's own evenness check further down the page.
+            confirmed.extend(run)
+            dropped.update(run_idx)
+            dropped.update(stray_idx)
+            i = j
+        else:
+            i += 1
+
+    leftover = [ordered[k] for k in range(n) if not claimed[k] and k not in dropped]
+    return sorted(confirmed + leftover, key=lambda l: l[0])
 
 
 def _consensus_edge(values: list[int], tol: float) -> tuple[int, int]:
