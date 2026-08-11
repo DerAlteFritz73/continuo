@@ -540,26 +540,37 @@ def _recover_faint_lines(ink: np.ndarray, lines: list[tuple[float, int, int]],
     return sorted(confirmed + leftover, key=lambda l: l[0])
 
 
-def _consensus_edge(values: list[int], tol: float) -> tuple[int, int]:
+def _consensus_edge(values: list[int], tol: float, prefer: str = 'max') -> tuple[int, int]:
     """The five lines of one staff are ruled to the same physical width, so
     where their measured x0 (or x1) disagree, that is measurement failure on
-    some of them, not real difference -- _longest_run bleeding into a brace
-    or a rubric on one line, or losing the thread across a gap wider than it
-    bridges on another.  Both failures are typically confined to a minority
-    of the five, so the biggest group of lines that agree with each other
-    (not necessarily with the numeric middle, which a two-versus-two split
-    can still misplace) is the best estimate of where the ruling really
-    starts or ends.  Ties keep the first, widening, cluster found.
+    some of them, not real difference -- _longest_run losing the thread
+    across a gap wider than it bridges on one line but not another, or
+    bleeding into a brace or a rubric on a different one.
+
+    Losing the thread always falls short of the true edge, never past it:
+    a line that hit a wide gap near the end of a busy passage reports an x1
+    smaller than reality, one that hit a gap near the start reports an x0
+    larger than reality. Nothing pushes a reading the other way. That
+    breaks a plain majority vote whenever the same coincidental gap happens
+    to catch more than one line at a similar point -- three lines under-
+    reporting the same truncated width can outvote two that measured the
+    full one, and the wrong answer would win. So among whichever clusters
+    two or more lines actually agree on, the one furthest in the direction
+    a fuller reading would lie (``prefer``: 'max' for x1, 'min' for x0)
+    wins outright, not just the largest; only when no two lines agree on
+    anything does this fall back to the least-bad lone cluster.
 
     Returns (estimate, support) -- support is how many of the five landed in
     the winning cluster, so a caller can tell a confident answer from one
     that is just the least-bad of five lines that never agreed on anything.
     """
-    best = [values[0]]
-    for v in values:
-        cluster = [u for u in values if abs(u - v) <= tol]
-        if len(cluster) > len(best):
-            best = cluster
+    clusters = [[u for u in values if abs(u - v) <= tol] for v in values]
+    supported = [c for c in clusters if len(c) >= 2]
+    if supported:
+        extreme = max if prefer == 'max' else min
+        best = extreme(supported, key=lambda c: sum(c) / len(c))
+    else:
+        best = max(clusters, key=len)
     return round(sum(best) / len(best)), len(best)
 
 
@@ -577,8 +588,8 @@ def group_staves(lines: list[tuple[float, int, int]], space: float,
         plausible = 0.55 * expected <= mean_gap <= 1.8 * expected
         if even and plausible:
             tol = max(15, round(mean_gap))
-            x0, n0 = _consensus_edge([w[1] for w in window], tol)
-            x1, n1 = _consensus_edge([w[2] for w in window], tol)
+            x0, n0 = _consensus_edge([w[1] for w in window], tol, prefer='min')
+            x1, n1 = _consensus_edge([w[2] for w in window], tol, prefer='max')
             provisional.append((window, x0, n0, x1, n1, mean_gap))
             i += 5
         else:
