@@ -38,6 +38,11 @@ final class InstrumentationParser
         'soprano'      => 'S',
         'sopranos'     => 'S',
         'treble'       => 'S',
+        // "high voice"/"high instrument(s)" is standard IMSLP/publisher wording for the
+        // soprano-range half of a "High/Low" transposition pair — treated as an S
+        // register the same way "treble" already is. "high clefs" (G2/C2/C3 vs. F3/F4)
+        // also incidentally matches this and skews the same direction, which is fine.
+        'high'         => 'S',
         'dessus'       => 'S',
         'cantus'       => 'S',
         'superius'     => 'S',
