@@ -495,6 +495,7 @@ imslp:
     work_files_count: "%count% soubor"
     work_files_count_plural: "%count% souborů"
     work_instr_filter_active: "Vydání odpovídající vašemu hledání: %instrumentation%"
+    work_instr_filter_active_exact: "Vydání napsaná přesně pro: %instrumentation%"
     work_instr_filter_clear: "Zobrazit 1 další vydání"
     work_instr_filter_clear_plural: "Zobrazit %count% dalších vydání"
     work_edition_anonymous: "Anonymní vydání"

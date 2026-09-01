@@ -408,10 +408,16 @@ class ImslpWorkRepository extends ServiceEntityRepository
      * sync with applyFilters() by hand — different engines (REGEXP/MATCH_AGAINST vs.
      * preg_match), same rules.
      *
+     * $exact mirrors the "Correspondance exacte" toggle: false (default) is "contains
+     * at least" — an octet arrangement that happens to include 2 flutes among other
+     * instruments still counts as a "2fl" match. true requires the edition to be scored
+     * for exactly the requested instrument(s) and nothing else — the octet no longer
+     * qualifies, only an arrangement actually titled "2 Flutes" does.
+     *
      * Returns null when the search string has no arrangement-matchable terms at all
      * (nothing to filter by — caller should show every edition, not zero).
      */
-    public function editionMatchesInstrumentation(?string $arrangementFor, string $instrumentation): ?bool
+    public function editionMatchesInstrumentation(?string $arrangementFor, string $instrumentation, bool $exact = false): ?bool
     {
         $normalised = preg_replace('/\b(\d+)\s+([a-z]{1,4})\b/i', '$1$2', trim($instrumentation));
         $tokens     = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $normalised))));
@@ -443,6 +449,10 @@ class ImslpWorkRepository extends ServiceEntityRepository
             return false;
         }
 
+        if ($exact) {
+            return $this->arrangementForExactlyMatches($arrangementFor, $required);
+        }
+
         foreach ($required as $req) {
             $pattern = $req['count'] !== null
                 ? '/\b' . $req['count'] . '\s+' . preg_quote($req['word'], '/') . 's?\b/i'
@@ -452,6 +462,49 @@ class ImslpWorkRepository extends ServiceEntityRepository
             }
         }
         return true;
+    }
+
+    /**
+     * Splits a free-text arrangement_for ("2 Flutes, 2 Oboes, ... and 2 Trumpets") into
+     * its individual "[count] <instrument>" phrases and checks it names ONLY the
+     * required instruments, each with the exact requested count (a bare, count-less
+     * requirement accepts any count for that instrument, since the search didn't ask for
+     * a specific number — just that instrument alone). Any extra phrase — another
+     * instrument, or text that doesn't parse as "[count] <word>" at all — fails the
+     * match, since we can't tell it apart from "something more than what was asked for".
+     *
+     * @param list<array{count: ?int, word: string}> $required
+     */
+    private function arrangementForExactlyMatches(string $arrangementFor, array $required): bool
+    {
+        $normalised = preg_replace('/\band\b/i', ',', $arrangementFor);
+        $phrases    = array_values(array_filter(array_map('trim', explode(',', $normalised))));
+        if (empty($phrases)) {
+            return false;
+        }
+
+        $usedRequired = [];
+        foreach ($phrases as $phrase) {
+            if (!preg_match('/^(\d*)\s*([a-z][a-z -]*?)s?$/i', $phrase, $pm)) {
+                return false; // doesn't parse as "[count] <instrument>", treat as extra
+            }
+            $count = $pm[1] !== '' ? (int) $pm[1] : 1;
+            $word  = strtolower(trim($pm[2]));
+
+            $matched = false;
+            foreach ($required as $i => $req) {
+                if (isset($usedRequired[$i]) || $req['word'] !== $word) continue;
+                if ($req['count'] !== null && $req['count'] !== $count) continue;
+                $usedRequired[$i] = true;
+                $matched = true;
+                break;
+            }
+            if (!$matched) {
+                return false; // not one of the requested instruments — extra
+            }
+        }
+
+        return count($usedRequired) === count($required);
     }
 
     /**

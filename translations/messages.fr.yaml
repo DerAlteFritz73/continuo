@@ -530,6 +530,7 @@ imslp:
     work_edition_arr: "Arr."
     work_edition_for: "Pour"
     work_instr_filter_active: "Éditions correspondant à votre recherche : %instrumentation%"
+    work_instr_filter_active_exact: "Éditions écrites exactement pour : %instrumentation%"
     work_instr_filter_clear: "Afficher 1 autre édition"
     work_instr_filter_clear_plural: "Afficher %count% autres éditions"
     work_edition_anonymous: "Édition anonyme"

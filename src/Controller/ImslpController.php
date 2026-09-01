@@ -150,13 +150,18 @@ class ImslpController extends AbstractController
     {
         // Carried over from an instrumentation search (e.g. "?instrumentation=2fl") so the
         // edition list below can be narrowed to the arrangement that actually matched,
-        // instead of dumping every edition the work has ever had scanned.
+        // instead of dumping every edition the work has ever had scanned. exactMatch mirrors
+        // the "Correspondance exacte" checkbox — narrows "contains at least" down to
+        // "scored for exactly this and nothing else" (excludes e.g. an octet arrangement
+        // that happens to include 2 flutes among other instruments).
         $instrumentation = trim($request->query->getString('instrumentation'));
+        $exactMatch      = $request->query->getString('exact_registers') === '1';
 
         // Cache the full work page response (10m TTL) to avoid repeated fetch-details calls.
-        // Keyed per instrumentation value too, since it changes the rendered edition list.
-        $workPageCacheKey = 'imslp.work_page.' . $pageId . ($instrumentation !== '' ? '.instr.' . md5($instrumentation) : '');
-        $cachedResponse = $this->cache->get($workPageCacheKey, function (ItemInterface $item) use ($pageId, $instrumentation): ?Response {
+        // Keyed per instrumentation/exactness combo too, since it changes the rendered edition list.
+        $workPageCacheKey = 'imslp.work_page.' . $pageId
+            . ($instrumentation !== '' ? '.instr.' . md5($instrumentation) . ($exactMatch ? '.exact' : '') : '');
+        $cachedResponse = $this->cache->get($workPageCacheKey, function (ItemInterface $item) use ($pageId, $instrumentation, $exactMatch): ?Response {
             $item->expiresAfter(600); // 10 minutes
 
             /** @var ImslpWork|null $work */
@@ -216,7 +221,7 @@ class ImslpController extends AbstractController
                         continue; // not itself a labelled arrangement — never filtered out
                     }
                     $anyLabelled = true;
-                    $isMatch = $this->workRepo->editionMatchesInstrumentation($arrangementFor, $instrumentation);
+                    $isMatch = $this->workRepo->editionMatchesInstrumentation($arrangementFor, $instrumentation, $exactMatch);
                     if ($isMatch === null) {
                         $filterable = false; // nothing arrangement-matchable in the search — don't filter
                         break;
@@ -240,6 +245,7 @@ class ImslpController extends AbstractController
                     'editionYears'     => $editionYears,
                     'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
                     'instrumentationFilter' => $instrumentation,
+                    'exactMatchFilter' => $exactMatch,
                     'matchedEditions'  => $matchedEditions,
                     'hiddenEditionsCount' => $hiddenEditionsCount,
                 ])

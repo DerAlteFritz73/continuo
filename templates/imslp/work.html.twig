@@ -585,7 +585,7 @@ body {
 
         {% if matchedEditions is not null %}
         <div class="instr-filter-banner">
-            <span>{{ 'imslp.work_instr_filter_active'|trans({'%instrumentation%': instrumentationFilter}) }}</span>
+            <span>{{ (exactMatchFilter ? 'imslp.work_instr_filter_active_exact' : 'imslp.work_instr_filter_active')|trans({'%instrumentation%': instrumentationFilter}) }}</span>
             {% if hiddenEditionsCount > 0 %}
             <a href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ hiddenEditionsCount != 1 ? 'imslp.work_instr_filter_clear_plural'|trans({'%count%': hiddenEditionsCount}) : 'imslp.work_instr_filter_clear'|trans }}</a>
             {% endif %}

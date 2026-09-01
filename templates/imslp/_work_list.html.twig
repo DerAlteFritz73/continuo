@@ -22,8 +22,11 @@
             </div>
 
             {# Line 2: title + year #}
+            {% set workLinkParams = urlParams.instrumentation
+                ? {pageId: work.pageId, instrumentation: urlParams.instrumentation, exact_registers: urlParams.exact_registers ?: null}
+                : {pageId: work.pageId} %}
             <div class="work-title">
-                <a class="work-link" href="{{ path('app_imslp_work', urlParams.instrumentation ? {pageId: work.pageId, instrumentation: urlParams.instrumentation} : {pageId: work.pageId}) }}">{{ work.title }}</a>
+                <a class="work-link" href="{{ path('app_imslp_work', workLinkParams) }}">{{ work.title }}</a>
                 {% if work.yearComposed %}<span class="work-year">{{ work.yearComposed }}</span>{% endif %}
             </div>
 

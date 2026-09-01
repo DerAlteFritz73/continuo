@@ -498,6 +498,7 @@ imslp:
     work_files_count: "%count% Datei"
     work_files_count_plural: "%count% Dateien"
     work_instr_filter_active: "Ausgaben, die Ihrer Suche entsprechen: %instrumentation%"
+    work_instr_filter_active_exact: "Ausgaben, die genau für folgende Besetzung geschrieben sind: %instrumentation%"
     work_instr_filter_clear: "1 weitere Ausgabe anzeigen"
     work_instr_filter_clear_plural: "%count% weitere Ausgaben anzeigen"
     work_edition_anonymous: "Anonyme Ausgabe"
