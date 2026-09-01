@@ -131,6 +131,20 @@ class ImslpController extends AbstractController
         return $this->json($this->aiSearch->parseQuery($query));
     }
 
+    #[Route('/ai-search-field', name: 'app_imslp_ai_search_field', methods: ['POST'])]
+    public function aiSearchField(Request $request): JsonResponse
+    {
+        $body  = json_decode($request->getContent(), true) ?? [];
+        $field = trim((string) ($body['field'] ?? ''));
+        $text  = trim((string) ($body['text'] ?? ''));
+
+        if ($field === '' || $text === '') {
+            return $this->json(['error' => 'Missing field or text'], 400);
+        }
+
+        return $this->json($this->aiSearch->parseField($field, $text));
+    }
+
     #[Route('/work/{pageId}', name: 'app_imslp_work', methods: ['GET'], requirements: ['pageId' => '\d+'])]
     public function work(int $pageId): Response
     {

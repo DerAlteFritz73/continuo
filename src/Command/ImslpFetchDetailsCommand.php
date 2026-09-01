@@ -48,7 +48,9 @@ class ImslpFetchDetailsCommand extends Command
              ->addOption('fill-genres', null, InputOption::VALUE_NONE,
                 'Re-fetch works that were synced but have no genre_cats (to populate IMSLP genre categories)')
              ->addOption('fill-all', null, InputOption::VALUE_NONE,
-                'Re-fetch works where duration_seconds or first_perf_date are still NULL (to pick up new parsed fields)');
+                'Re-fetch works where duration_seconds or first_perf_date are still NULL (to pick up new parsed fields)')
+             ->addOption('refresh-stale-days', null, InputOption::VALUE_REQUIRED,
+                'Re-fetch works detail-synced more than N days ago, oldest first (to pick up new editions/arrangements uploaded to IMSLP since — 0 disables)', 0);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -60,6 +62,7 @@ class ImslpFetchDetailsCommand extends Command
         $refetchNoTags = (bool) $input->getOption('refetch-no-tags');
         $fillGenres    = (bool) $input->getOption('fill-genres');
         $fillAll       = (bool) $input->getOption('fill-all');
+        $staleDays     = (int) $input->getOption('refresh-stale-days');
 
         // Exclusive non-blocking lock — exits immediately if another instance holds it
         $lockFp = fopen($this->projectDir . '/var/imslp-fetch.lock', 'w');
@@ -73,18 +76,21 @@ class ImslpFetchDetailsCommand extends Command
         }
 
         $total   = (int) $this->em->createQuery('SELECT COUNT(w.id) FROM App\Entity\ImslpWork w')->getSingleScalarResult();
+        $refreshStale = $staleDays > 0;
         $pending = match (true) {
+            $refreshStale  => $this->workRepo->countStale($staleDays),
             $fillAll       => $this->workRepo->countWithoutAllFields(),
             $fillGenres    => $this->workRepo->countWithoutGenreCats(),
             $refetchNoTags => $this->workRepo->countWithoutTags(),
             default        => $this->workRepo->countWithoutDetail(),
         };
         $toFetch = ($limit > 0) ? min($limit, $pending) : $pending;
-        $fetched = $refetchNoTags || $fillGenres || $fillAll
+        $fetched = $refreshStale || $refetchNoTags || $fillGenres || $fillAll
             ? $total - $this->workRepo->countWithoutDetail()
             : $total - $pending;
 
         $mode = match (true) {
+            $refreshStale  => sprintf('refresh-stale (>%dd) re-fetch', $staleDays),
             $fillAll       => 'fill-all re-fetch',
             $fillGenres    => 'fill-genres re-fetch',
             $refetchNoTags => 'no-tags re-fetch',
@@ -113,6 +119,7 @@ class ImslpFetchDetailsCommand extends Command
         while ($done < $toFetch) {
             $batchSize = min(self::BATCH, $toFetch - $done);
             $works     = match (true) {
+                $refreshStale  => $this->workRepo->findStale($staleDays, $batchSize),
                 $fillAll       => $this->workRepo->findWithoutAllFields($batchSize),
                 $fillGenres    => $this->workRepo->findWithoutGenreCats($batchSize),
                 $refetchNoTags => $this->workRepo->findWithoutTags($batchSize),
@@ -172,6 +179,7 @@ class ImslpFetchDetailsCommand extends Command
         }
 
         $remaining = match (true) {
+            $refreshStale  => $this->workRepo->countStale($staleDays),
             $fillAll       => $this->workRepo->countWithoutAllFields(),
             $fillGenres    => $this->workRepo->countWithoutGenreCats(),
             $refetchNoTags => $this->workRepo->countWithoutTags(),

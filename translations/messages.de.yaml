@@ -401,6 +401,14 @@ imslp:
     ai_field_composer: "Komponist"
     ai_field_title: "Titel"
 
+    # Feldbezogene KI-Unterstützung (ein kleiner Button pro erweitertem Suchfeld)
+    ai_field_assist_title: "Mit KI interpretieren"
+    ai_field_no_value: "Konnte nicht erkannt werden — bitte anders formulieren."
+    ai_field_hint_style: "oder Epoche beschreiben…"
+    ai_field_hint_year: "z. B. „um 1750“"
+    ai_field_hint_part_count: "z. B. „Trio“, „Quartett“"
+    ai_field_hint_registers: "z. B. „zwei Soprane und ein Bass“"
+
     # DB status / import link
     db_loading: "Laden…"
     db_import_status_link: "Importstatus ↗"

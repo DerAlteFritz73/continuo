@@ -28,6 +28,9 @@ class ImslpEdition
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $url = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $arrangementFor = null;
+
     public function getId(): ?int { return $this->id; }
 
     public function getWorkId(): int { return $this->workId; }
@@ -41,4 +44,7 @@ class ImslpEdition
 
     public function getUrl(): ?string { return $this->url; }
     public function setUrl(?string $v): void { $this->url = $v; }
+
+    public function getArrangementFor(): ?string { return $this->arrangementFor; }
+    public function setArrangementFor(?string $v): void { $this->arrangementFor = $v; }
 }

@@ -1,5 +1,31 @@
 {% extends 'base.html.twig' %}
 
+{# Per-field inline AI assist: a small button that sends one field's own typed
+   text to /imslp/ai-search-field and writes the normalized value back — see
+   the "field-ai" JS block below for the click handler shared by both macros. #}
+{% macro field_ai_icon() %}<svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 10.5h-1.5v-5h1.5v5zm0-6.5h-1.5V3.5h1.5V5z"/></svg>{% endmacro %}
+
+{# For fields that are already free text (genre, key, instrumentation): the
+   button reads and overwrites the field itself, placed inline beside it. #}
+{% macro field_ai_btn_inline(field, targetId) %}
+<button type="button" class="field-ai-btn" data-ai-field="{{ field }}" data-ai-target="{{ targetId }}"
+        data-ai-source="{{ targetId }}" data-ai-mode="text"
+        title="{{ 'imslp.ai_field_assist_title'|trans }}">{{ _self.field_ai_icon() }}</button>
+{% endmacro %}
+
+{# For structured controls (select, number, chip group) that can't hold a
+   free-text phrase themselves: a small companion input carries the phrase,
+   the button writes the AI's answer into the real control. #}
+{% macro field_ai_row(field, targetId, mode, placeholderKey) %}
+<div class="field-ai-row">
+    <input type="text" class="field-ai-input" id="{{ targetId }}-ai" placeholder="{{ placeholderKey|trans }}" autocomplete="off">
+    <button type="button" class="field-ai-btn" data-ai-field="{{ field }}" data-ai-target="{{ targetId }}"
+            data-ai-source="{{ targetId }}-ai" data-ai-mode="{{ mode }}"
+            title="{{ 'imslp.ai_field_assist_title'|trans }}">{{ _self.field_ai_icon() }}</button>
+</div>
+<span class="field-ai-msg" data-ai-msg-for="{{ field }}" hidden></span>
+{% endmacro %}
+
 {% block title %}
     {%- if mode == 'composer' -%}{{ composer }} — IMSLP
     {%- elseif q -%}Search "{{ q }}" — IMSLP
@@ -251,6 +277,45 @@ textarea.ai-input { line-height: 1.5; }
     background: transparent;
 }
 .ai-error { font-size: .78rem; color: #c87a6e; margin-top: .4rem; }
+
+/* ── Per-field inline AI assist ── */
+.field-with-ai { display: flex; gap: .35rem; align-items: stretch; }
+.field-with-ai input { flex: 1; min-width: 0; }
+.field-ai-row { display: flex; gap: .35rem; margin-top: .35rem; }
+.field-ai-input {
+    flex: 1;
+    min-width: 0;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #e8e0d4;
+    font-family: inherit;
+    font-size: .78rem;
+    padding: .4rem .6rem;
+    outline: none;
+    transition: border-color .2s;
+}
+.field-ai-input:focus { border-color: #c8a96e; }
+.field-ai-input::placeholder { color: #5a524a; }
+.field-ai-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    background: #2a2520;
+    border: 1px solid #c8a96e55;
+    color: #c8a96e;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, opacity .2s;
+}
+.field-ai-btn:hover { background: #342e26; border-color: #c8a96e; }
+.field-ai-btn:disabled { opacity: .5; cursor: not-allowed; }
+.field-ai-btn.thinking svg { animation: fieldAiPulse 1s ease-in-out infinite; }
+@keyframes fieldAiPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+.field-ai-msg { display: block; font-size: .7rem; color: #c87a6e; margin-top: .3rem; }
+.search-field select.ai-filled { border-color: #c8a96e88; background: #1e1a14; }
 
 .deploy-stamp {
     font-size: .72rem;
@@ -892,30 +957,41 @@ textarea.ai-input { line-height: 1.5; }
                                     <option value="{{ s }}" {% if s == activeStyle %}selected{% endif %}>{{ s }}</option>
                                     {% endfor %}
                                 </select>
+                                {{ _self.field_ai_row('style', 'f-style', 'select', 'imslp.ai_field_hint_style') }}
                             </div>
                             <div class="search-field">
                                 <label for="f-genre">{{ 'imslp.search_genre_label'|trans }} <span class="fld-star">*</span></label>
+                                <div class="field-with-ai">
                                 <input type="text" id="f-genre" name="genre"
                                        value="{{ filters.genre }}" placeholder="{{ 'imslp.search_genre_placeholder'|trans }}"
                                        list="genre-list" autocomplete="off">
+                                {{ _self.field_ai_btn_inline('genre', 'f-genre') }}
+                                </div>
                                 <datalist id="genre-list">
                                     {% for g in genres %}<option value="{{ g }}">{% endfor %}
                                 </datalist>
+                                <span class="field-ai-msg" data-ai-msg-for="genre" hidden></span>
                             </div>
                             <div class="search-field medium">
                                 <label for="f-key">{{ 'imslp.search_key_label'|trans }} <span class="fld-star">*</span></label>
+                                <div class="field-with-ai">
                                 <input type="text" id="f-key" name="key"
                                        value="{{ filters.key }}" placeholder="{{ 'imslp.search_key_placeholder'|trans }}">
+                                {{ _self.field_ai_btn_inline('key', 'f-key') }}
+                                </div>
+                                <span class="field-ai-msg" data-ai-msg-for="key" hidden></span>
                             </div>
                             <div class="search-field narrow">
                                 <label for="f-year-from">{{ 'imslp.search_year_from_label'|trans }}</label>
                                 <input type="number" id="f-year-from" name="year_from"
                                        value="{{ filters.yearFrom ?: '' }}" placeholder="1600" min="800" max="2100">
+                                {{ _self.field_ai_row('year_from', 'f-year-from', 'number', 'imslp.ai_field_hint_year') }}
                             </div>
                             <div class="search-field narrow">
                                 <label for="f-year-to">{{ 'imslp.search_year_to_label'|trans }}</label>
                                 <input type="number" id="f-year-to" name="year_to"
                                        value="{{ filters.yearTo ?: '' }}" placeholder="1800" min="800" max="2100">
+                                {{ _self.field_ai_row('year_to', 'f-year-to', 'number', 'imslp.ai_field_hint_year') }}
                             </div>
                         </div>
                     </fieldset>
@@ -926,13 +1002,18 @@ textarea.ai-input { line-height: 1.5; }
                         <div class="search-row">
                             <div class="search-field">
                                 <label for="f-instrumentation">{{ 'imslp.search_instrumentation_label'|trans }}</label>
+                                <div class="field-with-ai">
                                 <input type="text" id="f-instrumentation" name="instrumentation"
                                        value="{{ filters.instrumentation }}" placeholder="{{ 'imslp.search_instrumentation_placeholder'|trans }}">
+                                {{ _self.field_ai_btn_inline('instrumentation', 'f-instrumentation') }}
+                                </div>
+                                <span class="field-ai-msg" data-ai-msg-for="instrumentation" hidden></span>
                             </div>
                             <div class="search-field narrow">
                                 <label for="f-part-count">{{ 'imslp.search_parts_label'|trans }} <span class="fld-star">*</span></label>
                                 <input type="number" id="f-part-count" name="part_count"
                                        value="{{ filters.partCount ?: '' }}" placeholder="{{ 'imslp.search_parts_placeholder'|trans }}" min="1" max="40">
+                                {{ _self.field_ai_row('part_count', 'f-part-count', 'number', 'imslp.ai_field_hint_part_count') }}
                             </div>
                             <div class="search-field">
                                 <label>{{ 'imslp.search_registers_label'|trans }} <span class="fld-star">*</span></label>
@@ -959,6 +1040,7 @@ textarea.ai-input { line-height: 1.5; }
                                     {# The exactness toggle lives in ③; remind the reader it acts here. #}
                                     <span class="register-exact-note">{{ 'imslp.register_exact_pointer'|trans }}</span>
                                 </div>
+                                {{ _self.field_ai_row('voice_registers', 'f-registers', 'registers', 'imslp.ai_field_hint_registers') }}
                             </div>
                         </div>
                     </fieldset>
@@ -1261,6 +1343,18 @@ function rcSync(chip) {
     if (hidden) hidden.value = chip.dataset.letter.repeat(n);
 }
 function rcSet(chip, n) { chip.dataset.count = n; rcSync(chip); }
+
+// Applies a "voice_registers" multiset like "SSATB" to the register steppers:
+// each chip's count becomes how many times its letter appears in `wanted`.
+// Shared by the global AI search and the per-field registers assist.
+function applyVoiceRegisters(wanted, markFilled) {
+    const upper = String(wanted || '').toUpperCase();
+    document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
+        const n = (upper.match(new RegExp(chip.dataset.letter, 'g')) || []).length;
+        rcSet(chip, n);
+        chip.classList.toggle('ai-filled', markFilled && n > 0);
+    });
+}
 function rcStep(chip, delta, wrap) {
     let n = (parseInt(chip.dataset.count || '0', 10) || 0) + delta;
     if (wrap) { if (n > RC_MAX) n = 0; else if (n < 0) n = RC_MAX; }
@@ -1397,16 +1491,7 @@ document.getElementById('search-form').addEventListener('submit', function () {
                 }
             }
         }
-        // Register steppers from a "voice_registers" multiset like "SSATB":
-        // set each chip's count to how many times its letter appears.
-        if (filters.voice_registers) {
-            const wanted = String(filters.voice_registers).toUpperCase();
-            document.querySelectorAll('#f-registers .register-chip').forEach(chip => {
-                const n = (wanted.match(new RegExp(chip.dataset.letter, 'g')) || []).length;
-                rcSet(chip, n);
-                if (n > 0) chip.classList.add('ai-filled');
-            });
-        }
+        if (filters.voice_registers) applyVoiceRegisters(filters.voice_registers, true);
 
         if (typeof window.openAdvancedFilters === 'function') window.openAdvancedFilters();
 
@@ -1470,6 +1555,79 @@ document.getElementById('search-form').addEventListener('submit', function () {
     });
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+})();
+
+// ── Per-field inline AI assist ──
+// Each .field-ai-btn reads one field's own typed text (or a small companion
+// phrase input for controls that can't hold free text — select/number/chips)
+// and asks /imslp/ai-search-field to interpret it as just that field's value.
+(function () {
+    const AI_TRANS = {
+        noValue: {{ 'imslp.ai_field_no_value'|trans|json_encode|raw }},
+        failed:  {{ 'imslp.ai_request_failed'|trans|json_encode|raw }},
+    };
+
+    function showMsg(field, text) {
+        const el = document.querySelector('.field-ai-msg[data-ai-msg-for="' + field + '"]');
+        if (el) { el.textContent = text; el.hidden = !text; }
+    }
+
+    document.querySelectorAll('.field-ai-btn').forEach(btn => {
+        const field  = btn.dataset.aiField;
+        const mode   = btn.dataset.aiMode;
+        const source = document.getElementById(btn.dataset.aiSource);
+        const target = document.getElementById(btn.dataset.aiTarget);
+        if (!source || !target) return;
+
+        const run = async () => {
+            const text = source.value.trim();
+            if (!text) { source.focus(); return; }
+
+            showMsg(field, '');
+            btn.disabled = true;
+            btn.classList.add('thinking');
+
+            try {
+                const resp = await fetch('{{ path('app_imslp_ai_search_field') }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({field, text}),
+                });
+                const data = await resp.json();
+
+                if (data.error || data.value === undefined || data.value === null || data.value === '') {
+                    showMsg(field, AI_TRANS.noValue);
+                } else if (mode === 'registers') {
+                    applyVoiceRegisters(data.value, true);
+                    source.value = '';
+                } else if (mode === 'text') {
+                    // source and target are the same element
+                    target.value = data.value;
+                    target.classList.add('ai-filled');
+                } else {
+                    // select / number
+                    target.value = data.value;
+                    target.classList.add('ai-filled');
+                    source.value = '';
+                }
+                if (typeof window.openAdvancedFilters === 'function') window.openAdvancedFilters();
+                document.getElementById('search-form')?.dispatchEvent(new Event('input', {bubbles: true}));
+            } catch (e) {
+                showMsg(field, AI_TRANS.failed);
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('thinking');
+            }
+        };
+
+        btn.addEventListener('click', run);
+        // Enter in a companion phrase input triggers its button (source !== target
+        // for select/number/registers fields; text-mode fields keep their normal
+        // Enter-submits-the-form behaviour).
+        if (source !== target) {
+            source.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+        }
+    });
 })();
 
 // ── Advanced filters panel ────────────────────────────────────────────────

@@ -398,6 +398,14 @@ imslp:
     ai_field_composer: "Skladatel"
     ai_field_title: "Název"
 
+    # AI asistence pro jednotlivá pole (malé tlačítko u každého pokročilého pole)
+    ai_field_assist_title: "Interpretovat pomocí AI"
+    ai_field_no_value: "Nepodařilo se rozpoznat — zkuste to přeformulovat."
+    ai_field_hint_style: "nebo popište období…"
+    ai_field_hint_year: "např. „kolem 1750“"
+    ai_field_hint_part_count: "např. „trio“, „kvarteto“"
+    ai_field_hint_registers: "např. „dva soprány a bas“"
+
     # DB status / import link
     db_loading: "Načítám…"
     db_import_status_link: "Stav importu ↗"

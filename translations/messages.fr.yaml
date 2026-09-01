@@ -430,6 +430,14 @@ imslp:
     ai_field_composer: "Compositeur"
     ai_field_title: "Titre"
 
+    # Assistance IA par champ (un petit bouton pour chaque champ de recherche avancée)
+    ai_field_assist_title: "Interpréter avec l'IA"
+    ai_field_no_value: "Impossible à déterminer — reformulez."
+    ai_field_hint_style: "ou décrivez la période…"
+    ai_field_hint_year: "ex. « vers 1750 »"
+    ai_field_hint_part_count: "ex. « trio », « quatuor »"
+    ai_field_hint_registers: "ex. « deux sopranos et une basse »"
+
     # DB status / import link
     db_loading: "Chargement…"
     db_import_status_link: "État de l'import ↗"

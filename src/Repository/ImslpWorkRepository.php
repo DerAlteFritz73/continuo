@@ -216,6 +216,37 @@ class ImslpWorkRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Works detail-synced more than $days ago. IMSLP pages keep accumulating new
+     * uploads (editions, arrangements) after their first fetch, so a work synced
+     * once and never revisited silently falls behind — this re-checks the oldest
+     * first, LRU-style.
+     */
+    public function findStale(int $days, int $limit): array
+    {
+        $cutoff = (new \DateTime())->modify("-{$days} days");
+        return $this->createQueryBuilder('w')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.detailSyncedAt < :cutoff')
+            ->setParameter('cutoff', $cutoff)
+            ->orderBy('w.detailSyncedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countStale(int $days): int
+    {
+        $cutoff = (new \DateTime())->modify("-{$days} days");
+        return (int) $this->createQueryBuilder('w')
+            ->select('COUNT(w.id)')
+            ->where('w.detailSyncedAt IS NOT NULL')
+            ->andWhere('w.detailSyncedAt < :cutoff')
+            ->setParameter('cutoff', $cutoff)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /** Find works by page IDs (used for async message handling). */
     public function findByPageIds(array $pageIds): array
     {
@@ -453,6 +484,14 @@ class ImslpWorkRepository extends ServiceEntityRepository
         //   excluded — having been fetched but yielding no data is not a match.
         //
         // Path B (FULLTEXT words): tokens ≥5 alpha chars matched against instrumentation text.
+        //
+        // Path D (arrangements): the parent work's own tags/instrumentation only ever
+        //   describe its original scoring — a Mozart opera's work row says "orchestra,
+        //   voices", never "2 flutes", even when one of its 100+ arrangements is a flute
+        //   duet. So a work also matches if ANY of its editions' arrangement_for (the "For
+        //   X" heading IMSLP puts over an arrangement section) mentions the requested
+        //   instrument(s). Word-level only (no exact section/count matching, unlike Path A) —
+        //   arrangement_for is free text, not the abbreviated tag format.
         if ($f->instrumentation !== '') {
             $normalised = preg_replace('/\b(\d+)\s+([a-z]{1,4})\b/i', '$1$2', trim($f->instrumentation));
             $tokens     = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $normalised))));
@@ -462,10 +501,12 @@ class ImslpWorkRepository extends ServiceEntityRepository
                 $wordTokens = array_values(array_filter($tokens, fn($t) => preg_match('/^[a-z]{5,}$/i',     $t)));
 
                 $orParts = [];
+                $arrangementWords = $wordTokens;
 
                 if (!empty($abbrTokens)) {
                     $qb->setParameter('instrExact', $this->buildExactSectionRegex($abbrTokens));
                     $expanded = $this->expandAbbreviations($abbrTokens);
+                    $arrangementWords = array_values(array_unique(array_merge($arrangementWords, $expanded)));
 
                     if (!empty($expanded)) {
                         $ftExpanded = implode(' ', array_map(fn($t) => '+' . $t . '*', $expanded));
@@ -488,6 +529,14 @@ class ImslpWorkRepository extends ServiceEntityRepository
                     ));
                     $orParts[] = 'MATCH_AGAINST(w.instrumentation, :instrWords) > 0';
                     $qb->setParameter('instrWords', $ftWords);
+                }
+
+                // Path D — any edition's arrangement_for mentions the requested instrument(s).
+                if (!empty($arrangementWords)) {
+                    $ftArrangement = implode(' ', array_map(fn($t) => '+' . $t . '*', $arrangementWords));
+                    $qb->setParameter('instrArrangement', $ftArrangement);
+                    $orParts[] = 'EXISTS (SELECT 1 FROM App\\Entity\\ImslpEdition ae '
+                        . 'WHERE ae.workId = w.id AND MATCH_AGAINST(ae.arrangementFor, :instrArrangement) > 0)';
                 }
 
                 if (!empty($orParts)) {

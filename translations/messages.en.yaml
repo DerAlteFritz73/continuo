@@ -419,6 +419,14 @@ imslp:
     ai_field_composer: "Composer"
     ai_field_title: "Title"
 
+    # Per-field inline AI assist (one small button per advanced-search input)
+    ai_field_assist_title: "Interpret with AI"
+    ai_field_no_value: "Couldn't tell — try rephrasing."
+    ai_field_hint_style: "or describe the period…"
+    ai_field_hint_year: "e.g. \"around 1750\""
+    ai_field_hint_part_count: "e.g. \"trio\", \"quartet\""
+    ai_field_hint_registers: "e.g. \"two sopranos and a bass\""
+
     # DB status / import link
     db_loading: "Loading…"
     db_import_status_link: "Import status ↗"

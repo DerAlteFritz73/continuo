@@ -647,8 +647,8 @@ class ImslpService
         foreach ($editions as $sortOrder => $edition) {
             $this->db->executeStatement(
                 'INSERT INTO imslp_edition (work_id, sort_order, copyright, publisher, arranger, editor,
-                    date_submitted, image_type, uploader, scanner, plate_number, misc_notes)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    date_submitted, image_type, uploader, scanner, plate_number, misc_notes, arrangement_for)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     (int) $workId,
                     $sortOrder,
@@ -662,6 +662,7 @@ class ImslpService
                     mb_substr($edition['scanner'] ?? '', 0, 255) ?: null,
                     mb_substr($edition['plateNumber'] ?? '', 0, 255) ?: null,
                     ($edition['miscNotes'] ?? '') ?: null,
+                    mb_substr($edition['arrangementFor'] ?? '', 0, 255) ?: null,
                 ]
             );
             $editionId = (int) $this->db->lastInsertId();
