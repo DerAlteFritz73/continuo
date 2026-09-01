@@ -370,7 +370,6 @@ bibliography:
 imslp:
     browser_title: "IMSLP Browser"
     petrucci_subtitle: "Petrucci Music Library"
-    back_to_realizer: "← Basso Continuo Realizer"
     back_to_search: "← Back to search"
     back_to_results: "← Back to results for \"%q\""
 
@@ -621,6 +620,10 @@ comment:
 nav:
     reline: "Re-line a facsimile"
     aria_label: "Main sections"
+    site_aria_label: "Site sections"
+    section_continuo: "Continuo"
+    section_imslp: "IMSLP"
+    section_reline: "Reline"
     tab_realize: "Realize"
     tab_settings: "Advanced settings"
     tab_docs: "Documentation"
@@ -653,7 +656,6 @@ footer:
 # ── Facsimile re-lining (French baroque clefs) ───────────────────────────────
 reline:
     title: "Re-line a facsimile"
-    back: "Back to the realizer"
     lede: >
         French baroque prints put the G clef on the first line and the F clef on the third.
         Move the ruling down one line — drop the top line, add one below the bottom — and the

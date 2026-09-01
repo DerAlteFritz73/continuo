@@ -364,7 +364,6 @@ bibliography:
 imslp:
     browser_title: "IMSLP-Browser"
     petrucci_subtitle: "Petrucci-Musikbibliothek"
-    back_to_realizer: "← Generalbass-Begleitung"
     back_to_search: "← Zurück zur Suche"
     back_to_results: '← Zurück zu Ergebnissen für „%q"'
 
@@ -584,6 +583,10 @@ comment:
 nav:
     reline: "Faksimile neu linieren"
     aria_label: "Hauptbereiche"
+    site_aria_label: "Seitenbereiche"
+    section_continuo: "Continuo"
+    section_imslp: "IMSLP"
+    section_reline: "Reline"
     tab_realize: "Aussetzen"
     tab_settings: "Erweiterte Einstellungen"
     tab_docs: "Dokumentation"
@@ -616,7 +619,6 @@ footer:
 # ── Faksimile neu linieren (französische Barockschlüssel) ────────────────────
 reline:
     title: "Faksimile neu linieren"
-    back: "Zurück zum Realisierer"
     lede: >
         Französische Barockdrucke setzen den G-Schlüssel auf die erste und den F-Schlüssel auf
         die dritte Linie. Verschiebt man die Linierung um eine Linie nach unten — oberste Linie

@@ -381,7 +381,6 @@ bibliography:
 imslp:
     browser_title: "Navigateur IMSLP"
     petrucci_subtitle: "Bibliothèque musicale Petrucci"
-    back_to_realizer: "← Assistant de basse continue"
     back_to_search: "← Retour à la recherche"
     back_to_results: "← Retour aux résultats pour « %q »"
 
@@ -632,6 +631,10 @@ comment:
 nav:
     reline: "Redessiner une portée"
     aria_label: "Sections principales"
+    site_aria_label: "Sections du site"
+    section_continuo: "Continuo"
+    section_imslp: "IMSLP"
+    section_reline: "Reline"
     tab_realize: "Réaliser"
     tab_settings: "Réglages avancés"
     tab_docs: "Documentation"
@@ -664,7 +667,6 @@ footer:
 # ── Réglure des fac-similés (clés baroques françaises) ───────────────────────
 reline:
     title: "Redessiner la portée d'un fac-similé"
-    back: "Retour au réalisateur"
     lede: >
         Certaines éditions baroques utilisent des clefs peu utilisés aujourd'hui, par exemple
         la clé de sol sur la première ligne ou la clé de fa sur la troisième. Déplacez la

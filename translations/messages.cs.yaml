@@ -361,7 +361,6 @@ bibliography:
 imslp:
     browser_title: "Prohlížeč IMSLP"
     petrucci_subtitle: "Hudební knihovna Petrucci"
-    back_to_realizer: "← Realizátor bassa continua"
     back_to_search: "← Zpět na vyhledávání"
     back_to_results: '← Zpět na výsledky pro „%q"'
 
@@ -581,6 +580,10 @@ comment:
 nav:
     reline: "Přeznačit osnovu"
     aria_label: "Hlavní sekce"
+    site_aria_label: "Sekce webu"
+    section_continuo: "Continuo"
+    section_imslp: "IMSLP"
+    section_reline: "Reline"
     tab_realize: "Realizovat"
     tab_settings: "Pokročilá nastavení"
     tab_docs: "Dokumentace"
@@ -613,7 +616,6 @@ footer:
 # ── Přeznačení osnovy ve faksimile (francouzské barokní klíče) ───────────────
 reline:
     title: "Přeznačit osnovu ve faksimile"
-    back: "Zpět k realizátoru"
     lede: >
         Francouzské barokní tisky kladou houslový klíč na první linku a basový na třetí.
         Posuňte linkování o jednu linku dolů — horní linku odeberte, pod spodní přidejte novou —
