@@ -41,10 +41,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Python venv with librosa for the audio key detector (bin/audio_keychroma.py).
 # Requirements copied first so this heavy layer is cached across source changes.
+# NOTE (Mini PC migration, 2026-08-06): both pip installs below are hardened against
+# this network's flaky transfers — a bare `pip install` hits `Read timed out` on the
+# larger wheels (llvmlite 60MB, opencv 60MB). Hardening: a buildkit pip cache mount
+# (dropped `--no-cache-dir` so completed wheels persist across retries/rebuilds),
+# `--retries 30 --timeout 120`, and an until-loop so a hard failure just retries.
+# Revert to the plain committed `pip install --no-cache-dir` once the network is
+# reliable again. (Do not push this local hardening upstream as-is.)
+
+# Python venv with librosa for the audio key detector (bin/audio_keychroma.py).
+# Requirements copied first so this heavy layer is cached across source changes.
 COPY bin/audio-requirements.txt /tmp/audio-requirements.txt
-RUN python3 -m venv /opt/audio-venv \
-    && /opt/audio-venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/audio-venv/bin/pip install --no-cache-dir -r /tmp/audio-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m venv /opt/audio-venv \
+    && /opt/audio-venv/bin/pip install --retries 30 --timeout 120 --upgrade pip \
+    && i=0; until /opt/audio-venv/bin/pip install --retries 30 --timeout 120 -r /tmp/audio-requirements.txt; do \
+        i=$((i+1)); [ "$i" -ge 10 ] && echo "audio venv pip failed after $i attempts" && exit 1; \
+        echo "pip stalled/failed (flaky network), retry $i..."; sleep 3; \
+    done
 # AudioChromagramExtractor reads this to locate the librosa interpreter.
 ENV AUDIO_PYTHON_BIN=/opt/audio-venv/bin/python
 
@@ -52,9 +66,13 @@ ENV AUDIO_PYTHON_BIN=/opt/audio-venv/bin/python
 # apart from the audio one so a numpy bump for librosa cannot break OpenCV, and
 # so neither venv has to be rebuilt when the other's pins move.
 COPY bin/reline-requirements.txt /tmp/reline-requirements.txt
-RUN python3 -m venv /opt/reline-venv \
-    && /opt/reline-venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/reline-venv/bin/pip install --no-cache-dir -r /tmp/reline-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m venv /opt/reline-venv \
+    && /opt/reline-venv/bin/pip install --retries 30 --timeout 120 --upgrade pip \
+    && i=0; until /opt/reline-venv/bin/pip install --retries 30 --timeout 120 -r /tmp/reline-requirements.txt; do \
+        i=$((i+1)); [ "$i" -ge 10 ] && echo "reline venv pip failed after $i attempts" && exit 1; \
+        echo "pip stalled/failed (flaky network), retry $i..."; sleep 3; \
+    done
 # StaffRelineService reads this to locate the OpenCV interpreter.
 ENV RELINE_PYTHON_BIN=/opt/reline-venv/bin/python
 

@@ -10,7 +10,7 @@ services:
     # 127.0.0.1 and not 0.0.0.0: only this host's own nginx (which holds the
     # certificate) should reach the app directly, matching dhamien/jason/teutonia.
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:2222:80"
     env_file:
       - .env.local
     environment:
@@ -43,6 +43,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+
+  # DB admin UI. Not exposed directly: bound to loopback only, then reverse-proxied
+  # at /phpmyadmin/ behind nginx HTTP Basic Auth + an IP allowlist (see
+  # /etc/nginx/sites-available/continuo). phpMyAdmin's own login still gates access
+  # to the database itself with the continuo DB user's credentials.
+  phpmyadmin:
+    image: phpmyadmin:5
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_ABSOLUTE_URI: https://continuo.kreilos.fr/phpmyadmin/
+    ports:
+      - "127.0.0.1:2228:80"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   var_share:
