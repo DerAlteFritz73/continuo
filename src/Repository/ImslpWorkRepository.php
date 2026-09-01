@@ -578,6 +578,22 @@ class ImslpWorkRepository extends ServiceEntityRepository
         'bas'  => 'bass',
     ];
 
+    // Heuristic "home register" for named melody instruments — lets a voice-register
+    // search ("2 Soprano") also surface instrumental arrangements ("2 Violins", "2
+    // Flutes") in the equivalent range, per the same "for voices or instruments"
+    // convention InstrumentationParser already applies to generic "N high voices"
+    // wording. One canonical letter per instrument, not a claim of musicological
+    // precision (a clarinet is not "always" an alto voice) — good enough to steer a
+    // search, not to assert a fact. Chordal/full-range instruments (piano, organ,
+    // harpsichord, guitar, continuo, strings) are deliberately excluded: they have no
+    // single register to stand in for.
+    private const INSTRUMENT_TO_REGISTER = [
+        'flute'   => 'S', 'piccolo' => 'S', 'oboe' => 'S', 'violin' => 'S', 'trumpet' => 'S', 'recorder' => 'S',
+        'clarinet' => 'A', 'viola' => 'A', 'horn' => 'A', 'anglais' => 'A',
+        'trombone' => 'T', 'gamba' => 'T',
+        'bassoon' => 'B', 'contrabassoon' => 'B', 'cello' => 'B', 'bass' => 'B', 'tuba' => 'B',
+    ];
+
     private function applyFilters(QueryBuilder $qb, WorkFilters $f): void
     {
         // instrumentation search — two paths:
@@ -685,7 +701,8 @@ class ImslpWorkRepository extends ServiceEntityRepository
         }
 
         // voice registers — two modes over the stored canonical multiset (ordered
-        //   S→A→T→B with repetition, e.g. "SSATB"):
+        //   S→A→T→B with repetition, e.g. "SSATB"), OR'd with a named-instrument
+        //   equivalent (Path E, below):
         //
         //   exact   (exactRegisters=true): the work's ensemble must EQUAL the request.
         //     "SSTTB" → only works whose voice_registers is exactly "SSTTB"
@@ -697,23 +714,68 @@ class ImslpWorkRepository extends ServiceEntityRepository
         //       "SB"    → contains S and B          (LIKE '%S%' AND '%B%')
         //       "SSATB" → ≥2 S, ≥1 A/T/B            (LIKE '%SS%' AND '%A%' AND '%T%' AND '%B%')
         //     extra registers (e.g. an alto) are allowed.
+        //
+        //   Path E (instrument equivalent, contains mode only): "for voices or
+        //     instruments" repertoire is regularly arranged the other way too — a "2
+        //     Soprano" duet becomes a "2 Violins" or "2 Flutes" arrangement, and the
+        //     work's own voice_registers column (parsed from generic "N voices" wording)
+        //     never sees an edition's arrangement_for text at all. So each requested
+        //     register letter ALSO accepts a matching count of INSTRUMENT_TO_REGISTER
+        //     words, checked against the work's own instrumentation text or (mirroring
+        //     instrumentation Path D) any single edition's arrangement_for. Only offered
+        //     when EVERY requested letter has a known instrument equivalent — a partial
+        //     map (say, only S known) would otherwise silently drop the other letters
+        //     instead of correctly excluding the work. Skipped entirely under
+        //     exactRegisters: unlike Path A/D's tag-section or arrangement-phrase
+        //     matching, there's no cheap way to assert a REGEXP hit means "and nothing
+        //     else" against a big free-text field — a 30-instrument orchestral work that
+        //     happens to include "2 Flutes" would wrongly satisfy an exact "2 Soprano,
+        //     nothing more" request. "Correspondance exacte" here still only judges the
+        //     stored column.
         if ($f->voiceRegisters !== '') {
             $clean = strtoupper(preg_replace('/[^SATBsatb]/', '', $f->voiceRegisters));
+            $need  = [];
+            foreach (str_split($clean) as $ch) {
+                $need[$ch] = ($need[$ch] ?? 0) + 1;
+            }
+
+            $orParts = [];
+
             if ($f->exactRegisters) {
-                $qb->andWhere('w.voiceRegisters = :vregExact')
-                   ->setParameter('vregExact', $clean);
+                $orParts[] = 'w.voiceRegisters = :vregExact';
+                $qb->setParameter('vregExact', $clean);
             } else {
-                $need = [];
-                foreach (str_split($clean) as $ch) {
-                    $need[$ch] = ($need[$ch] ?? 0) + 1;
-                }
+                $storedConds = [];
                 $i = 0;
                 foreach ($need as $ch => $k) {
-                    $qb->andWhere("w.voiceRegisters LIKE :vreg$i")
-                       ->setParameter("vreg$i", '%' . str_repeat($ch, $k) . '%');
+                    $storedConds[] = "w.voiceRegisters LIKE :vreg$i";
+                    $qb->setParameter("vreg$i", '%' . str_repeat($ch, $k) . '%');
                     $i++;
                 }
+                $orParts[] = '(' . implode(' AND ', $storedConds) . ')';
             }
+
+            if (!$f->exactRegisters) {
+                $regLetterConds = [];
+                $ri = 0;
+                foreach ($need as $ch => $k) {
+                    $words = array_keys(array_filter(self::INSTRUMENT_TO_REGISTER, fn($r) => $r === $ch));
+                    if (empty($words)) continue;
+                    $alt     = implode('|', array_map(fn($w) => preg_quote($w) . 's?', $words));
+                    $pattern = ($k > 1 ? '\\b' . $k . '[ \\t]+' : '\\b') . '(' . $alt . ')\\b';
+                    $pName   = "vregInstr$ri";
+                    $qb->setParameter($pName, $pattern);
+                    $regLetterConds[] = "(REGEXP(w.instrumentation, :$pName) = 1 OR EXISTS ("
+                        . "SELECT 1 FROM App\\Entity\\ImslpEdition are$ri "
+                        . "WHERE are$ri.workId = w.id AND REGEXP(are$ri.arrangementFor, :$pName) = 1))";
+                    $ri++;
+                }
+                if (count($regLetterConds) === count($need)) {
+                    $orParts[] = '(' . implode(' AND ', $regLetterConds) . ')';
+                }
+            }
+
+            $qb->andWhere('(' . implode(' OR ', $orParts) . ')');
         }
 
         // style — only works with a known matching style; null = excluded
