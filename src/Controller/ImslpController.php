@@ -146,11 +146,17 @@ class ImslpController extends AbstractController
     }
 
     #[Route('/work/{pageId}', name: 'app_imslp_work', methods: ['GET'], requirements: ['pageId' => '\d+'])]
-    public function work(int $pageId): Response
+    public function work(int $pageId, Request $request): Response
     {
-        // Cache the full work page response (10m TTL) to avoid repeated fetch-details calls
-        $workPageCacheKey = 'imslp.work_page.' . $pageId;
-        $cachedResponse = $this->cache->get($workPageCacheKey, function (ItemInterface $item) use ($pageId): ?Response {
+        // Carried over from an instrumentation search (e.g. "?instrumentation=2fl") so the
+        // edition list below can be narrowed to the arrangement that actually matched,
+        // instead of dumping every edition the work has ever had scanned.
+        $instrumentation = trim($request->query->getString('instrumentation'));
+
+        // Cache the full work page response (10m TTL) to avoid repeated fetch-details calls.
+        // Keyed per instrumentation value too, since it changes the rendered edition list.
+        $workPageCacheKey = 'imslp.work_page.' . $pageId . ($instrumentation !== '' ? '.instr.' . md5($instrumentation) : '');
+        $cachedResponse = $this->cache->get($workPageCacheKey, function (ItemInterface $item) use ($pageId, $instrumentation): ?Response {
             $item->expiresAfter(600); // 10 minutes
 
             /** @var ImslpWork|null $work */
@@ -192,11 +198,50 @@ class ImslpController extends AbstractController
                 }
             }
 
+            // Which editions match the instrumentation carried over from search — only
+            // editions that are THEMSELVES labelled as an arrangement (have an
+            // arrangement_for) get filtered; editions with none (the work's own original
+            // scoring) always stay visible. Null = nothing to filter by (no instrumentation
+            // in the URL, the work has no labelled arrangements, or the search string had
+            // no arrangement-matchable terms) — show every edition, matched or not.
+            $matchedEditions = null;
+            $hiddenEditionsCount = 0;
+            if ($instrumentation !== '') {
+                $matches = [];
+                $anyLabelled = false;
+                $filterable = true;
+                foreach ($work->getFilesJson() ?? [] as $i => $ed) {
+                    $arrangementFor = $ed['arrangementFor'] ?? null;
+                    if ($arrangementFor === null || $arrangementFor === '') {
+                        continue; // not itself a labelled arrangement — never filtered out
+                    }
+                    $anyLabelled = true;
+                    $isMatch = $this->workRepo->editionMatchesInstrumentation($arrangementFor, $instrumentation);
+                    if ($isMatch === null) {
+                        $filterable = false; // nothing arrangement-matchable in the search — don't filter
+                        break;
+                    }
+                    if ($isMatch) {
+                        $matches[] = $i;
+                    } else {
+                        $hiddenEditionsCount++;
+                    }
+                }
+                if ($filterable && $anyLabelled) {
+                    $matchedEditions = $matches;
+                } else {
+                    $hiddenEditionsCount = 0;
+                }
+            }
+
             return new Response(
                 $this->renderView('imslp/work.html.twig', [
                     'work'             => $work,
                     'editionYears'     => $editionYears,
                     'imslpCredentials' => ($_ENV['IMSLP_USER'] ?? '') !== '' && ($_ENV['IMSLP_PASS'] ?? '') !== '',
+                    'instrumentationFilter' => $instrumentation,
+                    'matchedEditions'  => $matchedEditions,
+                    'hiddenEditionsCount' => $hiddenEditionsCount,
                 ])
             );
         });

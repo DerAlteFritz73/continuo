@@ -408,6 +408,25 @@ body {
     color: #9a8878;
     margin-bottom: 1.5rem;
 }
+.instr-filter-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+    background: #2a2520;
+    border: 1px solid #4a3a20;
+    border-radius: 8px;
+    padding: .7rem 1rem;
+    font-size: .85rem;
+    color: #c8a96e;
+    margin-bottom: 1rem;
+}
+.instr-filter-banner a {
+    color: #9a8878;
+    text-decoration: underline;
+    white-space: nowrap;
+}
+.instr-filter-banner a:hover { color: #c8a96e; }
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
@@ -552,7 +571,8 @@ body {
     {% if isEditionFormat %}
         {% set printedEditions = [] %}
         {% for ed in work.filesJson %}
-            {% if not (ed.imageType is defined and 'manuscript' in ed.imageType|lower) %}
+            {% set edHidden = matchedEditions is not null and (ed.arrangementFor is defined and ed.arrangementFor) and not (loop.index0 in matchedEditions) %}
+            {% if not (ed.imageType is defined and 'manuscript' in ed.imageType|lower) and not edHidden %}
                 {# Only PDF and MP3 files are shown; skip editions with none. #}
                 {% set edDisplayable = (ed.files ?? [])|filter(f => (f.filename|lower ends with '.pdf') or (f.filename|lower ends with '.mp3')) %}
                 {% if edDisplayable|length > 0 %}
@@ -563,13 +583,23 @@ body {
         {% set edCount = printedEditions|length %}
         <h2 class="section-title">{{ 'imslp.work_files_title'|trans }} — {{ edCount != 1 ? 'imslp.work_files_editions_plural'|trans({'%editions%': edCount}) : 'imslp.work_files_editions'|trans({'%editions%': edCount}) }}</h2>
 
+        {% if matchedEditions is not null %}
+        <div class="instr-filter-banner">
+            <span>{{ 'imslp.work_instr_filter_active'|trans({'%instrumentation%': instrumentationFilter}) }}</span>
+            {% if hiddenEditionsCount > 0 %}
+            <a href="{{ path('app_imslp_work', {pageId: work.pageId}) }}">{{ hiddenEditionsCount != 1 ? 'imslp.work_instr_filter_clear_plural'|trans({'%count%': hiddenEditionsCount}) : 'imslp.work_instr_filter_clear'|trans }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% for ed in work.filesJson %}
         {% set edIdx = loop.index %}
+        {% set edHidden = matchedEditions is not null and (ed.arrangementFor is defined and ed.arrangementFor) and not (loop.index0 in matchedEditions) %}
         {% set edLabel = ed.publisher is defined and ed.publisher ? ed.publisher : (ed.editor is defined and ed.editor ? ed.editor : (ed.arranger is defined and ed.arranger ? ed.arranger : 'Anonymous')) %}
         {% set isManuscript = ed.imageType is defined and 'manuscript' in ed.imageType|lower %}
         {# Only PDF and MP3 files are displayed/downloadable. #}
         {% set edFiles = (ed.files ?? [])|filter(f => (f.filename|lower ends with '.pdf') or (f.filename|lower ends with '.mp3')) %}
-        {% if not isManuscript and edFiles|length > 0 %}
+        {% if not isManuscript and not edHidden and edFiles|length > 0 %}
         {# Generate compact filename: Composer-Title-Key-Catalog #}
         {% set composerLast = work.composer|split(' ')|last %}
         {% set titleShort = work.title|replace({' - ': '-', ',': '', '(': '', ')': ''})|replace({' ': ''})|slice(0, 15) %}

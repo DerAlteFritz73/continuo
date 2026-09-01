@@ -400,6 +400,61 @@ class ImslpWorkRepository extends ServiceEntityRepository
     }
 
     /**
+     * True if a single edition's free-text arrangement_for satisfies an instrumentation
+     * search string — same abbreviation-expansion + explicit-count rules as Path D in
+     * applyFilters(), just evaluated in PHP against one string instead of SQL against
+     * the whole table (used to filter a work page's edition list down to the arrangement
+     * that actually matched, after arriving from an instrumentation search). Kept in
+     * sync with applyFilters() by hand — different engines (REGEXP/MATCH_AGAINST vs.
+     * preg_match), same rules.
+     *
+     * Returns null when the search string has no arrangement-matchable terms at all
+     * (nothing to filter by — caller should show every edition, not zero).
+     */
+    public function editionMatchesInstrumentation(?string $arrangementFor, string $instrumentation): ?bool
+    {
+        $normalised = preg_replace('/\b(\d+)\s+([a-z]{1,4})\b/i', '$1$2', trim($instrumentation));
+        $tokens     = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $normalised))));
+        if (empty($tokens)) {
+            return null;
+        }
+
+        $abbrTokens = array_values(array_filter($tokens, fn($t) => preg_match('/^\d*[a-z]{1,4}$/i', $t)));
+        $wordTokens = array_values(array_filter($tokens, fn($t) => preg_match('/^[a-z]{5,}$/i',     $t)));
+
+        /** @var list<array{count: ?int, word: string}> $required */
+        $required = [];
+        foreach ($abbrTokens as $token) {
+            preg_match('/^(\d*)([a-z]+)$/i', $token, $m);
+            $word = self::ABBR_TO_LONG[strtolower($m[2])] ?? null;
+            if ($word === null) continue;
+            $count = ($m[1] !== '' && (int) $m[1] > 1) ? (int) $m[1] : null;
+            $required[] = ['count' => $count, 'word' => $word];
+        }
+        foreach ($wordTokens as $word) {
+            $required[] = ['count' => null, 'word' => strtolower($word)];
+        }
+
+        if (empty($required)) {
+            return null;
+        }
+
+        if ($arrangementFor === null || $arrangementFor === '') {
+            return false;
+        }
+
+        foreach ($required as $req) {
+            $pattern = $req['count'] !== null
+                ? '/\b' . $req['count'] . '\s+' . preg_quote($req['word'], '/') . 's?\b/i'
+                : '/\b' . preg_quote($req['word'], '/') . 's?\b/i';
+            if (!preg_match($pattern, $arrangementFor)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Title filter: FULLTEXT on (title, composer, catalog_number) for queries with
      * terms >= 3 chars; falls back to LIKE for very short queries (e.g. "K.", "op").
      */
