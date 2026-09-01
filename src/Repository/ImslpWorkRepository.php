@@ -490,8 +490,11 @@ class ImslpWorkRepository extends ServiceEntityRepository
         //   voices", never "2 flutes", even when one of its 100+ arrangements is a flute
         //   duet. So a work also matches if ANY of its editions' arrangement_for (the "For
         //   X" heading IMSLP puts over an arrangement section) mentions the requested
-        //   instrument(s). Word-level only (no exact section/count matching, unlike Path A) —
-        //   arrangement_for is free text, not the abbreviated tag format.
+        //   instrument(s). A bare FULLTEXT word match can't tell "2 Flutes" apart from
+        //   "Flute, Oboe, Clarinet, Bassoon and Horn" (one flute) though, so an explicit
+        //   multiplicity ("2fl") is additionally enforced via REGEXP against the SAME
+        //   edition's arrangement_for — arrangement_for is free text, not the abbreviated
+        //   tag format, so this can't reuse Path A's exact-section regex.
         if ($f->instrumentation !== '') {
             $normalised = preg_replace('/\b(\d+)\s+([a-z]{1,4})\b/i', '$1$2', trim($f->instrumentation));
             $tokens     = array_values(array_filter(array_map('trim', preg_split('/[\s,]+/', $normalised))));
@@ -531,12 +534,31 @@ class ImslpWorkRepository extends ServiceEntityRepository
                     $qb->setParameter('instrWords', $ftWords);
                 }
 
-                // Path D — any edition's arrangement_for mentions the requested instrument(s).
+                // Path D — any edition's arrangement_for mentions the requested instrument(s),
+                // with any explicit count ("2fl") enforced via REGEXP so "flute" alone
+                // (one flute among other instruments) doesn't satisfy a "2 flutes" search.
                 if (!empty($arrangementWords)) {
                     $ftArrangement = implode(' ', array_map(fn($t) => '+' . $t . '*', $arrangementWords));
                     $qb->setParameter('instrArrangement', $ftArrangement);
+
+                    $countConditions = [];
+                    $i = 0;
+                    foreach ($abbrTokens as $token) {
+                        if (!preg_match('/^(\d*)([a-z]+)$/i', $token, $m)) continue;
+                        [, $count, $key] = $m;
+                        if ($count === '' || (int) $count <= 1) continue;
+                        $word = self::ABBR_TO_LONG[strtolower($key)] ?? null;
+                        if ($word === null) continue;
+                        $paramName = "instrArrCount$i";
+                        $qb->setParameter($paramName, '\\b' . $count . '[ \\t]+' . preg_quote($word) . 's?\\b');
+                        $countConditions[] = "REGEXP(ae.arrangementFor, :$paramName) = 1";
+                        $i++;
+                    }
+
+                    $countSql = $countConditions !== [] ? ' AND ' . implode(' AND ', $countConditions) : '';
                     $orParts[] = 'EXISTS (SELECT 1 FROM App\\Entity\\ImslpEdition ae '
-                        . 'WHERE ae.workId = w.id AND MATCH_AGAINST(ae.arrangementFor, :instrArrangement) > 0)';
+                        . 'WHERE ae.workId = w.id AND MATCH_AGAINST(ae.arrangementFor, :instrArrangement) > 0'
+                        . $countSql . ')';
                 }
 
                 if (!empty($orParts)) {
